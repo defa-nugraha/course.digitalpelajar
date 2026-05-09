@@ -1,0 +1,56 @@
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
+use Throwable;
+
+class GoogleAuthController extends Controller
+{
+    public function redirect(): RedirectResponse
+    {
+        return Socialite::driver('google')->redirect();
+    }
+
+    public function callback(): RedirectResponse
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+        } catch (Throwable) {
+            return to_route('login')->with('status', 'Login Google gagal. Silakan coba lagi atau gunakan email dan password.');
+        }
+
+        $user = User::query()
+            ->where('google_id', $googleUser->getId())
+            ->orWhere('email', $googleUser->getEmail())
+            ->first();
+
+        if ($user) {
+            $user->forceFill([
+                'google_id' => $user->google_id ?: $googleUser->getId(),
+                'avatar' => $googleUser->getAvatar(),
+                'email_verified_at' => $user->email_verified_at ?: now(),
+            ])->save();
+        } else {
+            $user = User::create([
+                'name' => $googleUser->getName() ?: $googleUser->getNickname() ?: 'Siswa Ngawitekno',
+                'email' => $googleUser->getEmail(),
+                'email_verified_at' => now(),
+                'role' => 'student',
+                'status' => 'active',
+                'google_id' => $googleUser->getId(),
+                'avatar' => $googleUser->getAvatar(),
+                'password' => Str::password(32),
+            ]);
+        }
+
+        Auth::login($user, remember: true);
+
+        return redirect()->intended(route('dashboard', absolute: false));
+    }
+}

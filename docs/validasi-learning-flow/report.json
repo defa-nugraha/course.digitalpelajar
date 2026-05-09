@@ -1,0 +1,37 @@
+[
+  {
+    "step": "Admin melihat modul pembelajaran hasil seed",
+    "url": "/admin/course-builder?course=3",
+    "status": 200,
+    "expectedText": "Modul Validasi: Line Follower Robot",
+    "screenshot": "01-admin-course-builder-module.png"
+  },
+  {
+    "step": "Siswa melihat dashboard dengan progress modul",
+    "url": "/student/dashboard",
+    "status": 200,
+    "expectedText": "Modul Validasi: Line Follower Robot",
+    "screenshot": "02-student-dashboard.png"
+  },
+  {
+    "step": "Siswa mengakses modul pembelajaran",
+    "url": "/learning?course=3",
+    "status": 200,
+    "expectedText": "Merakit Sensor Line Follower",
+    "screenshot": "03-student-learning-module.png"
+  },
+  {
+    "step": "Siswa memiliki sertifikat modul",
+    "url": "/certificates",
+    "status": 200,
+    "expectedText": "NGT-2026-FLOW1",
+    "screenshot": "04-student-certificates.png"
+  },
+  {
+    "step": "Publik memverifikasi sertifikat siswa",
+    "url": "/certificates/verify?credential=NGT-2026-FLOW1",
+    "status": 200,
+    "expectedText": "NGT-2026-FLOW1",
+    "screenshot": "05-public-certificate-verification.png"
+  }
+]
