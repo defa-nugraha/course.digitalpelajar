@@ -14,7 +14,7 @@ class LearningPathFactory extends Factory
     public function definition(): array
     {
         return [
-            'title' => $title = fake()->catchPhrase(),
+            'title' => $title = Str::title(fake()->words(3, true)),
             'slug' => Str::slug($title).'-'.fake()->unique()->numberBetween(1000, 9999),
             'description' => fake()->sentence(),
             'level' => fake()->randomElement(['beginner', 'intermediate', 'advanced', 'beginner-to-advanced']),

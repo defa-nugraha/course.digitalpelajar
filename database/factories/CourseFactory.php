@@ -18,7 +18,7 @@ class CourseFactory extends Factory
         return [
             'learning_path_id' => LearningPath::factory(),
             'instructor_id' => User::factory()->instructor(),
-            'title' => $title = fake()->catchPhrase(),
+            'title' => $title = Str::title(fake()->words(4, true)),
             'slug' => Str::slug($title).'-'.fake()->unique()->numberBetween(1000, 9999),
             'description' => fake()->paragraph(),
             'level' => fake()->randomElement(['beginner', 'intermediate', 'advanced']),
