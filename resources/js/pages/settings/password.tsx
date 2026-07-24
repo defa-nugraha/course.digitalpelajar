@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { RequiredMark } from '@/components/form-field';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { type BreadcrumbItem } from '@/types';
@@ -58,7 +59,9 @@ export default function Password() {
 
                     <form onSubmit={updatePassword} className="space-y-6">
                         <div className="grid gap-2">
-                            <Label htmlFor="current_password">Current password</Label>
+                            <Label htmlFor="current_password">
+                                Current password <RequiredMark />
+                            </Label>
 
                             <Input
                                 id="current_password"
@@ -75,7 +78,9 @@ export default function Password() {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password">New password</Label>
+                            <Label htmlFor="password">
+                                New password <RequiredMark />
+                            </Label>
 
                             <Input
                                 id="password"
@@ -92,7 +97,9 @@ export default function Password() {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">Confirm password</Label>
+                            <Label htmlFor="password_confirmation">
+                                Confirm password <RequiredMark />
+                            </Label>
 
                             <Input
                                 id="password_confirmation"

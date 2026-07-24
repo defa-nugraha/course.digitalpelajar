@@ -18,6 +18,17 @@ class DatabaseSeeder extends Seeder
 
         foreach ([
             'audit_logs',
+            'instructor_payroll_items',
+            'instructor_payrolls',
+            'instructor_pay_rates',
+            'teaching_sessions',
+            'teaching_schedules',
+            'seo_settings',
+            'footer_settings',
+            'home_page_sections',
+            'media_uploads',
+            'lesson_completions',
+            'quiz_attempts',
             'forum_posts',
             'forum_threads',
             'certificates',
@@ -29,6 +40,7 @@ class DatabaseSeeder extends Seeder
             'content_blocks',
             'lessons',
             'chapters',
+            'course_prerequisites',
             'courses',
             'learning_paths',
             'users',
@@ -45,11 +57,13 @@ class DatabaseSeeder extends Seeder
 
         Schema::enableForeignKeyConstraints();
 
-        $ngawiteknoSchoolId = DB::table('schools')->insertGetId([
-            'name' => 'Ngawitekno Robotics Academy',
+        $academySchoolId = DB::table('schools')->insertGetId([
+            'name' => 'Robotics Academy',
             'address' => 'Jl. Raya Ngawi Techno Park, Ngawi, Jawa Timur',
             'pic' => 'Nadia Prameswari',
+            'logo_path' => '/logo.png',
             'status' => 'active',
+            'partnered_at' => '2024-01-15',
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -58,7 +72,9 @@ class DatabaseSeeder extends Seeder
             'name' => 'SMAN 1 Jakarta',
             'address' => 'Jl. Pendidikan No. 1, Jakarta Selatan',
             'pic' => 'Budi Hartono',
+            'logo_path' => '/logo.png',
             'status' => 'active',
+            'partnered_at' => '2025-07-01',
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -67,7 +83,9 @@ class DatabaseSeeder extends Seeder
             'name' => 'SMP Techno Future Ngawi',
             'address' => 'Jl. Industri Kreatif No. 7, Ngawi',
             'pic' => 'Sarah Wijaya',
+            'logo_path' => null,
             'status' => 'pending',
+            'partnered_at' => null,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -75,9 +93,9 @@ class DatabaseSeeder extends Seeder
         $password = Hash::make('password');
 
         $adminId = DB::table('users')->insertGetId([
-            'school_id' => $ngawiteknoSchoolId,
-            'name' => 'Admin Pusat Ngawitekno',
-            'email' => 'admin@ngawitekno.test',
+            'school_id' => $academySchoolId,
+            'name' => 'Admin Pusat',
+            'email' => 'admin@example.test',
             'email_verified_at' => $now,
             'role' => 'admin',
             'status' => 'active',
@@ -87,9 +105,9 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $instructorId = DB::table('users')->insertGetId([
-            'school_id' => $ngawiteknoSchoolId,
+            'school_id' => $academySchoolId,
             'name' => 'Nadia Prameswari',
-            'email' => 'pengajar@ngawitekno.test',
+            'email' => 'pengajar@example.test',
             'email_verified_at' => $now,
             'role' => 'internal_instructor',
             'status' => 'active',
@@ -101,7 +119,7 @@ class DatabaseSeeder extends Seeder
         $teacherId = DB::table('users')->insertGetId([
             'school_id' => $smanSchoolId,
             'name' => 'Budi Hartono',
-            'email' => 'guru@ngawitekno.test',
+            'email' => 'guru@example.test',
             'email_verified_at' => $now,
             'role' => 'school_teacher',
             'status' => 'active',
@@ -113,7 +131,7 @@ class DatabaseSeeder extends Seeder
         $studentId = DB::table('users')->insertGetId([
             'school_id' => $smanSchoolId,
             'name' => 'Andi Saputra',
-            'email' => 'siswa@ngawitekno.test',
+            'email' => 'siswa@example.test',
             'email_verified_at' => $now,
             'role' => 'student',
             'status' => 'active',
@@ -125,7 +143,7 @@ class DatabaseSeeder extends Seeder
         $secondStudentId = DB::table('users')->insertGetId([
             'school_id' => $futureSchoolId,
             'name' => 'Rina Melati',
-            'email' => 'rina@ngawitekno.test',
+            'email' => 'rina@example.test',
             'email_verified_at' => $now,
             'role' => 'student',
             'status' => 'active',
@@ -136,37 +154,75 @@ class DatabaseSeeder extends Seeder
 
         $pathId = DB::table('learning_paths')->insertGetId([
             'title' => 'Robotics Engineer Path',
+            'slug' => 'robotics-engineer-path',
             'description' => 'Jalur belajar dari elektronika dasar, pemrograman mikrokontroler, sensor, aktuator, hingga otomasi robot industri.',
             'level' => 'beginner-to-advanced',
             'status' => 'published',
+            'meta_title' => 'Robotics Engineer Path | RoboAcademy',
+            'meta_description' => 'Jalur belajar dari elektronika dasar, pemrograman mikrokontroler, sensor, aktuator, hingga otomasi robot industri.',
             'created_at' => $now,
             'updated_at' => $now,
         ]);
 
         $basicCourseId = DB::table('courses')->insertGetId([
             'learning_path_id' => $pathId,
+            'learning_path_order' => 1,
             'instructor_id' => $instructorId,
             'title' => 'Dasar Robotik dan Arduino',
+            'slug' => 'dasar-robotik-dan-arduino',
             'description' => 'Kelas gratis untuk memahami komponen dasar robotik, wiring, sensor ultrasonik, dan pemrograman Arduino.',
             'level' => 'beginner',
             'price_type' => 'free',
             'price' => 0,
             'access_mode' => 'sequential',
             'status' => 'published',
+            'meta_title' => 'Dasar Robotik dan Arduino | RoboAcademy',
+            'meta_description' => 'Kelas gratis untuk memahami komponen dasar robotik, wiring, sensor ultrasonik, dan pemrograman Arduino.',
             'created_at' => $now,
             'updated_at' => $now,
         ]);
 
         $paidCourseId = DB::table('courses')->insertGetId([
             'learning_path_id' => $pathId,
+            'learning_path_order' => 2,
             'instructor_id' => $instructorId,
             'title' => 'Industrial Automation & Kinematics Masterclass',
+            'slug' => 'industrial-automation-kinematics-masterclass',
             'description' => 'Kelas berbayar untuk forward kinematics, inverse kinematics, Denavit-Hartenberg, dan simulasi lengan robot industri.',
             'level' => 'intermediate',
             'price_type' => 'paid',
             'price' => 1500000,
             'access_mode' => 'scheduled',
             'status' => 'published',
+            'meta_title' => 'Industrial Automation & Kinematics Masterclass | RoboAcademy',
+            'meta_description' => 'Kelas berbayar untuk forward kinematics, inverse kinematics, Denavit-Hartenberg, dan simulasi lengan robot industri.',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('instructor_pay_rates')->insert([
+            'instructor_id' => $instructorId,
+            'amount_per_session' => 250000,
+            'effective_from' => $now->copy()->startOfYear()->toDateString(),
+            'effective_until' => null,
+            'notes' => 'Tarif default per pertemuan offline sekolah mitra.',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('teaching_schedules')->insert([
+            'school_id' => $smanSchoolId,
+            'instructor_id' => $instructorId,
+            'course_id' => $basicCourseId,
+            'title' => 'Pertemuan Offline Dasar Robotik - SMAN 1 Jakarta',
+            'starts_at' => $now->copy()->addDays(2)->setTime(9, 0),
+            'ends_at' => $now->copy()->addDays(2)->setTime(11, 0),
+            'mode' => 'offline',
+            'location' => 'Laboratorium Komputer SMAN 1 Jakarta',
+            'meeting_url' => null,
+            'status' => 'scheduled',
+            'notes' => 'Pengajar wajib mengisi laporan dan upload bukti foto setelah pertemuan selesai.',
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -273,6 +329,7 @@ class DatabaseSeeder extends Seeder
                 'lesson_id' => $lessonSensorId,
                 'course_id' => $basicCourseId,
                 'title' => 'Quiz: Kalibrasi Sensor Ultrasonik',
+                'order_no' => 2,
                 'passing_score' => 70,
                 'is_final_exam' => false,
                 'questions' => json_encode([
@@ -286,6 +343,7 @@ class DatabaseSeeder extends Seeder
                 'lesson_id' => null,
                 'course_id' => $paidCourseId,
                 'title' => 'Ujian Akhir: Industrial Kinematics',
+                'order_no' => 1,
                 'passing_score' => 75,
                 'is_final_exam' => true,
                 'questions' => json_encode([
@@ -300,7 +358,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $studentId,
             'course_id' => $basicCourseId,
             'status' => 'active',
-            'progress_percent' => 68,
+            'progress_percent' => 50,
             'completed_at' => null,
             'created_at' => $now,
             'updated_at' => $now,
@@ -320,10 +378,42 @@ class DatabaseSeeder extends Seeder
             'user_id' => $secondStudentId,
             'course_id' => $basicCourseId,
             'status' => 'active',
-            'progress_percent' => 40,
+            'progress_percent' => 0,
             'completed_at' => null,
             'created_at' => $now,
             'updated_at' => $now,
+        ]);
+
+        DB::table('lesson_completions')->insert([
+            [
+                'user_id' => $studentId,
+                'lesson_id' => $lessonRobotikaId,
+                'completed_at' => $now->copy()->subDays(3),
+                'created_at' => $now->copy()->subDays(3),
+                'updated_at' => $now->copy()->subDays(3),
+            ],
+            [
+                'user_id' => $studentId,
+                'lesson_id' => $lessonKinematicsId,
+                'completed_at' => $now->copy()->subDays(8),
+                'created_at' => $now->copy()->subDays(8),
+                'updated_at' => $now->copy()->subDays(8),
+            ],
+        ]);
+
+        $finalQuizId = DB::table('quizzes')
+            ->where('course_id', $paidCourseId)
+            ->where('is_final_exam', true)
+            ->value('id');
+
+        DB::table('quiz_attempts')->insert([
+            'quiz_id' => $finalQuizId,
+            'user_id' => $studentId,
+            'score' => 100,
+            'passed' => true,
+            'answers' => json_encode(['Merepresentasikan transformasi antar link robot']),
+            'created_at' => $now->copy()->subDays(7),
+            'updated_at' => $now->copy()->subDays(7),
         ]);
 
         DB::table('payments')->insert([
@@ -331,6 +421,7 @@ class DatabaseSeeder extends Seeder
                 'user_id' => $studentId,
                 'course_id' => $paidCourseId,
                 'order_id' => 'NGW-872914',
+                'gateway_transaction_id' => 'mock-transaction-paid',
                 'amount' => 1500000,
                 'status' => 'paid',
                 'payment_method' => 'credit_card',
@@ -345,6 +436,7 @@ class DatabaseSeeder extends Seeder
                 'user_id' => $secondStudentId,
                 'course_id' => $paidCourseId,
                 'order_id' => 'NGW-882910',
+                'gateway_transaction_id' => null,
                 'amount' => 1500000,
                 'status' => 'pending',
                 'payment_method' => 'bank_transfer',
@@ -361,6 +453,7 @@ class DatabaseSeeder extends Seeder
             [
                 'enrollment_id' => $basicEnrollmentId,
                 'lesson_id' => $lessonSensorId,
+                'reviewer_id' => $teacherId,
                 'code' => "#define TRIG_PIN 9\n#define ECHO_PIN 10",
                 'report_path' => 'submissions/andi/laporan-sensor-ultrasonik.pdf',
                 'image_path' => 'submissions/andi/wiring-sensor.jpg',
@@ -368,12 +461,14 @@ class DatabaseSeeder extends Seeder
                 'score' => 88,
                 'feedback' => 'Wiring sudah benar. Tambahkan komentar pada kode untuk menjelaskan perhitungan jarak.',
                 'status' => 'accepted',
+                'reviewed_at' => $now,
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
             [
                 'enrollment_id' => $paidEnrollmentId,
                 'lesson_id' => $lessonKinematicsId,
+                'reviewer_id' => $instructorId,
                 'code' => null,
                 'report_path' => 'submissions/andi/final-project-kinematics.pdf',
                 'image_path' => 'submissions/andi/robot-arm-demo.jpg',
@@ -381,13 +476,14 @@ class DatabaseSeeder extends Seeder
                 'score' => 92,
                 'feedback' => 'Final project diterima. Analisis inverse kinematics sudah lengkap.',
                 'status' => 'accepted',
+                'reviewed_at' => $now,
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
         ]);
 
         $templateId = DB::table('certificate_templates')->insertGetId([
-            'name' => 'Ngawitekno Industrial Certificate',
+            'name' => 'Industrial Certificate',
             'layout' => json_encode([
                 'title' => 'Certificate of Completion',
                 'primary_color' => '#1C7DE8',
@@ -459,19 +555,19 @@ class DatabaseSeeder extends Seeder
         ]);
 
         DB::table('password_reset_tokens')->insert([
-            'email' => 'siswa@ngawitekno.test',
+            'email' => 'siswa@example.test',
             'token' => Hash::make('demo-reset-token'),
             'created_at' => $now,
         ]);
 
         DB::table('cache')->insert([
-            'key' => 'ngawitekno_seed_summary',
+            'key' => 'platform_seed_summary',
             'value' => 'Robotics learning platform demo data seeded.',
             'expiration' => $now->copy()->addDay()->timestamp,
         ]);
 
         DB::table('cache_locks')->insert([
-            'key' => 'ngawitekno_seed_lock',
+            'key' => 'platform_seed_lock',
             'owner' => 'database-seeder',
             'expiration' => $now->copy()->addMinutes(10)->timestamp,
         ]);
@@ -506,5 +602,10 @@ class DatabaseSeeder extends Seeder
             'exception' => 'Demo failed job row for table coverage.',
             'failed_at' => $now,
         ]);
+
+        $this->call(ArduinoBasicsCourseSeeder::class);
+        $this->call(HomePageSectionSeeder::class);
+        $this->call(FooterSettingSeeder::class);
+        $this->call(SeoSettingSeeder::class);
     }
 }

@@ -81,7 +81,7 @@ return new class extends Migration
         Schema::create('quizzes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('lesson_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('course_id')->nullable()->constrained()->cascadeOnDelete();
+            $table->foreignId('course_id')->nullable()->constrained()->nullOnDelete();
             $table->string('title');
             $table->unsignedTinyInteger('passing_score')->default(70);
             $table->boolean('is_final_exam')->default(false);
@@ -91,8 +91,8 @@ return new class extends Migration
 
         Schema::create('enrollments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('course_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('course_id')->nullable()->constrained()->nullOnDelete();
             $table->string('status')->default('active');
             $table->unsignedTinyInteger('progress_percent')->default(0);
             $table->timestamp('completed_at')->nullable();
@@ -102,8 +102,8 @@ return new class extends Migration
 
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('course_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('course_id')->nullable()->constrained()->nullOnDelete();
             $table->string('order_id')->unique();
             $table->unsignedInteger('amount');
             $table->string('status')->default('pending');
@@ -150,9 +150,9 @@ return new class extends Migration
 
         Schema::create('forum_threads', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('course_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('course_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('lesson_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->string('title');
             $table->string('status')->default('open');
             $table->timestamps();
@@ -161,7 +161,7 @@ return new class extends Migration
         Schema::create('forum_posts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('forum_thread_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->text('body');
             $table->timestamps();
         });

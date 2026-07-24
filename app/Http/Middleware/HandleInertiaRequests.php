@@ -2,8 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\FooterSetting;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -45,6 +47,26 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'error' => fn () => $request->session()->get('error'),
+                'status' => fn () => $request->session()->get('status'),
+            ],
+            'footer' => fn () => $this->footerPayload(),
         ]);
+    }
+
+    private function footerPayload(): array
+    {
+        if (! Schema::hasTable('footer_settings')) {
+            return FooterSetting::fallbackPayload();
+        }
+
+        return FooterSetting::query()
+            ->where('key', FooterSetting::DEFAULT_KEY)
+            ->first()
+            ?->toPayload()
+            ?? FooterSetting::fallbackPayload();
     }
 }

@@ -3,6 +3,7 @@ import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
+import { RequiredMark } from '@/components/form-field';
 import { GoogleButton } from '@/components/platform';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface RegisterForm {
+    [key: string]: string;
     name: string;
     email: string;
     password: string;
@@ -33,18 +35,20 @@ export default function Register() {
     };
 
     return (
-        <AuthLayout title="Daftar sebagai Siswa" description="Registrasi siswa sesuai kebutuhan autentikasi SKPL">
+        <AuthLayout title="Daftar sebagai Siswa" description="Buat akun untuk mulai belajar robotik secara terstruktur">
             <Head title="Register" />
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 <GoogleButton label="Register dengan Google" />
                 <div className="text-muted-foreground flex items-center gap-3 text-xs">
-                    <span className="h-px flex-1 bg-border" />
+                    <span className="bg-border h-px flex-1" />
                     atau
-                    <span className="h-px flex-1 bg-border" />
+                    <span className="bg-border h-px flex-1" />
                 </div>
                 <div className="grid gap-6">
                     <div className="grid gap-2">
-                        <Label htmlFor="name">Nama Lengkap</Label>
+                        <Label htmlFor="name">
+                            Nama Lengkap <RequiredMark />
+                        </Label>
                         <Input
                             id="name"
                             type="text"
@@ -61,7 +65,9 @@ export default function Register() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">
+                            Email <RequiredMark />
+                        </Label>
                         <Input
                             id="email"
                             type="email"
@@ -77,7 +83,9 @@ export default function Register() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password">
+                            Password <RequiredMark />
+                        </Label>
                         <Input
                             id="password"
                             type="password"
@@ -93,7 +101,9 @@ export default function Register() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="password_confirmation">Konfirmasi password</Label>
+                        <Label htmlFor="password_confirmation">
+                            Konfirmasi password <RequiredMark />
+                        </Label>
                         <Input
                             id="password_confirmation"
                             type="password"

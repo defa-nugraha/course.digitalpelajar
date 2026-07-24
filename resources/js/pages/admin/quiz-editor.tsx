@@ -1,0 +1,352 @@
+import { FieldLabel } from '@/components/form-field';
+import InputError from '@/components/input-error';
+import { Panel, Shell } from '@/components/platform';
+import { SearchableSelect } from '@/components/searchable-select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+
+interface CourseInfo {
+    id: number;
+    title: string;
+}
+
+interface LessonOption {
+    id: number;
+    title: string;
+    chapter: string;
+    chapterOrder: number;
+    orderNo: number;
+}
+
+interface QuizInfo {
+    id: number;
+    lesson_id?: number | null;
+    title: string;
+    order_no: number;
+    passing_score: number;
+    is_final_exam: boolean;
+    questions: StoredQuestion[];
+}
+
+interface StoredQuestion {
+    question?: string;
+    answer?: string;
+    options?: string[];
+}
+
+interface QuestionForm {
+    question: string;
+    answer: string;
+    options: string[];
+}
+
+interface QuizForm {
+    [key: string]: string | boolean;
+    lesson_id: string;
+    title: string;
+    order_no: string;
+    passing_score: string;
+    is_final_exam: boolean;
+    questions: string;
+}
+
+export default function QuizEditor({
+    course,
+    quiz,
+    selectedLessonId,
+    lessons,
+    backUrl,
+    routeBase,
+}: {
+    course: CourseInfo;
+    quiz?: QuizInfo | null;
+    selectedLessonId?: number | null;
+    lessons: LessonOption[];
+    backUrl: string;
+    routeBase: string;
+}) {
+    const [questions, setQuestions] = useState<QuestionForm[]>(normalizeQuestions(quiz?.questions));
+    const initialLessonId = quiz?.lesson_id ?? selectedLessonId ?? null;
+    const form = useForm<QuizForm>({
+        lesson_id: initialLessonId ? String(initialLessonId) : '',
+        title: quiz?.title ?? (initialLessonId ? 'Kuis Lesson' : 'Ujian Akhir'),
+        order_no: String(quiz?.order_no ?? 0),
+        passing_score: String(quiz?.passing_score ?? (initialLessonId ? 70 : 75)),
+        is_final_exam: quiz?.is_final_exam ?? !initialLessonId,
+        questions: '',
+    });
+
+    const updateQuestion = (index: number, patch: Partial<QuestionForm>) => {
+        setQuestions((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
+    };
+
+    const updateOption = (questionIndex: number, optionIndex: number, value: string) => {
+        setQuestions((items) =>
+            items.map((item, itemIndex) =>
+                itemIndex === questionIndex
+                    ? {
+                          ...item,
+                          options: item.options.map((option, currentIndex) => (currentIndex === optionIndex ? value : option)),
+                      }
+                    : item,
+            ),
+        );
+    };
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        const cleanedQuestions = questions.map((item) => ({
+            question: item.question.trim(),
+            answer: item.answer.trim(),
+            options: item.options.map((option) => option.trim()).filter(Boolean),
+        }));
+
+        form.transform((data) => ({
+            ...data,
+            lesson_id: data.lesson_id || null,
+            order_no: Number(data.order_no),
+            passing_score: Number(data.passing_score),
+            is_final_exam: !data.lesson_id || data.is_final_exam,
+            questions: JSON.stringify(cleanedQuestions),
+        }));
+
+        const options = { preserveScroll: true };
+
+        if (quiz) {
+            form.patch(`${routeBase}/quizzes/${quiz.id}`, options);
+        } else {
+            form.post(`${routeBase}/courses/${course.id}/quizzes`, options);
+        }
+    };
+
+    return (
+        <Shell
+            title={quiz ? 'Edit Ujian/Kuis' : 'Tambah Ujian/Kuis'}
+            eyebrow={course.title}
+            actions={
+                <Button asChild variant="outline">
+                    <Link href={backUrl}>
+                        <ArrowLeft className="size-4" />
+                        Kembali ke Course Builder
+                    </Link>
+                </Button>
+            }
+        >
+            <Head title={`${quiz ? 'Edit' : 'Tambah'} Ujian`} />
+            <form onSubmit={submit} className="grid gap-6 xl:grid-cols-[1fr_360px]">
+                <div className="space-y-5">
+                    <Panel title="Informasi ujian">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field label="Judul" error={form.errors.title} required>
+                                <Input value={form.data.title} onChange={(event) => form.setData('title', event.target.value)} />
+                            </Field>
+                            <Field label="Passing score" error={form.errors.passing_score} required>
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={100}
+                                    value={form.data.passing_score}
+                                    onChange={(event) => form.setData('passing_score', event.target.value)}
+                                />
+                            </Field>
+                            <Field label={form.data.lesson_id ? 'Posisi dalam lesson' : 'Posisi ujian akhir'} error={form.errors.order_no} required>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    value={form.data.order_no}
+                                    onChange={(event) => form.setData('order_no', event.target.value)}
+                                />
+                            </Field>
+                            <Field label="Letak ujian" error={form.errors.lesson_id}>
+                                <SearchableSelect
+                                    value={form.data.lesson_id}
+                                    onChange={(lessonId) => {
+                                        form.setData({
+                                            ...form.data,
+                                            lesson_id: lessonId,
+                                            is_final_exam: !lessonId,
+                                            passing_score: lessonId ? form.data.passing_score || '70' : form.data.passing_score || '75',
+                                        });
+                                    }}
+                                    options={[
+                                        { value: '', label: 'Ujian akhir kursus' },
+                                        ...lessons.map((lesson) => ({
+                                            value: String(lesson.id),
+                                            label: `${lesson.chapterOrder}.${lesson.orderNo} ${lesson.chapter} — ${lesson.title}`,
+                                        })),
+                                    ]}
+                                    placeholder="Pilih letak ujian"
+                                />
+                            </Field>
+                        </div>
+                    </Panel>
+
+                    <Panel
+                        title="Pertanyaan"
+                        action={
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setQuestions((items) => [...items, blankQuestion(items.length + 1)])}
+                            >
+                                <Plus className="size-4" />
+                                Pertanyaan
+                            </Button>
+                        }
+                    >
+                        <div className="space-y-5">
+                            {questions.map((question, questionIndex) => (
+                                <section key={questionIndex} className="rounded-xl border border-slate-200 p-4">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <h2 className="font-bold text-slate-950">Pertanyaan {questionIndex + 1}</h2>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Hapus pertanyaan"
+                                            disabled={questions.length === 1}
+                                            onClick={() => setQuestions((items) => items.filter((_, index) => index !== questionIndex))}
+                                        >
+                                            <Trash2 className="size-4 text-red-600" />
+                                        </Button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <Field label="Teks pertanyaan" required>
+                                            <textarea
+                                                className="min-h-24 w-full rounded-md border border-slate-200 bg-white p-3 text-sm"
+                                                value={question.question}
+                                                onChange={(event) => updateQuestion(questionIndex, { question: event.target.value })}
+                                            />
+                                        </Field>
+                                        <Field label="Jawaban benar" required>
+                                            <Input
+                                                value={question.answer}
+                                                onChange={(event) => updateQuestion(questionIndex, { answer: event.target.value })}
+                                            />
+                                        </Field>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <Label>Pilihan jawaban opsional</Label>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => updateQuestion(questionIndex, { options: [...question.options, ''] })}
+                                                >
+                                                    <Plus className="size-4" />
+                                                    Opsi
+                                                </Button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {question.options.map((option, optionIndex) => (
+                                                    <div key={optionIndex} className="flex gap-2">
+                                                        <Input
+                                                            value={option}
+                                                            placeholder={`Opsi ${optionIndex + 1}`}
+                                                            onChange={(event) => updateOption(questionIndex, optionIndex, event.target.value)}
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() => updateQuestion(questionIndex, { answer: option })}
+                                                        >
+                                                            Benar
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            aria-label="Hapus opsi"
+                                                            onClick={() =>
+                                                                updateQuestion(questionIndex, {
+                                                                    options: question.options.filter((_, index) => index !== optionIndex),
+                                                                })
+                                                            }
+                                                        >
+                                                            <Trash2 className="size-4 text-red-600" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            ))}
+                        </div>
+                        <InputError message={form.errors.questions} className="mt-4" />
+                    </Panel>
+                </div>
+
+                <Panel title="Preview siswa">
+                    <div className="space-y-4">
+                        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                            <p className="text-xs font-bold tracking-wider text-blue-700 uppercase">
+                                {form.data.lesson_id ? 'Kuis lesson' : 'Ujian akhir'}
+                            </p>
+                            <h2 className="mt-2 text-xl font-extrabold text-slate-950">{form.data.title || 'Judul ujian'}</h2>
+                            <p className="mt-2 text-sm text-slate-600">Passing score {form.data.passing_score || 70}.</p>
+                        </div>
+                        {questions.map((question, index) => (
+                            <div key={index} className="rounded-xl border border-slate-200 p-4">
+                                <Label>
+                                    {index + 1}. {question.question || 'Teks pertanyaan akan tampil di sini'}
+                                </Label>
+                                {question.options.filter(Boolean).length > 0 ? (
+                                    <div className="mt-3 space-y-2">
+                                        {question.options.filter(Boolean).map((option) => (
+                                            <label key={option} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm">
+                                                <input type="radio" readOnly />
+                                                {option}
+                                                {option === question.answer && <CheckCircle2 className="ml-auto size-4 text-emerald-600" />}
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <Input className="mt-3" disabled placeholder="Field jawaban siswa" />
+                                )}
+                            </div>
+                        ))}
+                        <Button type="submit" className="w-full bg-[#1C7DE8] hover:bg-[#1469c7]" disabled={form.processing}>
+                            Simpan Ujian
+                        </Button>
+                    </div>
+                </Panel>
+            </form>
+        </Shell>
+    );
+}
+
+function blankQuestion(index: number): QuestionForm {
+    return {
+        question: `Pertanyaan ${index}`,
+        answer: '',
+        options: ['', '', '', ''],
+    };
+}
+
+function normalizeQuestions(questions?: StoredQuestion[] | null): QuestionForm[] {
+    if (!questions || questions.length === 0) {
+        return [blankQuestion(1)];
+    }
+
+    return questions.map((question, index) => ({
+        question: question.question ?? `Pertanyaan ${index + 1}`,
+        answer: question.answer ?? '',
+        options: Array.isArray(question.options) && question.options.length > 0 ? question.options : ['', '', '', ''],
+    }));
+}
+
+function Field({ label, error, required = false, children }: { label: string; error?: string; required?: boolean; children: React.ReactNode }) {
+    return (
+        <div className="space-y-2">
+            <FieldLabel required={required}>{label}</FieldLabel>
+            {children}
+            <InputError message={error} />
+        </div>
+    );
+}

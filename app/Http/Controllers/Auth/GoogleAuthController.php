@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -31,6 +32,10 @@ class GoogleAuthController extends Controller
             ->first();
 
         if ($user) {
+            if ($user->status !== 'active') {
+                return to_route('login')->with('status', 'Akun Google ini sedang nonaktif. Hubungi administrator.');
+            }
+
             $user->forceFill([
                 'google_id' => $user->google_id ?: $googleUser->getId(),
                 'avatar' => $googleUser->getAvatar(),
@@ -38,7 +43,7 @@ class GoogleAuthController extends Controller
             ])->save();
         } else {
             $user = User::create([
-                'name' => $googleUser->getName() ?: $googleUser->getNickname() ?: 'Siswa Ngawitekno',
+                'name' => $googleUser->getName() ?: $googleUser->getNickname() ?: 'Siswa',
                 'email' => $googleUser->getEmail(),
                 'email_verified_at' => now(),
                 'role' => 'student',
@@ -50,7 +55,8 @@ class GoogleAuthController extends Controller
         }
 
         Auth::login($user, remember: true);
+        AuditLogger::log('auth.google_login', $user);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return to_route('dashboard');
     }
 }

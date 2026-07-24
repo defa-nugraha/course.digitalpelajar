@@ -1,0 +1,194 @@
+[
+  {
+    "role": "public",
+    "page": "/",
+    "status": 200,
+    "screenshot": "public-home.png"
+  },
+  {
+    "role": "public",
+    "page": "/login",
+    "status": 0,
+    "screenshot": "public-login.png"
+  },
+  {
+    "role": "public",
+    "page": "/register",
+    "status": 0,
+    "screenshot": "public-register.png"
+  },
+  {
+    "role": "public",
+    "page": "/courses",
+    "status": 200,
+    "screenshot": "public-courses.png"
+  },
+  {
+    "role": "public",
+    "page": "/certificates/verify",
+    "status": 200,
+    "screenshot": "public-certificate-verify-empty.png"
+  },
+  {
+    "role": "public",
+    "page": "/certificates/verify?credential=NGT-2026-8F92A",
+    "status": 200,
+    "screenshot": "public-certificate-verify-valid.png"
+  },
+  {
+    "role": "student",
+    "page": "/dashboard",
+    "status": 0,
+    "redirectedTo": "/student/dashboard"
+  },
+  {
+    "role": "student",
+    "page": "/student/dashboard",
+    "status": 200,
+    "screenshot": "student-student-dashboard.png"
+  },
+  {
+    "role": "student",
+    "page": "/learning",
+    "status": 200,
+    "screenshot": "student-student-learning.png"
+  },
+  {
+    "role": "student",
+    "page": "/certificates",
+    "status": 200,
+    "screenshot": "student-student-certificates.png"
+  },
+  {
+    "role": "student",
+    "page": "/checkout",
+    "status": 200,
+    "screenshot": "student-student-checkout.png"
+  },
+  {
+    "role": "student",
+    "page": "/payments/pending",
+    "status": 200,
+    "screenshot": "student-student-payment-pending.png"
+  },
+  {
+    "role": "student",
+    "page": "/payments/success",
+    "status": 200,
+    "screenshot": "student-student-payment-success.png"
+  },
+  {
+    "role": "student",
+    "page": "/admin/reports",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "role": "student",
+    "page": "/teacher/dashboard",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "role": "teacher",
+    "page": "/dashboard",
+    "status": 0,
+    "redirectedTo": "/teacher/dashboard"
+  },
+  {
+    "role": "teacher",
+    "page": "/teacher/dashboard",
+    "status": 200,
+    "screenshot": "teacher-teacher-dashboard.png"
+  },
+  {
+    "role": "teacher",
+    "page": "/learning",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "role": "teacher",
+    "page": "/admin/reports",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "role": "instructor",
+    "page": "/dashboard",
+    "status": 0,
+    "redirectedTo": "/admin/course-builder"
+  },
+  {
+    "role": "instructor",
+    "page": "/admin/course-builder",
+    "status": 200,
+    "screenshot": "instructor-instructor-course-builder.png"
+  },
+  {
+    "role": "instructor",
+    "page": "/learning",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "role": "instructor",
+    "page": "/admin/reports",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "role": "admin",
+    "page": "/dashboard",
+    "status": 0,
+    "redirectedTo": "/admin/reports"
+  },
+  {
+    "role": "admin",
+    "page": "/admin/reports",
+    "status": 200,
+    "screenshot": "admin-admin-reports.png"
+  },
+  {
+    "role": "admin",
+    "page": "/admin/schools",
+    "status": 200,
+    "screenshot": "admin-admin-schools.png"
+  },
+  {
+    "role": "admin",
+    "page": "/admin/schools/detail",
+    "status": 200,
+    "screenshot": "admin-admin-school-detail.png"
+  },
+  {
+    "role": "admin",
+    "page": "/admin/users",
+    "status": 200,
+    "screenshot": "admin-admin-users.png"
+  },
+  {
+    "role": "admin",
+    "page": "/admin/course-builder",
+    "status": 200,
+    "screenshot": "admin-admin-course-builder.png"
+  },
+  {
+    "role": "admin",
+    "page": "/admin/certificates",
+    "status": 200,
+    "screenshot": "admin-admin-certificates.png"
+  },
+  {
+    "role": "admin",
+    "page": "/learning",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "role": "admin",
+    "page": "/teacher/dashboard",
+    "status": 403,
+    "expected": 403
+  }
+]

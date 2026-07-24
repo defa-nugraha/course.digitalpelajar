@@ -22,6 +22,14 @@ test('users can authenticate using the login screen', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
+test('authenticated users visiting login are redirected to dashboard', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get('/login')
+        ->assertRedirect('/dashboard');
+});
+
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 

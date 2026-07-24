@@ -3,6 +3,7 @@ import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
+import { RequiredMark } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,7 @@ interface ResetPasswordProps {
 }
 
 interface ResetPasswordForm {
+    [key: string]: string;
     token: string;
     email: string;
     password: string;
@@ -42,7 +44,9 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
             <form onSubmit={submit}>
                 <div className="grid gap-6">
                     <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">
+                            Email <RequiredMark />
+                        </Label>
                         <Input
                             id="email"
                             type="email"
@@ -57,7 +61,9 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password">
+                            Password <RequiredMark />
+                        </Label>
                         <Input
                             id="password"
                             type="password"
@@ -73,7 +79,9 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="password_confirmation">Confirm password</Label>
+                        <Label htmlFor="password_confirmation">
+                            Confirm password <RequiredMark />
+                        </Label>
                         <Input
                             id="password_confirmation"
                             type="password"

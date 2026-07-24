@@ -2,38 +2,50 @@ import { useEffect, useState } from 'react';
 
 export type Appearance = 'light' | 'dark' | 'system';
 
-const applyTheme = () => {
-    document.documentElement.classList.remove('dark');
+const applyTheme = (appearance: Appearance) => {
+    if (typeof document === 'undefined') return;
+
+    const shouldUseDark = appearance === 'dark' || (appearance === 'system' && Boolean(mediaQuery?.matches));
+    document.documentElement.classList.toggle('dark', shouldUseDark);
 };
 
-const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+const mediaQuery = typeof window === 'undefined' ? null : window.matchMedia('(prefers-color-scheme: dark)');
 
 const handleSystemThemeChange = () => {
-    applyTheme();
+    if (typeof window === 'undefined') return;
+
+    const appearance = (localStorage.getItem('appearance') as Appearance | null) ?? 'system';
+    applyTheme(appearance);
 };
 
 export function initializeTheme() {
-    localStorage.setItem('appearance', 'light');
-    applyTheme();
+    if (typeof window === 'undefined') return;
+
+    const appearance = (localStorage.getItem('appearance') as Appearance | null) ?? 'system';
+    applyTheme(appearance);
 
     // Add the event listener for system theme changes...
-    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    mediaQuery?.addEventListener('change', handleSystemThemeChange);
 }
 
 export function useAppearance() {
-    const [appearance, setAppearance] = useState<Appearance>('system');
+    const [appearance, setAppearance] = useState<Appearance>(() =>
+        typeof window === 'undefined' ? 'system' : ((localStorage.getItem('appearance') as Appearance | null) ?? 'system'),
+    );
 
-    const updateAppearance = () => {
-        setAppearance('light');
-        localStorage.setItem('appearance', 'light');
-        applyTheme();
+    const updateAppearance = (nextAppearance: Appearance) => {
+        setAppearance(nextAppearance);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('appearance', nextAppearance);
+        }
+        applyTheme(nextAppearance);
     };
 
     useEffect(() => {
-        updateAppearance();
+        applyTheme(appearance);
 
-        return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
-    }, []);
+        return () => mediaQuery?.removeEventListener('change', handleSystemThemeChange);
+    }, [appearance]);
 
     return { appearance, updateAppearance };
 }

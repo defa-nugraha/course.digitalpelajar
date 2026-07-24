@@ -12,7 +12,7 @@ class EnsureUserHasRole
     {
         $user = $request->user();
 
-        abort_if(! $user || ! in_array($user->role, $roles, true), 403);
+        abort_if(! $user || $user->status !== 'active' || ! in_array($user->role, $roles, true), 403);
 
         return $next($request);
     }

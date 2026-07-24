@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,9 +14,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->validateCsrfTokens(except: [
+            'payments/midtrans/notification',
+        ]);
+
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
         ]);
+
+        $middleware->redirectUsersTo('/dashboard');
 
         $middleware->web(append: [
             HandleInertiaRequests::class,

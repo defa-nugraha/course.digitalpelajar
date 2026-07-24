@@ -1,7 +1,8 @@
-import { FooterMark, PublicNav } from '@/components/platform';
+import { FooterMark, PublicContent, PublicNav } from '@/components/platform';
+import { SeoData, SeoHead } from '@/components/seo-head';
 import { Button } from '@/components/ui/button';
-import { Head, router } from '@inertiajs/react';
-import { Download, Eye, QrCode, Search, ShieldCheck, XCircle } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import { Copy, Download, QrCode, Search, ShieldCheck, XCircle } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 interface VerifiedCertificate {
@@ -11,16 +12,21 @@ interface VerifiedCertificate {
     course: string;
     school: string;
     issueDate: string;
+    qrUrl: string;
+    revocationReason?: string | null;
 }
 
 interface VerifyProps {
+    seo?: SeoData;
     credential: string;
     certificate?: VerifiedCertificate | null;
 }
 
-export default function Verify({ credential, certificate }: VerifyProps) {
+export default function Verify({ seo, credential, certificate }: VerifyProps) {
     const [query, setQuery] = useState(credential || '');
+    const [copied, setCopied] = useState(false);
     const hasSubmitted = credential.trim() !== '';
+    const isValid = certificate?.status.toLowerCase() === 'issued';
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -29,72 +35,111 @@ export default function Verify({ credential, certificate }: VerifyProps) {
 
     return (
         <>
-            <Head title="Verifikasi Sertifikat" />
+            <SeoHead seo={seo} fallbackTitle="Verifikasi Sertifikat" />
             <div className="min-h-screen bg-[#FAF8FF]">
                 <PublicNav />
-                <main className="mx-auto grid max-w-6xl gap-8 px-4 py-14 md:px-10 lg:grid-cols-[0.9fr_1.1fr]">
-                    <section>
-                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">Global Registry</span>
-                        <h1 className="mt-5 text-4xl font-extrabold">Verify Credential</h1>
-                        <p className="mt-3 leading-7 text-slate-600">
-                            Masukkan nomor sertifikat atau token QR. Sesuai SKPL, informasi sertifikat hanya ditampilkan setelah proses verifikasi dilakukan.
-                        </p>
-                        <form onSubmit={submit} className="mt-6 flex rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-                            <input
-                                className="min-w-0 flex-1 border-0 bg-transparent px-3 text-sm outline-none"
-                                value={query}
-                                onChange={(event) => setQuery(event.target.value)}
-                                placeholder="Contoh: NGT-2026-8F92A"
-                            />
-                            <Button className="bg-[#1C7DE8] hover:bg-[#1469c7]">
-                                <Search className="size-4" />
-                                Verify
-                            </Button>
-                        </form>
-                        <p className="mt-3 text-sm text-slate-500">Demo valid: NGT-2026-8F92A</p>
-                    </section>
-
-                    {!hasSubmitted && (
-                        <section className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
-                            <QrCode className="mx-auto size-20 text-slate-300" />
-                            <h2 className="mt-5 text-2xl font-extrabold">Masukkan credential terlebih dahulu</h2>
-                            <p className="mt-2 text-slate-600">Card hasil verifikasi sengaja disembunyikan sampai user menekan tombol Verify.</p>
-                        </section>
-                    )}
-
-                    {hasSubmitted && !certificate && (
-                        <section className="rounded-lg border border-red-200 bg-white p-8 text-center shadow-sm">
-                            <XCircle className="mx-auto size-16 text-red-600" />
-                            <h2 className="mt-5 text-2xl font-extrabold">Sertifikat tidak ditemukan</h2>
-                            <p className="mt-2 text-slate-600">Nomor atau token tidak cocok dengan registry sertifikat Ngawitekno.</p>
-                        </section>
-                    )}
-
-                    {certificate && (
-                        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-bold text-emerald-700">{certificate.status} Status</p>
-                                    <h2 className="mt-1 text-2xl font-extrabold">{certificate.course}</h2>
+                <PublicContent skeleton="centered">
+                    <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col px-4 pt-32 pb-16 md:px-10">
+                        <section className="mx-auto w-full max-w-3xl text-center">
+                            <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-[#D6E3FF] text-[#005BB1]">
+                                <ShieldCheck className="size-8" />
+                            </div>
+                            <h1 className="text-4xl leading-tight font-extrabold tracking-[-0.02em] text-[#131B2E] md:text-5xl">Verify Credential</h1>
+                            <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-[#414753]">
+                                Masukkan nomor sertifikat atau token QR untuk memastikan credential diterbitkan resmi dan masih berlaku.
+                            </p>
+                            <form
+                                onSubmit={submit}
+                                className="mt-8 flex rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_4px_20px_rgba(15,23,42,0.05)]"
+                            >
+                                <div className="relative min-w-0 flex-1">
+                                    <Search className="absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        className="h-14 w-full border-0 bg-transparent pr-3 pl-12 text-base font-semibold text-[#131B2E] outline-none placeholder:text-slate-400"
+                                        value={query}
+                                        onChange={(event) => setQuery(event.target.value)}
+                                        placeholder="e.g. NGT-2026-8F92A"
+                                    />
                                 </div>
-                                <ShieldCheck className="size-10 text-emerald-600" />
-                            </div>
-                            <div className="mt-6 grid gap-4 md:grid-cols-2">
-                                <Info label="Student" value={certificate.student} />
-                                <Info label="Issue Date" value={certificate.issueDate} />
-                                <Info label="Credential ID" value={certificate.no} />
-                                <Info label="Authenticating Body" value={certificate.school} />
-                            </div>
-                            <div className="mt-6 flex items-center justify-between rounded-lg bg-slate-50 p-5">
-                                <QrCode className="size-20 text-slate-900" />
-                                <div className="flex gap-2">
-                                    <Button variant="outline"><Eye className="size-4" />Preview</Button>
-                                    <Button><Download className="size-4" />PDF</Button>
-                                </div>
-                            </div>
+                                <Button className="h-14 rounded-xl bg-[#1C7DE8] px-6 hover:bg-[#1469c7]">Verify</Button>
+                            </form>
                         </section>
-                    )}
-                </main>
+
+                        <section className="mx-auto mt-10 w-full max-w-4xl">
+                            {!hasSubmitted && (
+                                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+                                    <QrCode className="mx-auto size-20 text-slate-300" />
+                                    <h2 className="mt-5 text-2xl font-extrabold text-[#131B2E]">Masukkan credential sertifikat</h2>
+                                    <p className="mt-2 text-[#414753]">Hasil verifikasi akan tampil setelah nomor sertifikat diperiksa.</p>
+                                </div>
+                            )}
+
+                            {hasSubmitted && !certificate && (
+                                <div className="rounded-2xl border border-red-200 bg-white p-10 text-center shadow-sm">
+                                    <XCircle className="mx-auto size-16 text-red-600" />
+                                    <h2 className="mt-5 text-2xl font-extrabold text-[#131B2E]">Sertifikat tidak ditemukan</h2>
+                                    <p className="mt-2 text-[#414753]">Nomor atau token tidak cocok dengan registry sertifikat.</p>
+                                </div>
+                            )}
+
+                            {certificate && (
+                                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+                                    <div className="border-b border-slate-200 bg-[#F2F3FF] p-8">
+                                        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+                                            <div>
+                                                <p className={`text-sm font-bold uppercase ${isValid ? 'text-emerald-700' : 'text-red-700'}`}>
+                                                    {isValid ? 'Verified Credential' : 'Credential Revoked'}
+                                                </p>
+                                                <h2 className="mt-2 text-3xl font-extrabold text-[#131B2E]">{certificate.course}</h2>
+                                            </div>
+                                            <div
+                                                className={`flex size-16 items-center justify-center rounded-2xl ${
+                                                    isValid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                                }`}
+                                            >
+                                                {isValid ? <ShieldCheck className="size-8" /> : <XCircle className="size-8" />}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-6 p-8 lg:grid-cols-[1fr_180px]">
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <Info label="Student" value={certificate.student} />
+                                            <Info label="Issue Date" value={certificate.issueDate} />
+                                            <Info label="Credential ID" value={certificate.no} />
+                                            <Info label="Authenticating Body" value={certificate.school} />
+                                        </div>
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center">
+                                            <img src={certificate.qrUrl} alt="QR sertifikat" className="mx-auto size-28" />
+                                            <p className="mt-3 text-xs font-semibold text-slate-500">Scan untuk validasi</p>
+                                        </div>
+                                    </div>
+                                    {!isValid && certificate.revocationReason && (
+                                        <div className="mx-8 mb-8 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                                            Alasan pencabutan: {certificate.revocationReason}
+                                        </div>
+                                    )}
+                                    <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 p-6 sm:flex-row sm:justify-end">
+                                        <Button
+                                            variant="outline"
+                                            onClick={async () => {
+                                                await navigator.clipboard.writeText(window.location.href);
+                                                setCopied(true);
+                                                window.setTimeout(() => setCopied(false), 1500);
+                                            }}
+                                        >
+                                            <Copy className="size-4" />
+                                            {copied ? 'Tersalin' : 'Salin Link'}
+                                        </Button>
+                                        <Button onClick={() => window.print()} className="bg-[#1C7DE8] hover:bg-[#1469c7]">
+                                            <Download className="size-4" />
+                                            Cetak Hasil
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+                    </main>
+                </PublicContent>
                 <FooterMark />
             </div>
         </>
@@ -102,5 +147,10 @@ export default function Verify({ credential, certificate }: VerifyProps) {
 }
 
 function Info({ label, value }: { label: string; value: string }) {
-    return <div className="rounded-lg border border-slate-200 p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 font-bold">{value}</p></div>;
+    return (
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">{label}</p>
+            <p className="mt-1 font-bold text-[#131B2E]">{value}</p>
+        </div>
+    );
 }

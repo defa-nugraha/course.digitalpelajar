@@ -7,7 +7,10 @@ type LinkProps = ComponentProps<typeof Link>;
 export default function TextLink({ className = '', children, ...props }: LinkProps) {
     return (
         <Link
-            className={cn('text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current!', className)}
+            className={cn(
+                'text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current!',
+                className,
+            )}
             {...props}
         >
             {children}
