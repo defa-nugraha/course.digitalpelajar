@@ -37,6 +37,24 @@ class EnrollmentController extends Controller
             ->with('status', "Berhasil terdaftar di \"{$course->title}\".");
     }
 
+    public function checkout(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'course_id' => ['required', 'integer', 'exists:courses,id'],
+        ]);
+
+        $course = Course::query()->findOrFail($data['course_id']);
+        $result = $this->enrollments->enroll($request->user(), $course);
+
+        if ($result['checkout_url']) {
+            return redirect()->to($result['checkout_url'])
+                ->with('status', 'Silakan selesaikan pembayaran untuk membuka kelas.');
+        }
+
+        return redirect()->route('learning.show', ['course' => $course->id])
+            ->with('status', "Berhasil terdaftar di \"{$course->title}\".");
+    }
+
     /**
      * Mark a lesson complete and update progress (FR-016).
      */

@@ -26,11 +26,7 @@ interface Course {
     imageUrl?: string;
 }
 
-const courseImages = [
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuD92fYdLbqTQj738UuB71y_vhZCCaYl5hJvx9nTRz9-H6J9aSMowuvzbKoLR53456yBKg322qUqC2UwJcttA_vqwCnQd379f5P5Ej0e63RTeohePqjz06F6C5bl_4CCse6-EnpQ545EXTz0JoDsBIPeWfCHS5nn8Wr--FljpwIHDAPUC-t-czhiSVgC9MnlqvkcV_3F8bwfr8jcUO-A4OPnnCi_9kwq2b4scoQjL8pr3zTRGIJSyFxsMW-MisteJjf5to0NNNeRRe8',
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuB-qr21uzeEuYEw5K4Q2DQO52-3RT1Q2msozMxgsAKmFIwKwfh3U51s0Zi4joWC0D2NKTADcPIZ1LhH1Fs_b9ufLbUWrhwOuDMO3B5qXhKLXTIoFN1dpDXNiFUe9trE7fZf74Kx-6tjt1PlHbeLT-8UJZaTw0CXejtPurPF57b6zWUYFm9rmjnVNf1vPf1B3qkF1Xr_NuvCnv3OlzWVlaq9g9JjW404Es1rV-izoZhmcAsHYbgohYutFsKPBcEPuuALz0wuINJnFHQ',
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuA8I5nYJgDXHh8o6xE4PsEjgPgP0YdMabPSXPOtoJcuJ53QnGa-4y12ETSTOubHaXZUPjOyx9Vk5icJGiRV9tAnLQI9Yo0MnbpbP8cAaHOmCn7E-dmODu5ReWOYrNjKV4vJYWTLCJf7YbYzRqYv1OD42M68HoFmbTiRDXiN7e3Tsh-HJyBr4rHBdr7vhBhqu4VVnNa4ZQVDA_49Df31Kf-hN_r6Euh8j7kN9SbGgK5AF7bCqLI2Lw1YcD-HEjRtdFZFLvyCYC3tYyY',
-];
+const fallbackCourseImage = '/logo.png';
 
 export default function Catalog({ seo, courses }: { seo?: SeoData; courses: Course[] }) {
     const [term, setTerm] = useState('');
@@ -142,12 +138,8 @@ export default function Catalog({ seo, courses }: { seo?: SeoData; courses: Cour
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                                    {visibleCourses.map((course, index) => (
-                                        <CourseCard
-                                            key={course.id}
-                                            course={course}
-                                            image={course.imageUrl || courseImages[index % courseImages.length]}
-                                        />
+                                    {visibleCourses.map((course) => (
+                                        <CourseCard key={course.id} course={course} image={course.imageUrl || fallbackCourseImage} />
                                     ))}
                                 </div>
 

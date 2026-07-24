@@ -641,6 +641,7 @@ class PlatformController extends Controller
                 'level' => ucfirst($course->level),
                 'price' => $course->price,
                 'priceLabel' => $this->rupiah($course->price),
+                'imageUrl' => $this->courseImageUrl($course),
             ],
             'summary' => [
                 'originalPrice' => $this->rupiah($course->price),

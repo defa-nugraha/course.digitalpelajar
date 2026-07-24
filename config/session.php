@@ -18,7 +18,7 @@ return [
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'redis'),
+    'driver' => env('SESSION_DRIVER', 'file'),
 
     /*
     |--------------------------------------------------------------------------
@@ -101,7 +101,7 @@ return [
     |
     */
 
-    'store' => env('SESSION_STORE', 'redis'),
+    'store' => env('SESSION_STORE'),
 
     /*
     |--------------------------------------------------------------------------

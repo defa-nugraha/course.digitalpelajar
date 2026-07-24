@@ -73,7 +73,7 @@ export default function CourseShow({ seo, course, relatedCourses }: { seo?: SeoD
             <div className="min-h-screen bg-[#FAF8FF]">
                 <PublicNav />
                 <PublicContent skeleton="detail">
-                    <main className="mx-auto max-w-7xl px-4 pt-28 pb-16 md:px-10">
+                    <main className="mx-auto max-w-7xl px-4 pt-24 pb-12 md:px-10 md:pt-28 md:pb-16">
                         <Crumb items={['Home', 'Katalog Kelas', course.title]} />
                         <section className="mt-6 grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
                             <div>
@@ -93,13 +93,13 @@ export default function CourseShow({ seo, course, relatedCourses }: { seo?: SeoD
                                         </Link>
                                     )}
                                 </div>
-                                <h1 className="text-4xl leading-tight font-extrabold tracking-[-0.02em] text-[#131B2E] md:text-6xl">
+                                <h1 className="text-3xl leading-tight font-extrabold tracking-[-0.02em] text-[#131B2E] sm:text-4xl md:text-6xl">
                                     {course.title}
                                 </h1>
-                                <p className="mt-5 max-w-3xl text-lg leading-8 text-[#414753]">
+                                <p className="mt-5 max-w-3xl text-base leading-8 text-[#414753] md:text-lg">
                                     {course.description || 'Kelas robotik terstruktur dengan materi praktik, evaluasi, dan sertifikat digital.'}
                                 </p>
-                                <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                                <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                     <Metric icon={BookOpen} label="Materi" value={`${course.lessons} modul`} />
                                     <Metric icon={Clock} label="Estimasi" value={course.duration} />
                                     <Metric icon={Tag} label="Biaya" value={course.priceLabel} />
@@ -107,7 +107,7 @@ export default function CourseShow({ seo, course, relatedCourses }: { seo?: SeoD
                             </div>
 
                             <aside className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
-                                <img src={course.imageUrl} alt={`Foto produk ${course.title}`} className="h-72 w-full object-cover" />
+                                <img src={course.imageUrl} alt={`Foto produk ${course.title}`} className="h-56 w-full object-cover sm:h-72" />
                                 <div className="space-y-4 p-6">
                                     <div className="text-3xl font-extrabold text-[#005BB1]">{course.priceLabel}</div>
                                     <Button asChild className="h-12 w-full rounded-xl bg-[#1C7DE8] hover:bg-[#1469c7]">
@@ -116,14 +116,11 @@ export default function CourseShow({ seo, course, relatedCourses }: { seo?: SeoD
                                             <ArrowRight className="size-4" />
                                         </Link>
                                     </Button>
-                                    <p className="text-sm leading-6 text-slate-500">
-                                        Halaman ini publik dan dapat dibaca mesin pencari. Login hanya diperlukan saat mendaftar atau membeli kelas.
-                                    </p>
                                 </div>
                             </aside>
                         </section>
 
-                        <section className="mt-14 grid gap-8 lg:grid-cols-[0.85fr_0.45fr] lg:items-start">
+                        <section className="mt-14 grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(280px,0.45fr)] lg:items-start">
                             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                                 <h2 className="text-2xl font-extrabold text-[#131B2E]">Apa yang akan dipelajari</h2>
                                 <p className="mt-3 leading-7 text-[#414753]">
@@ -163,7 +160,6 @@ export default function CourseShow({ seo, course, relatedCourses }: { seo?: SeoD
                                     <Info label="Biaya" value={course.priceLabel} />
                                     <Info label="Estimasi" value={course.duration} />
                                     <Info label="Jumlah modul" value={`${course.lessons} modul`} />
-                                    <Info label="URL produk" value={`/produk/${course.slug}`} />
                                 </dl>
                             </aside>
                         </section>

@@ -11,8 +11,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  test:
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          touch database/database.sqlite
+          php artisan key:generate
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Run tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: php artisan test
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
 
     steps:
       - name: Checkout

@@ -92,6 +92,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('certificates', [PlatformController::class, 'certificates'])->name('certificates.index');
         Route::get('checkout', [PlatformController::class, 'checkout'])->name('payments.checkout');
+        Route::post('checkout', [EnrollmentController::class, 'checkout'])->name('payments.checkout.store');
         Route::get('payments/mock-checkout', [EnrollmentController::class, 'mockCheckout'])->name('payments.mock-checkout');
         Route::post('payments/{payment}/mock-settle', [PaymentController::class, 'mockSettle'])->name('payments.mock-settle');
 

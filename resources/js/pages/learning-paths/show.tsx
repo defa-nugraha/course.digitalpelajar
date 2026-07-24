@@ -31,19 +31,19 @@ export default function LearningPathShow({ seo, path, courses }: { seo?: SeoData
             <div className="min-h-screen bg-[#FAF8FF]">
                 <PublicNav />
                 <PublicContent skeleton="detail">
-                    <main className="mx-auto max-w-6xl px-4 pt-28 pb-16 md:px-10">
+                    <main className="mx-auto max-w-6xl px-4 pt-24 pb-12 md:px-10 md:pt-28 md:pb-16">
                         <Crumb items={['Home', 'Learning Path', path.title]} />
-                        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+                        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-8">
                             <div className="flex flex-col gap-5 md:flex-row md:items-start">
                                 <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#EAEDFF] text-[#005BB1]">
                                     <Route className="size-7" />
                                 </span>
                                 <div>
                                     <p className="text-sm font-bold tracking-wider text-violet-700 uppercase">{path.level}</p>
-                                    <h1 className="mt-2 text-4xl leading-tight font-extrabold tracking-[-0.02em] text-[#131B2E] md:text-5xl">
+                                    <h1 className="mt-2 text-3xl leading-tight font-extrabold tracking-[-0.02em] text-[#131B2E] md:text-5xl">
                                         {path.title}
                                     </h1>
-                                    <p className="mt-4 max-w-3xl text-lg leading-8 text-[#414753]">
+                                    <p className="mt-4 max-w-3xl text-base leading-8 text-[#414753] md:text-lg">
                                         {path.description || 'Jalur belajar robotik dengan urutan kelas publish yang dapat diikuti bertahap.'}
                                     </p>
                                 </div>
@@ -51,12 +51,12 @@ export default function LearningPathShow({ seo, path, courses }: { seo?: SeoData
                         </section>
 
                         <section className="mt-10">
-                            <div className="mb-5 flex items-end justify-between gap-4">
+                            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                                 <div>
                                     <h2 className="text-2xl font-extrabold text-[#131B2E]">Urutan kelas</h2>
                                     <p className="mt-1 text-[#414753]">{courses.length} kelas publish pada jalur ini.</p>
                                 </div>
-                                <Button asChild variant="outline">
+                                <Button asChild variant="outline" className="w-full sm:w-auto">
                                     <Link href="/courses">Lihat Semua Kelas</Link>
                                 </Button>
                             </div>
@@ -83,7 +83,7 @@ export default function LearningPathShow({ seo, path, courses }: { seo?: SeoData
                                                 <span>{course.priceLabel}</span>
                                             </div>
                                         </div>
-                                        <Button asChild className="bg-[#1C7DE8] hover:bg-[#1469c7]">
+                                        <Button asChild className="w-full bg-[#1C7DE8] hover:bg-[#1469c7] md:w-auto">
                                             <Link href={course.detailUrl}>
                                                 Detail
                                                 <ArrowRight className="size-4" />

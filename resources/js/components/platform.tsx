@@ -68,7 +68,7 @@ export function PublicNav() {
 
     return (
         <>
-            <Toaster richColors position="top-right" />
+            <Toaster richColors position="top-center" />
             <ConfirmationDialogHost />
             <header className="fixed top-0 left-0 z-50 w-full border-b border-slate-200 bg-white/80 shadow-sm backdrop-blur-md">
                 <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-10">
@@ -199,7 +199,7 @@ export function Shell({
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-slate-950">
-            <Toaster richColors position="top-right" />
+            <Toaster richColors position="top-center" />
             <ConfirmationDialogHost />
             {!sidebarHidden && (
                 <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-slate-200 bg-white p-4 lg:flex">

@@ -283,7 +283,7 @@ function HeroSection({ section, stats, totalLessons }: { section: HomeSection; s
     const shouldShowEyebrow = section.eyebrow && section.eyebrow !== 'Platform Belajar Robotik Terstruktur';
 
     return (
-        <section className="relative mx-auto grid max-w-7xl items-center gap-10 overflow-hidden px-4 pt-24 pb-28 md:px-10 lg:grid-cols-2">
+        <section className="relative mx-auto grid max-w-7xl items-center gap-10 overflow-hidden px-4 pt-14 pb-16 md:px-10 md:pt-24 md:pb-28 lg:grid-cols-2">
             <div className="absolute top-20 right-0 -z-10 h-[500px] w-[500px] rounded-full bg-[#D6E3FF] opacity-50 blur-[100px]" />
             <div className="absolute bottom-0 left-0 -z-10 h-[400px] w-[400px] rounded-full bg-[#EADDFF] opacity-40 blur-[80px]" />
             <div className="flex flex-col gap-6">
@@ -293,16 +293,16 @@ function HeroSection({ section, stats, totalLessons }: { section: HomeSection; s
                         <span className="text-sm font-bold text-[#005BB1]">{section.eyebrow}</span>
                     </div>
                 )}
-                <h1 className="max-w-3xl text-4xl leading-tight font-extrabold tracking-[-0.02em] text-[#131B2E] md:text-6xl">
+                <h1 className="max-w-3xl text-3xl leading-tight font-extrabold tracking-[-0.02em] text-[#131B2E] sm:text-4xl md:text-6xl">
                     <HighlightedTitle title={section.title || 'Belajar Robotik Lebih Terstruktur'} highlightWord={highlightWord} />
                 </h1>
-                {section.subtitle && <p className="max-w-2xl text-lg leading-8 text-[#414753]">{section.subtitle}</p>}
-                <div className="mt-2 flex flex-wrap gap-4">
+                {section.subtitle && <p className="max-w-2xl text-base leading-8 text-[#414753] md:text-lg">{section.subtitle}</p>}
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                     {section.primaryLabel && (
                         <Button
                             asChild
                             size="lg"
-                            className="rounded-xl bg-[#1C7DE8] px-8 py-6 shadow-[0_10px_30px_rgba(28,125,232,0.2)] hover:bg-[#1469c7]"
+                            className="w-full rounded-xl bg-[#1C7DE8] px-8 py-6 shadow-[0_10px_30px_rgba(28,125,232,0.2)] hover:bg-[#1469c7] sm:w-auto"
                         >
                             <Link href={section.primaryUrl || '/courses'}>{section.primaryLabel}</Link>
                         </Button>
@@ -312,7 +312,7 @@ function HeroSection({ section, stats, totalLessons }: { section: HomeSection; s
                             asChild
                             size="lg"
                             variant="outline"
-                            className="rounded-xl border-[#1C7DE8] bg-white px-8 py-6 text-[#1C7DE8] hover:bg-[#F2F3FF]"
+                            className="w-full rounded-xl border-[#1C7DE8] bg-white px-8 py-6 text-[#1C7DE8] hover:bg-[#F2F3FF] sm:w-auto"
                         >
                             <Link href={section.secondaryUrl || '/courses'}>{section.secondaryLabel}</Link>
                         </Button>
@@ -339,19 +339,19 @@ function HeroSection({ section, stats, totalLessons }: { section: HomeSection; s
                     </div>
                 </div>
             </div>
-            <div className="relative flex aspect-square w-full items-center justify-center md:aspect-[4/3] lg:aspect-square">
+            <div className="relative flex aspect-[4/3] w-full items-center justify-center lg:aspect-square">
                 <div className="absolute inset-0 rotate-3 rounded-[2rem] bg-gradient-to-tr from-[#0073DD]/20 to-[#8757E6]/20" />
                 <img
                     src={section.imageUrl || fallbackHeroImage}
                     alt={section.title || 'Pelajar merakit robot di laboratorium edukasi'}
                     className="relative z-10 h-full w-full rounded-[2rem] object-cover shadow-[0_10px_40px_rgba(15,23,42,0.1)]"
                 />
-                <div className="absolute top-1/4 -left-2 z-20 flex items-center gap-4 rounded-xl border border-white/50 bg-white/75 p-4 shadow-lg backdrop-blur-md md:-left-8">
+                <div className="absolute right-3 bottom-3 z-20 flex items-center gap-3 rounded-xl border border-white/50 bg-white/85 p-3 shadow-lg backdrop-blur-md md:top-1/4 md:right-auto md:bottom-auto md:-left-8 md:gap-4 md:p-4">
                     <div className="flex size-12 items-center justify-center rounded-lg bg-[#005BB1] text-white">
                         <Code2 className="size-6" />
                     </div>
                     <div>
-                        <p className="text-2xl font-extrabold text-[#131B2E]">{Math.max(totalLessons, stats.courses)}+</p>
+                        <p className="text-xl font-extrabold text-[#131B2E] md:text-2xl">{Math.max(totalLessons, stats.courses)}+</p>
                         <p className="text-sm font-medium text-[#414753]">{floatingLabel}</p>
                     </div>
                 </div>
@@ -365,7 +365,7 @@ function FeatureSection({ section }: { section: HomeSection }) {
         <section className="bg-[#FAF8FF] px-4 py-24 md:px-10">
             <div className="mx-auto max-w-7xl">
                 <SectionHeader title={section.title} subtitle={section.subtitle} />
-                <div className="grid auto-rows-[250px] grid-cols-1 gap-6 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 md:auto-rows-[250px] md:grid-cols-3">
                     {(section.items ?? []).map((feature) => (
                         <FeatureCard key={`${feature.title}-${feature.icon}`} feature={feature} />
                     ))}

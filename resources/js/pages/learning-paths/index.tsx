@@ -31,18 +31,18 @@ export default function LearningPaths({ seo, paths }: { seo?: SeoData; paths: Pa
             <div className="min-h-screen bg-[#FAF8FF]">
                 <PublicNav />
                 <PublicContent skeleton="catalog">
-                    <main className="mx-auto max-w-6xl px-4 pt-28 pb-12 md:px-10">
+                    <main className="mx-auto max-w-6xl px-4 pt-24 pb-12 md:px-10 md:pt-28">
                         <div className="max-w-3xl">
                             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">Jalur Belajar</span>
-                            <h1 className="mt-5 text-4xl font-extrabold">Belajar robotik secara berurutan</h1>
+                            <h1 className="mt-5 text-3xl leading-tight font-extrabold md:text-4xl">Belajar robotik secara berurutan</h1>
                             <p className="mt-3 leading-7 text-slate-600">
                                 Setiap learning path berisi urutan kelas dari kompetensi dasar sampai proyek lanjutan.
                             </p>
                         </div>
                         <div className="mt-8 space-y-6">
                             {paths.map((path) => (
-                                <section key={path.id} className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-                                    <div className="flex items-start gap-4">
+                                <section key={path.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                         <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                                             <Route className="size-5" />
                                         </span>
@@ -72,7 +72,7 @@ export default function LearningPaths({ seo, paths }: { seo?: SeoData; paths: Pa
                                                         {course.price_type === 'free' ? 'Gratis' : `Rp ${course.price.toLocaleString('id-ID')}`}
                                                     </p>
                                                 </div>
-                                                <Button asChild variant="outline" size="sm">
+                                                <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
                                                     <Link href={course.detailUrl}>
                                                         Lihat Kelas
                                                         <ArrowRight className="size-4" />

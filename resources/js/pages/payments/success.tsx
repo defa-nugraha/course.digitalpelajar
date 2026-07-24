@@ -23,20 +23,20 @@ export default function Success({ payment }: { payment?: Payment | null }) {
                             <div className="mx-auto mb-8 flex size-24 items-center justify-center rounded-full border-4 border-white bg-[#D6E3FF] text-[#005BB1] shadow-sm">
                                 <CheckCircle2 className="size-12" />
                             </div>
-                            <h1 className="mb-3 text-3xl font-extrabold tracking-tight">Payment Successful</h1>
+                            <h1 className="mb-3 text-3xl font-extrabold tracking-tight">Pembayaran Berhasil</h1>
                             <p className="mb-10 leading-7 text-[#414753]">
                                 {payment
-                                    ? `Enrollment "${payment.course}" sudah aktif. Anda dapat langsung memulai pembelajaran.`
+                                    ? `Pendaftaran kelas "${payment.course}" sudah aktif. Anda dapat langsung memulai pembelajaran.`
                                     : 'Belum ada pembayaran berhasil untuk akun ini.'}
                             </p>
                             <div className="mb-10 rounded-xl border border-slate-200 bg-[#F2F3FF] p-6 text-left">
                                 <div className="mb-5 flex items-center justify-between border-b border-slate-200 pb-5">
-                                    <span className="text-sm font-bold tracking-wider text-[#414753] uppercase">Amount Paid</span>
+                                    <span className="text-sm font-bold tracking-wider text-[#414753] uppercase">Total dibayar</span>
                                     <span className="text-2xl font-extrabold text-[#005BB1]">{payment?.amountLabel ?? '-'}</span>
                                 </div>
                                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                                    <Detail label="Order ID" value={payment?.orderId ?? '-'} />
-                                    <Detail label="Payment Method" value={payment?.method ?? '-'} />
+                                    <Detail label="ID Pesanan" value={payment?.orderId ?? '-'} />
+                                    <Detail label="Metode Pembayaran" value={payment?.method ?? '-'} />
                                 </div>
                             </div>
                             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -45,7 +45,7 @@ export default function Success({ payment }: { payment?: Payment | null }) {
                                     className="w-full rounded-lg bg-[#005BB1] py-6 shadow-[0_4px_14px_rgba(0,91,177,0.3)] hover:bg-[#1C7DE8] sm:w-auto"
                                 >
                                     <Link href="/learning">
-                                        Start Learning
+                                        Mulai Belajar
                                         <ArrowRight className="size-5" />
                                     </Link>
                                 </Button>
@@ -53,12 +53,12 @@ export default function Success({ payment }: { payment?: Payment | null }) {
                                     {payment?.id ? (
                                         <a href={`/payments/${payment.id}/invoice`}>
                                             <FileText className="size-5" />
-                                            View Invoice
+                                            Lihat Invoice
                                         </a>
                                     ) : (
                                         <Link href="/payments">
                                             <FileText className="size-5" />
-                                            View Payments
+                                            Lihat Pembayaran
                                         </Link>
                                     )}
                                 </Button>
