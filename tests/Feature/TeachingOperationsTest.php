@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\Course;
 use App\Models\Chapter;
+use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\InstructorPayRate;
 use App\Models\InstructorPayroll;
@@ -126,6 +126,57 @@ test('admin can create school based recurring teaching schedules without course'
         'starts_at' => '2026-07-29 08:00:00',
         'ends_at' => '2026-07-29 10:00:00',
     ]);
+});
+
+test('instructor dashboard includes courses and students from assigned school learning path access', function () {
+    $school = School::factory()->create(['status' => 'active']);
+    $instructor = User::factory()->instructor()->create();
+    $student = User::factory()->student()->create(['school_id' => $school->id]);
+    $unstartedStudent = User::factory()->student()->create(['school_id' => $school->id]);
+    $learningPath = LearningPath::factory()->create(['status' => 'published']);
+    $course = Course::factory()->free()->create([
+        'learning_path_id' => $learningPath->id,
+        'instructor_id' => null,
+        'status' => 'published',
+        'title' => 'Arduino Sekolah',
+    ]);
+
+    SchoolLearningPathAccess::create([
+        'school_id' => $school->id,
+        'learning_path_id' => $learningPath->id,
+        'status' => 'active',
+    ]);
+
+    TeachingSchedule::create([
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => null,
+        'title' => 'Kelas Robotik Sekolah',
+        'starts_at' => now()->addDay()->setTime(9, 0),
+        'ends_at' => now()->addDay()->setTime(11, 0),
+        'mode' => 'offline',
+        'location' => 'Lab Robotik',
+        'status' => 'scheduled',
+    ]);
+
+    Enrollment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'progress_percent' => 60,
+    ]);
+
+    $this->actingAs($instructor)
+        ->get('/instructor/dashboard')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('instructor/dashboard', false)
+            ->where('stats.courses', 1)
+            ->where('stats.students', 2)
+            ->where('stats.averageProgress', 60)
+            ->where('courses.0.title', 'Arduino Sekolah')
+            ->where('courses.0.students', 2));
+
+    expect($unstartedStudent->school_id)->toBe($school->id);
 });
 
 test('instructor report requires evidence photo and can be approved by admin', function () {

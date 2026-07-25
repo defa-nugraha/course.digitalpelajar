@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Course;
 use App\Models\ContentBlock;
+use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\HomePageSection;
 use App\Models\LearningPath;
@@ -505,29 +505,29 @@ class PlatformController extends Controller
                 ->pluck('current_step_index', 'content_block_id')
             : collect();
         $blocks = $blockRows
-                ->map(function ($block) use ($blockStepProgress) {
-                    $metadata = json_decode($block->metadata ?: '{}', true);
-                    if (filled($metadata['media_upload_id'] ?? null)) {
-                        $metadata['download_url'] = route('materials.download', $metadata['media_upload_id']);
-                        if (($metadata['mime_type'] ?? null) === 'application/pdf') {
-                            $metadata['preview_url'] = route('materials.view', $metadata['media_upload_id']);
-                        }
+            ->map(function ($block) use ($blockStepProgress) {
+                $metadata = json_decode($block->metadata ?: '{}', true);
+                if (filled($metadata['media_upload_id'] ?? null)) {
+                    $metadata['download_url'] = route('materials.download', $metadata['media_upload_id']);
+                    if (($metadata['mime_type'] ?? null) === 'application/pdf') {
+                        $metadata['preview_url'] = route('materials.view', $metadata['media_upload_id']);
                     }
-                    $steps = $this->contentBlockSteps($block->type, $block->content, $metadata);
+                }
+                $steps = $this->contentBlockSteps($block->type, $block->content, $metadata);
 
-                    return [
-                        'kind' => 'block',
-                        'id' => $block->id,
-                        'type' => $block->type,
-                        'content' => $this->contentBlockDisplayContent($block->type, $block->content, $metadata),
-                        'metadata' => $metadata,
-                        'steps' => $steps,
-                        'currentStepIndex' => min((int) ($blockStepProgress[$block->id] ?? 0), max(0, $steps->count() - 1)),
-                        'status' => $block->status,
-                        'orderNo' => (int) $block->order_no,
-                    ];
-                })
-                ->values();
+                return [
+                    'kind' => 'block',
+                    'id' => $block->id,
+                    'type' => $block->type,
+                    'content' => $this->contentBlockDisplayContent($block->type, $block->content, $metadata),
+                    'metadata' => $metadata,
+                    'steps' => $steps,
+                    'currentStepIndex' => min((int) ($blockStepProgress[$block->id] ?? 0), max(0, $steps->count() - 1)),
+                    'status' => $block->status,
+                    'orderNo' => (int) $block->order_no,
+                ];
+            })
+            ->values();
 
         $lessonQuizzes = $lesson
             ? DB::table('quizzes')
@@ -900,7 +900,7 @@ class PlatformController extends Controller
         abort_unless(in_array($user->role, ['admin', 'internal_instructor'], true), 403);
 
         $instructorCourseIds = $user->role === 'internal_instructor'
-            ? $this->instructorCourseIds($user->id)
+            ? $this->instructorCourseIds($user->id, $user->school_id)
             : [];
         $instructorSchoolIds = $user->role === 'internal_instructor'
             ? $this->instructorSchoolIds($user->id, $user->school_id)
@@ -985,7 +985,9 @@ class PlatformController extends Controller
     public function instructorDashboard(Request $request): Response
     {
         $instructorId = $request->user()->id;
-        $courseIds = collect($this->instructorCourseIds($instructorId));
+        $instructorSchoolIds = $this->instructorSchoolIds($instructorId, $request->user()->school_id);
+        $courseIds = collect($this->instructorCourseIds($instructorId, $request->user()->school_id));
+        $studentIds = $this->instructorStudentIds($instructorId, $courseIds->all(), $instructorSchoolIds);
         $enrollmentQuery = DB::table('enrollments')->whereIn('course_id', $courseIds);
         $pendingReviews = DB::table('submissions')
             ->join('enrollments', 'submissions.enrollment_id', '=', 'enrollments.id')
@@ -996,7 +998,7 @@ class PlatformController extends Controller
         return Inertia::render('instructor/dashboard', [
             'stats' => [
                 'courses' => $courseIds->count(),
-                'students' => $enrollmentQuery->clone()->distinct('user_id')->count('user_id'),
+                'students' => count($studentIds),
                 'pendingReviews' => $pendingReviews,
                 'openDiscussions' => DB::table('forum_threads')
                     ->whereIn('course_id', $courseIds)
@@ -1016,29 +1018,39 @@ class PlatformController extends Controller
                     'courses.id',
                     'courses.title',
                     'courses.status',
-                    DB::raw('COUNT(enrollments.id) as students'),
+                    'courses.learning_path_id as learningPathId',
+                    DB::raw('COUNT(DISTINCT enrollments.user_id) as enrolledStudents'),
                     DB::raw('COALESCE(ROUND(AVG(enrollments.progress_percent)), 0) as progress'),
                 )
-                ->groupBy('courses.id', 'courses.title', 'courses.status')
+                ->groupBy('courses.id', 'courses.title', 'courses.status', 'courses.learning_path_id')
                 ->orderBy('courses.title')
                 ->get()
-                ->map(fn ($course) => [
-                    'id' => $course->id,
-                    'title' => $course->title,
-                    'status' => $course->status,
-                    'students' => (int) $course->students,
-                    'progress' => (int) $course->progress,
-                    'pendingReviews' => DB::table('submissions')
-                        ->join('enrollments', 'submissions.enrollment_id', '=', 'enrollments.id')
-                        ->where('enrollments.course_id', $course->id)
-                        ->whereIn('submissions.status', ['submitted', 'revised'])
-                        ->count(),
-                    'certificates' => DB::table('certificates')
-                        ->join('enrollments', 'certificates.enrollment_id', '=', 'enrollments.id')
-                        ->where('enrollments.course_id', $course->id)
-                        ->where('certificates.status', 'issued')
-                        ->count(),
-                ]),
+                ->map(function ($course) use ($instructorId, $instructorSchoolIds) {
+                    $courseStudentIds = $this->instructorStudentIdsForCourse(
+                        $instructorId,
+                        (int) $course->id,
+                        $course->learningPathId ? (int) $course->learningPathId : null,
+                        $instructorSchoolIds,
+                    );
+
+                    return [
+                        'id' => $course->id,
+                        'title' => $course->title,
+                        'status' => $course->status,
+                        'students' => count($courseStudentIds),
+                        'progress' => (int) $course->progress,
+                        'pendingReviews' => DB::table('submissions')
+                            ->join('enrollments', 'submissions.enrollment_id', '=', 'enrollments.id')
+                            ->where('enrollments.course_id', $course->id)
+                            ->whereIn('submissions.status', ['submitted', 'revised'])
+                            ->count(),
+                        'certificates' => DB::table('certificates')
+                            ->join('enrollments', 'certificates.enrollment_id', '=', 'enrollments.id')
+                            ->where('enrollments.course_id', $course->id)
+                            ->where('certificates.status', 'issued')
+                            ->count(),
+                    ];
+                }),
             'pendingSubmissions' => DB::table('submissions')
                 ->join('enrollments', 'submissions.enrollment_id', '=', 'enrollments.id')
                 ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
@@ -1065,11 +1077,11 @@ class PlatformController extends Controller
                     'status' => $submission->status,
                     'submittedAt' => $submission->submittedAt,
                 ]),
-            'certificates' => $this->certificateUserRows($instructorId)->take(6)->values(),
+            'certificates' => $this->certificateUserRows($instructorId, $courseIds->all())->take(6)->values(),
             'discussions' => DB::table('forum_threads')
                 ->leftJoin('courses', 'forum_threads.course_id', '=', 'courses.id')
                 ->leftJoin('users', 'forum_threads.user_id', '=', 'users.id')
-                ->where('courses.instructor_id', $instructorId)
+                ->whereIn('forum_threads.course_id', $courseIds)
                 ->select(
                     'forum_threads.id',
                     'forum_threads.title',
@@ -1088,7 +1100,7 @@ class PlatformController extends Controller
     {
         $user = $request->user();
         $instructorCourseIds = $user->role === 'internal_instructor'
-            ? $this->instructorCourseIds($user->id)
+            ? $this->instructorCourseIds($user->id, $user->school_id)
             : [];
         $instructorSchoolIds = $user->role === 'internal_instructor'
             ? $this->instructorSchoolIds($user->id, $user->school_id)
@@ -1669,12 +1681,15 @@ class PlatformController extends Controller
         $instructorId = $request->user()->role === 'internal_instructor'
             ? $request->user()->id
             : null;
+        $instructorCourseIds = $instructorId
+            ? $this->instructorCourseIds($instructorId, $request->user()->school_id)
+            : null;
         $eligibleQuery = Enrollment::query()
             ->with(['user:id,name', 'course'])
             ->whereDoesntHave('certificates')
             ->where('progress_percent', 100)
-            ->when($instructorId, fn ($query, int $id) => $query->whereHas('course', fn ($query) => $query->where('instructor_id', $id)));
-        $certificateUsers = $this->certificateUserRows($instructorId);
+            ->when($instructorCourseIds !== null, fn ($query) => $query->whereIn('course_id', $instructorCourseIds));
+        $certificateUsers = $this->certificateUserRows($instructorId, $instructorCourseIds);
 
         return Inertia::render('admin/certificates', [
             'canManageTemplates' => $request->user()->isAdmin(),
@@ -1685,7 +1700,7 @@ class PlatformController extends Controller
                 'status' => $template->status,
                 'layout' => json_decode($template->layout ?: '{}', true),
             ]),
-            'certificates' => $this->allCertificates($instructorId),
+            'certificates' => $this->allCertificates($instructorId, $instructorCourseIds),
             'certificateUsers' => $certificateUsers,
             'certificateFilters' => [
                 'schools' => $certificateUsers
@@ -2014,7 +2029,7 @@ class PlatformController extends Controller
             return;
         }
 
-        abort_unless(in_array($course->id, $this->instructorCourseIds($user->id), true), 403);
+        abort_unless(in_array($course->id, $this->instructorCourseIds($user->id, $user->school_id), true), 403);
     }
 
     private function courseCardPayload(Course $course): array
@@ -3073,13 +3088,14 @@ class PlatformController extends Controller
             ->values();
     }
 
-    private function allCertificates(?int $instructorId = null)
+    private function allCertificates(?int $instructorId = null, ?array $courseIds = null)
     {
         return DB::table('certificates')
             ->join('enrollments', 'certificates.enrollment_id', '=', 'enrollments.id')
             ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
             ->leftJoin('courses', 'enrollments.course_id', '=', 'courses.id')
-            ->when($instructorId, fn ($query, int $id) => $query->where('courses.instructor_id', $id))
+            ->when($courseIds !== null, fn ($query) => $query->whereIn('courses.id', $courseIds))
+            ->when($courseIds === null && $instructorId, fn ($query, int $id) => $query->where('courses.instructor_id', $id))
             ->select(
                 'certificates.id',
                 'certificates.certificate_no as no',
@@ -3102,14 +3118,15 @@ class PlatformController extends Controller
             ]);
     }
 
-    private function certificateUserRows(?int $instructorId = null)
+    private function certificateUserRows(?int $instructorId = null, ?array $courseIds = null)
     {
         return DB::table('certificates')
             ->join('enrollments', 'certificates.enrollment_id', '=', 'enrollments.id')
             ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
             ->leftJoin('schools', 'users.school_id', '=', 'schools.id')
             ->leftJoin('courses', 'enrollments.course_id', '=', 'courses.id')
-            ->when($instructorId, fn ($query, int $id) => $query->where('courses.instructor_id', $id))
+            ->when($courseIds !== null, fn ($query) => $query->whereIn('courses.id', $courseIds))
+            ->when($courseIds === null && $instructorId, fn ($query, int $id) => $query->where('courses.instructor_id', $id))
             ->select(
                 'certificates.id',
                 'certificates.certificate_no as no',
@@ -3167,7 +3184,7 @@ class PlatformController extends Controller
         $query = DB::table('courses');
 
         if ($request->user()?->role === 'internal_instructor') {
-            $query->whereIn('id', $this->instructorCourseIds($request->user()->id));
+            $query->whereIn('id', $this->instructorCourseIds($request->user()->id, $request->user()->school_id));
         }
 
         return $query;
@@ -3177,7 +3194,7 @@ class PlatformController extends Controller
     {
         return DB::table('learning_paths')
             ->when($request->user()?->role === 'internal_instructor', function ($query) use ($request) {
-                $visiblePathIds = $this->visibleLearningPathIdsForInstructor($request->user()->id);
+                $visiblePathIds = $this->visibleLearningPathIdsForInstructor($request->user()->id, $request->user()->school_id);
 
                 $query->where(function ($query) use ($request, $visiblePathIds) {
                     $query->where('created_by', $request->user()->id);
@@ -3192,10 +3209,10 @@ class PlatformController extends Controller
             ->get();
     }
 
-    private function visibleLearningPathIdsForInstructor(int $instructorId): array
+    private function visibleLearningPathIdsForInstructor(int $instructorId, ?int $fallbackSchoolId = null): array
     {
         return DB::table('courses')
-            ->whereIn('id', $this->instructorCourseIds($instructorId))
+            ->whereIn('id', $this->instructorCourseIds($instructorId, $fallbackSchoolId))
             ->whereNotNull('learning_path_id')
             ->pluck('learning_path_id')
             ->filter()
@@ -3204,13 +3221,91 @@ class PlatformController extends Controller
             ->all();
     }
 
-    private function instructorCourseIds(int $instructorId): array
+    private function instructorCourseIds(int $instructorId, ?int $fallbackSchoolId = null): array
     {
+        $schoolIds = $this->instructorSchoolIds($instructorId, $fallbackSchoolId);
+
         return DB::table('courses')
             ->where('instructor_id', $instructorId)
             ->pluck('id')
             ->merge(DB::table('teaching_schedules')->where('instructor_id', $instructorId)->pluck('course_id'))
             ->merge(DB::table('teaching_sessions')->where('instructor_id', $instructorId)->pluck('course_id'))
+            ->merge($this->activeSchoolLearningPathCourseIds($schoolIds))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function activeSchoolLearningPathCourseIds(array $schoolIds)
+    {
+        if ($schoolIds === []) {
+            return collect();
+        }
+
+        return DB::table('courses')
+            ->join('school_learning_path_accesses', 'courses.learning_path_id', '=', 'school_learning_path_accesses.learning_path_id')
+            ->whereIn('school_learning_path_accesses.school_id', $schoolIds)
+            ->where('school_learning_path_accesses.status', 'active')
+            ->where(fn ($query) => $query->whereNull('school_learning_path_accesses.starts_at')->orWhere('school_learning_path_accesses.starts_at', '<=', now()->toDateString()))
+            ->where(fn ($query) => $query->whereNull('school_learning_path_accesses.expires_at')->orWhere('school_learning_path_accesses.expires_at', '>=', now()->toDateString()))
+            ->pluck('courses.id');
+    }
+
+    private function instructorStudentIds(int $instructorId, array $courseIds, array $schoolIds): array
+    {
+        return DB::table('enrollments')
+            ->whereIn('course_id', $courseIds)
+            ->pluck('user_id')
+            ->merge(DB::table('users')
+                ->where('role', 'student')
+                ->whereIn('school_id', $schoolIds)
+                ->pluck('id'))
+            ->merge(DB::table('teaching_attendances')
+                ->join('teaching_schedules', 'teaching_attendances.teaching_schedule_id', '=', 'teaching_schedules.id')
+                ->where('teaching_schedules.instructor_id', $instructorId)
+                ->pluck('teaching_attendances.student_id'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function instructorStudentIdsForCourse(int $instructorId, int $courseId, ?int $learningPathId, array $schoolIds): array
+    {
+        $courseSchoolIds = DB::table('teaching_schedules')
+            ->where('instructor_id', $instructorId)
+            ->where('course_id', $courseId)
+            ->pluck('school_id')
+            ->merge(DB::table('teaching_sessions')
+                ->where('instructor_id', $instructorId)
+                ->where('course_id', $courseId)
+                ->pluck('school_id'));
+
+        if ($learningPathId && $schoolIds !== []) {
+            $courseSchoolIds = $courseSchoolIds->merge(DB::table('school_learning_path_accesses')
+                ->whereIn('school_id', $schoolIds)
+                ->where('learning_path_id', $learningPathId)
+                ->where('status', 'active')
+                ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()->toDateString()))
+                ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>=', now()->toDateString()))
+                ->pluck('school_id'));
+        }
+
+        $courseSchoolIds = $courseSchoolIds->filter()->unique()->values()->all();
+
+        return DB::table('enrollments')
+            ->where('course_id', $courseId)
+            ->pluck('user_id')
+            ->merge(DB::table('users')
+                ->where('role', 'student')
+                ->whereIn('school_id', $courseSchoolIds)
+                ->pluck('id'))
+            ->merge(DB::table('teaching_attendances')
+                ->join('teaching_schedules', 'teaching_attendances.teaching_schedule_id', '=', 'teaching_schedules.id')
+                ->where('teaching_schedules.instructor_id', $instructorId)
+                ->where('teaching_schedules.course_id', $courseId)
+                ->pluck('teaching_attendances.student_id'))
             ->filter()
             ->unique()
             ->values()
