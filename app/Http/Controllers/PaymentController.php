@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Services\AuditLogger;
 use App\Services\EnrollmentService;
 use App\Services\MidtransService;
+use App\Services\StoreOrderService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +21,7 @@ class PaymentController extends Controller
         Request $request,
         Payment $payment,
         EnrollmentService $enrollments,
+        StoreOrderService $storeOrders,
     ): RedirectResponse {
         abort_if(config('midtrans.is_enabled'), 404);
         abort_unless($payment->user_id === $request->user()->id, 403);
@@ -28,7 +30,7 @@ class PaymentController extends Controller
             'payment_method' => ['required', 'in:bank_transfer,credit_card,qris'],
         ])['payment_method'];
 
-        DB::transaction(function () use ($payment, $method, $enrollments, $request) {
+        DB::transaction(function () use ($payment, $method, $enrollments, $storeOrders, $request) {
             $payment->update([
                 'status' => 'paid',
                 'payment_method' => $method,
@@ -39,7 +41,13 @@ class PaymentController extends Controller
                 ],
             ]);
 
-            $enrollments->activateFromPayment($payment->fresh(['user']));
+            $freshPayment = $payment->fresh(['user', 'storeOrder']);
+            if ($freshPayment->store_order_id) {
+                $storeOrders->activateFromPayment($freshPayment);
+            } else {
+                $enrollments->activateFromPayment($freshPayment);
+            }
+
             AuditLogger::log('payment.paid', $request->user(), $payment, ['source' => 'mock']);
         });
 
@@ -50,6 +58,7 @@ class PaymentController extends Controller
         Request $request,
         MidtransService $midtrans,
         EnrollmentService $enrollments,
+        StoreOrderService $storeOrders,
     ): JsonResponse {
         $payload = $request->all();
         $request->validate([
@@ -80,7 +89,7 @@ class PaymentController extends Controller
             $status = 'paid';
         }
 
-        DB::transaction(function () use ($payment, $status, $payload, $enrollments) {
+        DB::transaction(function () use ($payment, $status, $payload, $enrollments, $storeOrders) {
             $payment->update([
                 'status' => $status,
                 'gateway_transaction_id' => $payload['transaction_id'] ?? $payment->gateway_transaction_id,
@@ -90,7 +99,12 @@ class PaymentController extends Controller
             ]);
 
             if ($status === 'paid') {
-                $enrollments->activateFromPayment($payment->fresh(['user']));
+                $freshPayment = $payment->fresh(['user', 'storeOrder']);
+                if ($freshPayment->store_order_id) {
+                    $storeOrders->activateFromPayment($freshPayment);
+                } else {
+                    $enrollments->activateFromPayment($freshPayment);
+                }
             }
 
             AuditLogger::log('payment.notification', $payment->user, $payment, ['status' => $status]);

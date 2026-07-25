@@ -15,6 +15,7 @@ class Payment extends Model
     protected $fillable = [
         'user_id',
         'course_id',
+        'store_order_id',
         'order_id',
         'gateway_transaction_id',
         'amount',
@@ -40,6 +41,11 @@ class Payment extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function storeOrder(): BelongsTo
+    {
+        return $this->belongsTo(StoreOrder::class);
     }
 
     public function isPaid(): bool
