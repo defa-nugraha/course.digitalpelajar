@@ -86,6 +86,7 @@ jobs:
       - name: Package application
         run: |
           tar \
+            --exclude='release.tar.gz' \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules' \
@@ -95,7 +96,8 @@ jobs:
             --exclude='storage/framework/sessions/*' \
             --exclude='storage/framework/views/*' \
             --exclude='storage/logs/*' \
-            -czf release.tar.gz .
+            -czf ../release.tar.gz .
+          mv ../release.tar.gz ./release.tar.gz
 
       - name: Upload release to VPS
         uses: appleboy/scp-action@v0.1.7
