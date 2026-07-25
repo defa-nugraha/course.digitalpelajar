@@ -105,8 +105,8 @@ export const adminNav = [
 export const studentNav = [
     { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { title: 'Belajar', href: '/student/learning', icon: GraduationCap },
-    { title: 'Katalog', href: '/student/catalog', icon: BookOpen },
     { title: 'Scan Presensi', href: '/student/attendance/scan', icon: QrCode },
+    { title: 'Katalog', href: '/student/catalog', icon: BookOpen },
     { title: 'Sertifikat', href: '/certificates', icon: Award },
     { title: 'Pembayaran', href: '/payments', icon: Wallet },
 ];

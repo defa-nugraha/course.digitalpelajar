@@ -49,6 +49,36 @@ function AppLayoutBottomNav({ items }: { items: NavItem[] }) {
                 {primaryItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item) || isSameBase(item);
+                    const isScan = item.title === 'Scan Presensi' || item.href === '/student/attendance/scan';
+
+                    if (isScan) {
+                        return (
+                            <Link
+                                key={item.href ?? item.title}
+                                href={item.href ?? '#'}
+                                className="group relative -mt-6 flex flex-col items-center justify-center"
+                            >
+                                <div
+                                    className={cn(
+                                        'flex size-12 items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-95',
+                                        active
+                                            ? 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white ring-4 ring-white shadow-blue-500/40'
+                                            : 'bg-blue-600 text-white ring-4 ring-white shadow-blue-600/30 hover:bg-blue-700',
+                                    )}
+                                >
+                                    <Icon className="size-6" />
+                                </div>
+                                <span
+                                    className={cn(
+                                        'mt-0.5 max-w-full truncate text-[10px] font-bold tracking-tight',
+                                        active ? 'font-extrabold text-blue-700' : 'text-slate-600',
+                                    )}
+                                >
+                                    {shortLabel(item.title)}
+                                </span>
+                            </Link>
+                        );
+                    }
 
                     return (
                         <Link
