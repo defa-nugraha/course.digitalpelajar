@@ -14,6 +14,7 @@ use App\Models\TeachingAttendance;
 use App\Models\TeachingSchedule;
 use App\Models\TeachingSession;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -233,6 +234,7 @@ test('instructor report requires evidence photo and can be approved by admin', f
 
 test('admin generates payroll from approved teaching sessions only once', function () {
     Storage::fake('public');
+    $this->travelTo(CarbonImmutable::parse('2026-07-20 10:00:00', config('app.timezone')));
 
     $admin = User::factory()->admin()->create();
     $school = School::factory()->create();
