@@ -6,7 +6,7 @@
 
         @php
             $seo = $page['props']['seo'] ?? [];
-            $seoTitle = $seo['title'] ?? config('app.name', 'Laravel');
+            $seoTitle = $seo['title'] ?? config('app.name', 'Digital Pelajar Tech Solutions');
             $seoDescription = $seo['description'] ?? null;
             $seoCanonical = $seo['canonical'] ?? url()->current();
             $seoImage = $seo['image'] ?? asset('logo.png');
@@ -18,6 +18,7 @@
         @endphp
 
         <title inertia>{{ $seoTitle }}</title>
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         <link rel="icon" type="image/png" href="{{ $headIcon }}">
         <link rel="shortcut icon" type="image/png" href="{{ $headIcon }}">
         <link rel="apple-touch-icon" href="{{ $headIcon }}">

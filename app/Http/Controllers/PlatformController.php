@@ -522,6 +522,7 @@ class PlatformController extends Controller
                     'content' => $this->contentBlockDisplayContent($block->type, $block->content, $metadata),
                     'metadata' => $metadata,
                     'steps' => $steps,
+                    'hasCustomSteps' => $this->hasCustomContentBlockSteps($metadata),
                     'currentStepIndex' => min((int) ($blockStepProgress[$block->id] ?? 0), max(0, $steps->count() - 1)),
                     'status' => $block->status,
                     'orderNo' => (int) $block->order_no,
@@ -1543,6 +1544,7 @@ class PlatformController extends Controller
             'course' => $this->blockCoursePayload($lesson->chapter->course),
             'backUrl' => $this->courseBuilderUrl($request, $lesson->chapter->course_id),
             'submitUrl' => route($this->managementRoutePrefix($request).'.blocks.store', $lesson),
+            'editorUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.editor-media', $lesson),
             'nextOrder' => ((int) $lesson->contentBlocks()->max('order_no')) + 1,
         ]);
     }
@@ -1567,6 +1569,7 @@ class PlatformController extends Controller
             'course' => $this->blockCoursePayload($block->lesson->chapter->course),
             'backUrl' => $this->courseBuilderUrl($request, $block->lesson->chapter->course_id),
             'submitUrl' => route($this->managementRoutePrefix($request).'.blocks.update', $block),
+            'editorUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.editor-media', $block->lesson),
             'nextOrder' => $block->order_no,
         ]);
     }
@@ -2168,10 +2171,10 @@ class PlatformController extends Controller
     private function contentBlockSteps(string $type, ?string $content, array $metadata = [])
     {
         $steps = collect($metadata['steps'] ?? [])
-            ->filter(fn ($step) => is_array($step) && filled($step['content'] ?? null))
+            ->filter(fn ($step) => is_array($step) && $this->stepHasReadableContent($step['content'] ?? null))
             ->map(fn (array $step, int $index) => [
                 'title' => filled($step['title'] ?? null) ? $step['title'] : 'Step '.($index + 1),
-                'content' => $this->contentBlockDisplayContent($type, $step['content'] ?? null, $metadata),
+                'content' => (string) ($step['content'] ?? ''),
             ])
             ->values();
 
@@ -2185,6 +2188,20 @@ class PlatformController extends Controller
                 'content' => $this->contentBlockDisplayContent($type, $content, $metadata),
             ],
         ]);
+    }
+
+    private function hasCustomContentBlockSteps(array $metadata): bool
+    {
+        return collect($metadata['steps'] ?? [])
+            ->contains(fn ($step) => is_array($step) && $this->stepHasReadableContent($step['content'] ?? null));
+    }
+
+    private function stepHasReadableContent(mixed $content): bool
+    {
+        $value = (string) $content;
+
+        return trim(str_replace('&nbsp;', ' ', strip_tags($value))) !== ''
+            || preg_match('/<(img|video)\b/i', $value) === 1;
     }
 
     private function userHasSchoolLearningPathAccess(?int $userId, Course $course): bool

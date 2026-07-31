@@ -56,7 +56,7 @@ test('student can buy robot kit bundle and redeem activation code for course acc
         ->post("/payments/{$result['payment']->id}/mock-settle", [
             'payment_method' => 'qris',
         ])
-        ->assertRedirect(route('payments.success'))
+        ->assertRedirect(route('store.orders'))
         ->assertSessionHas('success');
 
     $order = $result['order']->fresh(['activationCodes']);

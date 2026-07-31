@@ -194,6 +194,14 @@
         @apply bg-transparent p-0 text-slate-50;
     }
 
+    .prose-content img {
+        @apply my-4 max-h-[520px] w-full rounded-xl border border-slate-200 object-contain;
+    }
+
+    .prose-content video {
+        @apply my-4 aspect-video w-full rounded-xl border border-slate-200 bg-black object-contain;
+    }
+
     .attendance-qr-reader {
         position: relative;
     }

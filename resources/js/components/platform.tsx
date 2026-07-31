@@ -63,6 +63,7 @@ export function PublicNav() {
         { href: '/', label: 'Home' },
         { href: '/courses', label: 'Courses' },
         { href: '/learning-paths', label: 'Learning Path' },
+        { href: '/store', label: 'Toko Robotik' },
     ];
     useFlashToasts(flash, validationError);
 

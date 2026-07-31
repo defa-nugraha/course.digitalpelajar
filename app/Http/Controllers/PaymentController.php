@@ -51,7 +51,9 @@ class PaymentController extends Controller
             AuditLogger::log('payment.paid', $request->user(), $payment, ['source' => 'mock']);
         });
 
-        return to_route('payments.success')->with('success', 'Pembayaran berhasil dikonfirmasi.');
+        return $payment->store_order_id
+            ? to_route('store.orders')->with('success', 'Pembayaran order toko berhasil dikonfirmasi.')
+            : to_route('payments.success')->with('success', 'Pembayaran berhasil dikonfirmasi.');
     }
 
     public function notification(

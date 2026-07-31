@@ -12,6 +12,7 @@ import {
     LibraryBig,
     MessageSquare,
     PanelLeft,
+    Package,
     QrCode,
     Route,
     Search,
@@ -89,6 +90,7 @@ export const adminNav = [
         ],
     },
     { title: 'Pembayaran', href: '/admin/payments', icon: Wallet },
+    { title: 'Toko Robotik', href: '/admin/store', icon: Package },
     { title: 'Gaji Pengajar', href: '/admin/instructor-payrolls', icon: Wallet },
     { title: 'Laporan', href: '/admin/reports', icon: BarChart3 },
     {
@@ -107,6 +109,8 @@ export const studentNav = [
     { title: 'Belajar', href: '/student/learning', icon: GraduationCap },
     { title: 'Scan Presensi', href: '/student/attendance/scan', icon: QrCode },
     { title: 'Katalog', href: '/student/catalog', icon: BookOpen },
+    { title: 'Toko Robotik', href: '/store/orders', icon: Package },
+    { title: 'Redeem Kode', href: '/activation-codes/redeem', icon: QrCode },
     { title: 'Sertifikat', href: '/certificates', icon: Award },
     { title: 'Pembayaran', href: '/payments', icon: Wallet },
 ];
@@ -115,6 +119,8 @@ export const teacherNav = [
     { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { title: 'Belajar', href: '/teacher/learning', icon: GraduationCap },
     { title: 'Katalog', href: '/teacher/catalog', icon: BookOpen },
+    { title: 'Toko Robotik', href: '/store/orders', icon: Package },
+    { title: 'Redeem Kode', href: '/activation-codes/redeem', icon: QrCode },
     { title: 'Siswa', href: '/teacher/students', icon: Users },
 ];
 

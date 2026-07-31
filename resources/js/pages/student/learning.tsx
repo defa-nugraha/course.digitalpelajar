@@ -41,6 +41,7 @@ interface ContentBlock {
     status: string;
     metadata: Record<string, string | string[]>;
     steps?: BlockStep[];
+    hasCustomSteps?: boolean;
     currentStepIndex?: number;
 }
 
@@ -73,6 +74,7 @@ interface LessonItem {
     status?: string;
     metadata?: Record<string, string | string[] | number>;
     steps?: BlockStep[];
+    hasCustomSteps?: boolean;
     currentStepIndex?: number;
     title?: string;
     passingScore?: number;
@@ -118,6 +120,16 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                   ...block,
                   kind: 'block' as const,
               }));
+    const unfinishedStepBlocks = renderedItems.filter((item) => {
+        if (item.kind !== 'block' || !item.hasCustomSteps) {
+            return false;
+        }
+
+        const steps = readableSteps(item.steps);
+
+        return steps.length > 1 && (item.currentStepIndex ?? 0) < steps.length - 1;
+    });
+    const canCompleteLesson = Boolean(currentLesson) && currentLesson?.state !== 'done' && unfinishedStepBlocks.length === 0;
 
     const openQuiz = (item: QuizData) => {
         setActiveQuiz(item);
@@ -150,7 +162,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
     };
 
     const completeLesson = () => {
-        if (!currentLesson) return;
+        if (!currentLesson || !canCompleteLesson) return;
         router.post(`/courses/${course.id}/lessons/${currentLesson.id}/complete`, {}, { preserveScroll: true });
     };
 
@@ -300,9 +312,14 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                         <p className="mt-1">{submission.feedback}</p>
                                     </div>
                                 )}
+                                {currentLesson?.state !== 'done' && unfinishedStepBlocks.length > 0 && (
+                                    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+                                        Buka materi sampai step terakhir terlebih dahulu sebelum menandai lesson selesai.
+                                    </div>
+                                )}
                                 <Button
                                     className="mt-5 w-full bg-[#1C7DE8] hover:bg-[#1469c7]"
-                                    disabled={!currentLesson || currentLesson.state === 'done'}
+                                    disabled={!canCompleteLesson}
                                     onClick={completeLesson}
                                 >
                                     {currentLesson?.state === 'done' ? 'Lesson Sudah Selesai' : 'Tandai Lesson Selesai'}
@@ -451,12 +468,20 @@ function LearningBlock({
     onSubmission: () => void;
 }) {
     const metadata = item.metadata ?? {};
-    const steps = (item.steps ?? []).filter((step) => step.content);
-    const hasSteps = steps.length > 1;
+    const steps = readableSteps(item.steps);
+    const hasCustomSteps = Boolean(item.hasCustomSteps);
+    const hasSteps = hasCustomSteps && steps.length > 1;
     const [currentStep, setCurrentStep] = useState(Math.min(item.currentStepIndex ?? 0, Math.max(0, steps.length - 1)));
     const activeStep = steps[currentStep];
-    const activeContent = activeStep?.content ?? item.content;
+    const activeContent = item.type === 'text' ? (activeStep?.content ?? item.content) : item.content;
     const stepItem = { ...item, content: activeContent };
+    const stepInstruction =
+        hasCustomSteps && item.type !== 'text' && activeStep?.content ? (
+            <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <p className="mb-2 text-xs font-bold tracking-wide text-blue-700 uppercase">Instruksi step</p>
+                <div className="prose-content" dangerouslySetInnerHTML={{ __html: activeStep.content }} />
+            </div>
+        ) : null;
 
     useEffect(() => {
         setCurrentStep(Math.min(item.currentStepIndex ?? 0, Math.max(0, steps.length - 1)));
@@ -488,6 +513,7 @@ function LearningBlock({
                     </div>
                 </div>
             )}
+            {stepInstruction}
             {content}
         </div>
     );
@@ -671,4 +697,12 @@ function FileField({ label, accept, error, onChange }: { label: string; accept: 
             <InputError message={error} />
         </div>
     );
+}
+
+function readableSteps(steps: BlockStep[] | undefined): BlockStep[] {
+    return (steps ?? []).filter((step) => hasReadableContent(step.content));
+}
+
+function hasReadableContent(content: string): boolean {
+    return content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() !== '' || /<(img|video)\b/i.test(content);
 }

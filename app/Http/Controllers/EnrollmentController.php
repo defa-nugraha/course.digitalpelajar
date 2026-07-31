@@ -95,17 +95,23 @@ class EnrollmentController extends Controller
         $order = $request->string('order');
 
         $payment = Payment::where('order_id', $order)
-            ->with('course', 'user')
+            ->with('course', 'storeOrder.items', 'user')
             ->first();
 
         if (! $payment || $payment->user_id !== $request->user()->id) {
             return null;
         }
 
+        $description = $payment->storeOrder
+            ? $payment->storeOrder->items->map(fn ($item) => $item->product_name.' x'.$item->quantity)->join(', ')
+            : ($payment->course?->title ?? 'Course tidak tersedia');
+
         return [
             'order_id' => $payment->order_id,
             'amount' => $payment->amount,
-            'course' => $payment->course?->title ?? 'Course tidak tersedia',
+            'description' => $description,
+            'type' => $payment->store_order_id ? 'Order Toko' : 'Kursus',
+            'course' => $payment->course?->title ?? $description,
             'student' => $payment->user?->name ?? 'User tidak tersedia',
             'status' => $payment->status,
             'snap_token' => $payment->snap_token,

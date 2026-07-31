@@ -148,6 +148,7 @@ class EnrollmentService
                 ->firstOrFail();
 
             $this->assertLessonAccessible($user, $course, $lesson);
+            $this->assertLessonStepsCompleted($user, $lesson);
 
             $unfinishedQuiz = $lesson->quizzes()
                 ->whereDoesntHave('attempts', fn ($query) => $query
@@ -251,6 +252,52 @@ class EnrollmentService
         }
 
         return $enrollment->fresh();
+    }
+
+    private function assertLessonStepsCompleted(User $user, Lesson $lesson): void
+    {
+        $stepRequirements = $lesson->contentBlocks()
+            ->where('status', 'published')
+            ->get(['id', 'metadata'])
+            ->map(function ($block) {
+                $steps = collect($block->metadata['steps'] ?? [])
+                    ->filter(fn ($step) => is_array($step) && $this->stepHasReadableContent($step['content'] ?? null))
+                    ->values();
+
+                return [
+                    'content_block_id' => $block->id,
+                    'last_step_index' => $steps->count() - 1,
+                ];
+            })
+            ->filter(fn (array $item) => $item['last_step_index'] > 0)
+            ->values();
+
+        if ($stepRequirements->isEmpty()) {
+            return;
+        }
+
+        $progress = DB::table('content_block_step_progresses')
+            ->where('user_id', $user->id)
+            ->whereIn('content_block_id', $stepRequirements->pluck('content_block_id'))
+            ->pluck('current_step_index', 'content_block_id');
+
+        $hasUnfinishedStep = $stepRequirements->contains(
+            fn (array $item) => (int) ($progress[$item['content_block_id']] ?? 0) < $item['last_step_index'],
+        );
+
+        if ($hasUnfinishedStep) {
+            throw ValidationException::withMessages([
+                'lesson' => 'Buka seluruh step materi sampai step terakhir sebelum menandai lesson selesai.',
+            ]);
+        }
+    }
+
+    private function stepHasReadableContent(mixed $content): bool
+    {
+        $value = (string) $content;
+
+        return trim(str_replace('&nbsp;', ' ', strip_tags($value))) !== ''
+            || preg_match('/<(img|video)\b/i', $value) === 1;
     }
 
     private function hasSchoolLearningPathAccess(User $user, Course $course): bool

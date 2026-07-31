@@ -10,6 +10,7 @@ use App\Models\Lesson;
 use App\Models\MediaUpload;
 use App\Models\Quiz;
 use App\Services\AuditLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -139,6 +140,60 @@ class CurriculumController extends Controller
         $this->syncConversionStatus($mediaUploadId);
 
         return back()->with('success', 'Blok materi berhasil dihapus.');
+    }
+
+    public function uploadEditorMedia(Request $request, Lesson $lesson): JsonResponse
+    {
+        $lesson->loadMissing('chapter.course');
+        $this->authorizeCourse($request, $lesson->chapter->course);
+
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['image', 'video'])],
+            'media' => [
+                'required',
+                'file',
+                'max:51200',
+                'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/svg+xml,video/mp4,video/webm,video/ogg,video/quicktime',
+            ],
+        ]);
+
+        $file = $request->file('media');
+        $mimeType = (string) $file->getMimeType();
+        $mediaType = str_starts_with($mimeType, 'image/') ? 'image' : (str_starts_with($mimeType, 'video/') ? 'video' : null);
+
+        if ($mediaType !== $data['type']) {
+            throw ValidationException::withMessages([
+                'media' => $data['type'] === 'image' ? 'File harus berupa gambar.' : 'File harus berupa video.',
+            ]);
+        }
+
+        $course = $lesson->chapter->course;
+        $path = $file->store("course-materials/{$course->id}/{$lesson->id}/editor/{$mediaType}s", 'public');
+        $upload = MediaUpload::create([
+            'user_id' => $request->user()->id,
+            'mediable_type' => Lesson::class,
+            'mediable_id' => $lesson->id,
+            'disk' => 'public',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $mimeType,
+            'size' => $file->getSize(),
+            'conversion_status' => 'published',
+        ]);
+
+        AuditLogger::log('content_editor_media.uploaded', $request->user(), $upload, [
+            'course_id' => $course->id,
+            'lesson_id' => $lesson->id,
+            'type' => $mediaType,
+        ]);
+
+        return response()->json([
+            'id' => $upload->id,
+            'type' => $mediaType,
+            'path' => $path,
+            'url' => Storage::disk('public')->url($path),
+            'originalName' => $file->getClientOriginalName(),
+        ]);
     }
 
     public function storeQuiz(Request $request, Course $course): RedirectResponse

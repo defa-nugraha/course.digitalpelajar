@@ -5,6 +5,7 @@ use App\Models\ContentBlock;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Lesson;
+use App\Models\LessonCompletion;
 use App\Models\MediaUpload;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -142,6 +143,79 @@ test('student content block step progress is persisted per user', function () {
         ->where('user_id', $student->id)
         ->where('content_block_id', $block->id)
         ->value('current_step_index'))->toBe(2);
+});
+
+test('course editor uploads image and video media for rich text steps', function () {
+    Storage::fake('public');
+    $admin = User::factory()->admin()->create();
+    $course = Course::factory()->create(['status' => 'published']);
+    $chapter = Chapter::factory()->create(['course_id' => $course->id]);
+    $lesson = Lesson::factory()->create(['chapter_id' => $chapter->id]);
+
+    $imageResponse = $this->actingAs($admin)
+        ->post("/admin/lessons/{$lesson->id}/editor-media", [
+            'type' => 'image',
+            'media' => UploadedFile::fake()->image('diagram-arduino.png'),
+        ], ['Accept' => 'application/json'])
+        ->assertOk()
+        ->assertJsonPath('type', 'image');
+
+    expect($imageResponse->json('url'))->toStartWith('/storage/course-materials/');
+
+    $videoResponse = $this->actingAs($admin)
+        ->post("/admin/lessons/{$lesson->id}/editor-media", [
+            'type' => 'video',
+            'media' => UploadedFile::fake()->create('demo-rangkaian.mp4', 512, 'video/mp4'),
+        ], ['Accept' => 'application/json'])
+        ->assertOk()
+        ->assertJsonPath('type', 'video');
+
+    expect(MediaUpload::count())->toBe(2)
+        ->and($videoResponse->json('url'))->toStartWith('/storage/course-materials/');
+
+    MediaUpload::all()->each(fn (MediaUpload $upload) => Storage::disk('public')->assertExists($upload->path));
+});
+
+test('lesson cannot be marked complete until the last content block step is opened', function () {
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->free()->create(['status' => 'published']);
+    $chapter = Chapter::factory()->create(['course_id' => $course->id]);
+    $lesson = Lesson::factory()->create(['chapter_id' => $chapter->id]);
+    $block = ContentBlock::create([
+        'lesson_id' => $lesson->id,
+        'type' => 'text',
+        'content' => '<p>Step pertama</p>',
+        'metadata' => [
+            'steps' => [
+                ['title' => 'Pengenalan', 'content' => '<p>Step pertama</p>'],
+                ['title' => 'Praktik', 'content' => '<p>Step terakhir</p>'],
+            ],
+        ],
+        'order_no' => 1,
+        'status' => 'published',
+    ]);
+    Enrollment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($student)
+        ->post("/courses/{$course->id}/lessons/{$lesson->id}/complete")
+        ->assertSessionHasErrors('lesson');
+
+    expect(LessonCompletion::query()->where('user_id', $student->id)->where('lesson_id', $lesson->id)->exists())->toBeFalse();
+
+    $this->actingAs($student)
+        ->post("/learning/blocks/{$block->id}/step", ['step_index' => 1])
+        ->assertRedirect();
+
+    $this->actingAs($student)
+        ->post("/courses/{$course->id}/lessons/{$lesson->id}/complete")
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    expect(LessonCompletion::query()->where('user_id', $student->id)->where('lesson_id', $lesson->id)->exists())->toBeTrue();
 });
 
 test('course builder supports uploaded pdf block with inline preview for enrolled student', function () {

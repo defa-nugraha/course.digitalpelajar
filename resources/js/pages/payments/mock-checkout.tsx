@@ -7,6 +7,8 @@ interface Payment {
     id: number;
     order_id: string;
     amount: number;
+    description: string;
+    type: string;
     course: string;
     student: string;
     status: string;
@@ -23,7 +25,7 @@ export default function MockCheckout({ payment }: { payment: Payment }) {
                     <div className="grid gap-4 rounded-lg border border-slate-200 p-5 text-sm md:grid-cols-2">
                         <Info label="Order ID" value={payment.order_id} />
                         <Info label="Siswa" value={payment.student} />
-                        <Info label="Kursus" value={payment.course} />
+                        <Info label={payment.type} value={payment.description || payment.course} />
                         <Info label="Total" value={`Rp ${payment.amount.toLocaleString('id-ID')}`} />
                     </div>
                     <div className="mt-5 grid gap-3 md:grid-cols-3">

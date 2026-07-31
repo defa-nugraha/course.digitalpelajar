@@ -44,6 +44,7 @@ interface BlockFormProps {
     course: CourseData;
     backUrl: string;
     submitUrl: string;
+    editorUploadUrl: string;
     nextOrder: number;
 }
 
@@ -77,7 +78,7 @@ const statusOptions = [
     { value: 'published', label: 'Published' },
 ];
 
-export default function BlockForm({ block, lesson, course, backUrl, submitUrl, nextOrder }: BlockFormProps) {
+export default function BlockForm({ block, lesson, course, backUrl, submitUrl, editorUploadUrl, nextOrder }: BlockFormProps) {
     const initialType = block?.type ?? 'text';
     const form = useForm<BlockFormData>({
         type: initialType,
@@ -92,17 +93,16 @@ export default function BlockForm({ block, lesson, course, backUrl, submitUrl, n
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
-        form.transform((data) => ({
-            ...data,
-            metadata: normalizeMetadata(data.type, data.metadata),
-            content:
-                data.type === 'checklist'
-                    ? checklistItems(data.metadata).join('\n')
-                    : data.type === 'text'
-                      ? firstTextStepContent(data.metadata) || data.content
-                      : data.content,
-            _method: block ? 'patch' : undefined,
-        }));
+        form.transform((data) => {
+            const metadata = normalizeMetadata(data.type, data.metadata);
+
+            return {
+                ...data,
+                metadata,
+                content: blockContentForSubmit(data.type, data.content, metadata),
+                _method: block ? 'patch' : undefined,
+            };
+        });
 
         form.post(submitUrl, {
             forceFormData: true,
@@ -111,12 +111,16 @@ export default function BlockForm({ block, lesson, course, backUrl, submitUrl, n
     };
 
     const setType = (type: string) => {
+        const useExistingBlockData = type === block?.type;
+        const metadataSource = useExistingBlockData ? (block?.metadata ?? {}) : form.data.metadata;
+        const contentSource = useExistingBlockData ? (block?.content ?? '') : type === 'text' ? form.data.content : '';
+
         form.setData({
             ...form.data,
             type,
-            content: type === block?.type ? (block?.content ?? '') : '',
+            content: useExistingBlockData ? (block?.content ?? '') : '',
             material_file: null,
-            metadata: defaultMetadataForType(type, type === block?.type ? (block?.metadata ?? {}) : {}, type === block?.type ? (block?.content ?? '') : ''),
+            metadata: defaultMetadataForType(type, metadataSource, contentSource),
         });
     };
 
@@ -166,6 +170,7 @@ export default function BlockForm({ block, lesson, course, backUrl, submitUrl, n
                                 contentError={form.errors.content}
                                 fileError={form.errors.material_file}
                                 metadataError={form.errors.metadata}
+                                editorUploadUrl={editorUploadUrl}
                                 onContentChange={(value) => form.setData('content', value)}
                                 onFileChange={(file) => form.setData('material_file', file)}
                                 onMetadataChange={setMetadata}
@@ -212,6 +217,7 @@ function BlockContentFields({
     contentError,
     fileError,
     metadataError,
+    editorUploadUrl,
     onContentChange,
     onFileChange,
     onMetadataChange,
@@ -225,67 +231,38 @@ function BlockContentFields({
     contentError?: string;
     fileError?: string;
     metadataError?: string;
+    editorUploadUrl: string;
     onContentChange: (value: string) => void;
     onFileChange: (file: File | null) => void;
     onMetadataChange: (patch: BlockMetadata) => void;
 }) {
-    if (type === 'text') {
-        const steps = textSteps(metadata, content);
-        const updateSteps = (nextSteps: BlockStep[]) => {
-            onMetadataChange({ steps: nextSteps });
-            onContentChange(firstTextStepContent({ steps: nextSteps }));
-        };
+    const steps = textSteps(metadata, type === 'text' ? content : '');
+    const updateSteps = (nextSteps: BlockStep[]) => {
+        onMetadataChange({ steps: nextSteps });
 
-        return (
-            <div className="space-y-4">
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-                    Materi panjang dapat dipecah menjadi beberapa step. Di halaman siswa, setiap step akan tampil dengan tombol
-                    <strong> Berikutnya</strong> dan posisi terakhir siswa akan tersimpan.
-                </div>
-                {steps.map((step, index) => (
-                    <div key={index} className="space-y-3 rounded-2xl border border-slate-200 p-4">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-end">
-                            <Field label={`Judul step ${index + 1}`}>
-                                <Input
-                                    value={step.title}
-                                    onChange={(event) =>
-                                        updateSteps(steps.map((item, stepIndex) => (stepIndex === index ? { ...item, title: event.target.value } : item)))
-                                    }
-                                    placeholder={`Step ${index + 1}`}
-                                />
-                            </Field>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={steps.length === 1}
-                                onClick={() => updateSteps(steps.filter((_, stepIndex) => stepIndex !== index))}
-                            >
-                                <Trash2 className="size-4" />
-                                Hapus
-                            </Button>
-                        </div>
-                        <Field label="Materi step" error={index === 0 ? contentError : undefined} required>
-                            <RichTextEditor
-                                value={step.content}
-                                onChange={(value) =>
-                                    updateSteps(steps.map((item, stepIndex) => (stepIndex === index ? { ...item, content: value } : item)))
-                                }
-                            />
-                        </Field>
-                    </div>
-                ))}
-                <Button type="button" variant="outline" onClick={() => updateSteps([...steps, { title: `Step ${steps.length + 1}`, content: '' }])}>
-                    <Plus className="size-4" />
-                    Tambah Step
-                </Button>
-                <InputError message={contentError} />
-            </div>
-        );
+        if (type === 'text') {
+            onContentChange(firstTextStepContent({ steps: nextSteps }));
+        }
+    };
+    const stepEditor = (
+        <BlockStepsEditor
+            steps={steps}
+            required={type === 'text'}
+            contentError={type === 'text' ? contentError : undefined}
+            editorUploadUrl={editorUploadUrl}
+            onChange={updateSteps}
+        />
+    );
+
+    if (type === 'text') {
+        return stepEditor;
     }
+
 
     if (type === 'image') {
         return (
             <div className="space-y-4">
+                {stepEditor}
                 <Field label="Upload gambar" error={fileError} required={!existingFileUrl}>
                     <Input type="file" accept="image/*" onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} />
                     {file && <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">File baru: {file.name}</p>}
@@ -313,6 +290,7 @@ function BlockContentFields({
 
         return (
             <div className="space-y-4">
+                {stepEditor}
                 <Field label={isPdf ? 'Upload PDF materi' : 'Upload file materi'} error={fileError} required={!existingFileUrl}>
                     <Input type="file" accept={isPdf ? 'application/pdf,.pdf' : undefined} onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} />
                     <p className="text-xs leading-5 text-slate-500">
@@ -339,6 +317,7 @@ function BlockContentFields({
     if (type === 'video') {
         return (
             <div className="space-y-4">
+                {stepEditor}
                 <Field label="URL video" error={contentError} required>
                     <Input value={content} onChange={(event) => onContentChange(event.target.value)} placeholder="https://youtube.com/..." />
                 </Field>
@@ -360,6 +339,7 @@ function BlockContentFields({
     if (type === 'code') {
         return (
             <div className="space-y-4">
+                {stepEditor}
                 <Field label="Kode program" error={contentError} required>
                     <textarea
                         className="min-h-72 w-full rounded-md border border-slate-200 bg-slate-950 p-4 font-mono text-sm text-slate-50"
@@ -392,44 +372,112 @@ function BlockContentFields({
         const items = checklistItems(metadata);
 
         return (
-            <div className="space-y-3">
-                <FieldLabel required>Item checklist</FieldLabel>
-                {items.map((item, index) => (
-                    <div key={index} className="flex gap-2">
-                        <Input
-                            value={item}
-                            onChange={(event) =>
-                                onMetadataChange({ items: items.map((value, itemIndex) => (itemIndex === index ? event.target.value : value)) })
-                            }
-                            placeholder={`Checklist ${index + 1}`}
-                        />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={items.length === 1}
-                            onClick={() => onMetadataChange({ items: items.filter((_, itemIndex) => itemIndex !== index) })}
-                        >
-                            <Trash2 className="size-4" />
-                        </Button>
-                    </div>
-                ))}
-                <Button type="button" variant="outline" onClick={() => onMetadataChange({ items: [...items, ''] })}>
-                    <Plus className="size-4" />
-                    Tambah Item
-                </Button>
-                <InputError message={metadataError || contentError} />
+            <div className="space-y-4">
+                {stepEditor}
+                <div className="space-y-3">
+                    <FieldLabel required>Item checklist</FieldLabel>
+                    {items.map((item, index) => (
+                        <div key={index} className="flex gap-2">
+                            <Input
+                                value={item}
+                                onChange={(event) =>
+                                    onMetadataChange({ items: items.map((value, itemIndex) => (itemIndex === index ? event.target.value : value)) })
+                                }
+                                placeholder={`Checklist ${index + 1}`}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={items.length === 1}
+                                onClick={() => onMetadataChange({ items: items.filter((_, itemIndex) => itemIndex !== index) })}
+                            >
+                                <Trash2 className="size-4" />
+                            </Button>
+                        </div>
+                    ))}
+                    <Button type="button" variant="outline" onClick={() => onMetadataChange({ items: [...items, ''] })}>
+                        <Plus className="size-4" />
+                        Tambah Item
+                    </Button>
+                    <InputError message={metadataError || contentError} />
+                </div>
             </div>
         );
     }
 
     return (
-        <Field label={type === 'submission' ? 'Instruksi submission' : type === 'warning' ? 'Isi peringatan' : 'Isi catatan'} error={contentError} required>
-            <textarea
-                className="min-h-40 w-full rounded-md border border-slate-200 bg-white p-3 text-sm"
-                value={content}
-                onChange={(event) => onContentChange(event.target.value)}
-            />
-        </Field>
+        <div className="space-y-4">
+            {stepEditor}
+            <Field label={type === 'submission' ? 'Instruksi submission' : type === 'warning' ? 'Isi peringatan' : 'Isi catatan'} error={contentError} required>
+                <textarea
+                    className="min-h-40 w-full rounded-md border border-slate-200 bg-white p-3 text-sm"
+                    value={content}
+                    onChange={(event) => onContentChange(event.target.value)}
+                />
+            </Field>
+        </div>
+    );
+}
+
+function BlockStepsEditor({
+    steps,
+    required,
+    contentError,
+    editorUploadUrl,
+    onChange,
+}: {
+    steps: BlockStep[];
+    required: boolean;
+    contentError?: string;
+    editorUploadUrl: string;
+    onChange: (steps: BlockStep[]) => void;
+}) {
+    return (
+        <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+            <div className="text-sm leading-6 text-blue-800">
+                <p className="font-bold text-slate-950">Step pembelajaran</p>
+                <p className="mt-1">
+                    Pecah materi menjadi beberapa step agar siswa membaca bertahap. Posisi terakhir siswa akan tersimpan dan lesson belum bisa
+                    ditandai selesai sebelum step terakhir dibuka.
+                </p>
+            </div>
+            {steps.map((step, index) => (
+                <div key={index} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                        <Field label={`Judul step ${index + 1}`}>
+                            <Input
+                                value={step.title}
+                                onChange={(event) =>
+                                    onChange(steps.map((item, stepIndex) => (stepIndex === index ? { ...item, title: event.target.value } : item)))
+                                }
+                                placeholder={`Step ${index + 1}`}
+                            />
+                        </Field>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={steps.length === 1}
+                            onClick={() => onChange(steps.filter((_, stepIndex) => stepIndex !== index))}
+                        >
+                            <Trash2 className="size-4" />
+                            Hapus
+                        </Button>
+                    </div>
+                    <Field label="Materi step" error={index === 0 ? contentError : undefined} required={required && index === 0}>
+                        <RichTextEditor
+                            value={step.content}
+                            uploadUrl={editorUploadUrl}
+                            onChange={(value) => onChange(steps.map((item, stepIndex) => (stepIndex === index ? { ...item, content: value } : item)))}
+                        />
+                    </Field>
+                </div>
+            ))}
+            <Button type="button" variant="outline" onClick={() => onChange([...steps, { title: `Step ${steps.length + 1}`, content: '' }])}>
+                <Plus className="size-4" />
+                Tambah Step
+            </Button>
+            <InputError message={contentError} />
+        </div>
     );
 }
 
@@ -444,47 +492,43 @@ function Field({ label, error, children, required = false }: { label: string; er
 }
 
 function defaultMetadataForType(type: string, current: BlockMetadata = {}, content = ''): BlockMetadata {
+    const steps = textSteps(current, type === 'text' ? content : '');
+
     if (type === 'text') {
-        return { ...current, steps: textSteps(current, content) };
+        return { ...current, steps };
     }
 
     if (type === 'image') {
-        return { alt: current.alt ?? '', caption: current.caption ?? '' };
+        return { alt: current.alt ?? '', caption: current.caption ?? '', steps };
     }
 
     if (type === 'video') {
-        return { title: current.title ?? '', provider: current.provider ?? '', duration: current.duration ?? '' };
+        return { title: current.title ?? '', provider: current.provider ?? '', duration: current.duration ?? '', steps };
     }
 
     if (type === 'code') {
-        return { language: current.language ?? 'cpp', file: current.file ?? 'program.ino' };
+        return { language: current.language ?? 'cpp', file: current.file ?? 'program.ino', steps };
     }
 
     if (type === 'file' || type === 'pdf') {
-        return { label: current.label ?? current.original_name ?? '' };
+        return { label: current.label ?? current.original_name ?? '', steps };
     }
 
     if (type === 'checklist') {
-        return { items: checklistItems(current) };
+        return { items: checklistItems(current), steps };
     }
 
-    return {};
+    return { steps };
 }
 
 function normalizeMetadata(type: string, metadata: BlockMetadata): BlockMetadata {
-    if (type === 'text') {
-        return {
-            ...Object.fromEntries(Object.entries(metadata).filter(([key]) => key !== 'steps')),
-            steps: textSteps(metadata).filter((step) => step.content.replace(/<[^>]*>/g, '').trim() !== ''),
-        };
-    }
+    const steps = textSteps(metadata).filter((step) => hasReadableStepContent(step.content));
+    const cleanedMetadata = Object.fromEntries(
+        Object.entries(metadata).filter(([key, value]) => {
+            if (key === 'steps') {
+                return false;
+            }
 
-    if (type === 'checklist') {
-        return { items: checklistItems(metadata).map((item) => item.trim()).filter(Boolean) };
-    }
-
-    return Object.fromEntries(
-        Object.entries(metadata).filter(([, value]) => {
             if (Array.isArray(value)) {
                 return value.length > 0;
             }
@@ -492,6 +536,38 @@ function normalizeMetadata(type: string, metadata: BlockMetadata): BlockMetadata
             return value !== undefined && value !== null && String(value).trim() !== '';
         }),
     );
+
+    if (type === 'text') {
+        return {
+            ...cleanedMetadata,
+            steps,
+        };
+    }
+
+    if (type === 'checklist') {
+        return {
+            ...cleanedMetadata,
+            items: checklistItems(metadata).map((item) => item.trim()).filter(Boolean),
+            ...(steps.length > 0 ? { steps } : {}),
+        };
+    }
+
+    return {
+        ...cleanedMetadata,
+        ...(steps.length > 0 ? { steps } : {}),
+    };
+}
+
+function blockContentForSubmit(type: string, content: string, metadata: BlockMetadata): string {
+    if (type === 'checklist') {
+        return checklistItems(metadata).join('\n');
+    }
+
+    if (type === 'text') {
+        return firstTextStepContent(metadata) || content;
+    }
+
+    return content;
 }
 
 function checklistItems(metadata: BlockMetadata): string[] {
@@ -515,5 +591,9 @@ function textSteps(metadata: BlockMetadata, fallbackContent = ''): BlockStep[] {
 function firstTextStepContent(metadata: BlockMetadata): string {
     return textSteps(metadata)
         .map((step) => step.content)
-        .find((content) => content.replace(/<[^>]*>/g, '').trim() !== '') ?? '';
+        .find((content) => hasReadableStepContent(content)) ?? '';
+}
+
+function hasReadableStepContent(content: string): boolean {
+    return content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() !== '' || /<(img|video)\b/i.test(content);
 }

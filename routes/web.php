@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\LearningPathController;
 use App\Http\Controllers\Admin\SchoolController;
 use App\Http\Controllers\Admin\SchoolLearningPathAccessController;
 use App\Http\Controllers\Admin\SeoSettingController;
+use App\Http\Controllers\Admin\StoreController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserImportController;
 use App\Http\Controllers\CertificateController;
@@ -20,8 +21,9 @@ use App\Http\Controllers\LearningActionController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PlatformController;
-use App\Http\Controllers\SubmissionFileController;
+use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StudentTeachingAttendanceController;
+use App\Http\Controllers\SubmissionFileController;
 use App\Http\Controllers\TeachingAttendanceController;
 use App\Http\Controllers\TeachingFeedbackController;
 use App\Http\Controllers\TeachingScheduleController;
@@ -36,6 +38,8 @@ Route::get('courses/{course:slug}', [PlatformController::class, 'redirectCourseD
 Route::get('learning-paths', [PlatformController::class, 'learningPaths'])->name('learning-paths.index');
 Route::get('learning-paths/{learningPath:slug}', [PlatformController::class, 'learningPathDetail'])->name('learning-paths.show');
 Route::get('produk/{course:slug}', [PlatformController::class, 'courseDetail'])->name('products.show');
+Route::get('store', [StorefrontController::class, 'catalog'])->name('store.index');
+Route::get('store/products/{product:slug}', [StorefrontController::class, 'show'])->name('store.products.show');
 
 Route::get('sitemap.xml', [PlatformController::class, 'sitemap'])->name('sitemap');
 Route::get('robots.txt', [PlatformController::class, 'robots'])->name('robots');
@@ -58,6 +62,13 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('forum/posts/{post}', [ForumController::class, 'destroyPost'])->name('forum.posts.destroy');
     Route::get('submissions/{submission}/files/{field}', [SubmissionFileController::class, 'show'])->name('submissions.files.show');
     Route::get('payments/{payment}/invoice', [PaymentController::class, 'invoice'])->name('payments.invoice');
+    Route::get('payments/mock-checkout', [EnrollmentController::class, 'mockCheckout'])->name('payments.mock-checkout');
+    Route::post('payments/{payment}/mock-settle', [PaymentController::class, 'mockSettle'])->name('payments.mock-settle');
+    Route::get('store/checkout', [StorefrontController::class, 'checkout'])->name('store.checkout');
+    Route::post('store/checkout', [StorefrontController::class, 'storeCheckout'])->name('store.checkout.store');
+    Route::get('store/orders', [StorefrontController::class, 'orders'])->name('store.orders');
+    Route::get('activation-codes/redeem', [StorefrontController::class, 'redeem'])->name('activation-codes.redeem');
+    Route::post('activation-codes/redeem', [StorefrontController::class, 'storeRedeem'])->name('activation-codes.redeem.store');
 
     Route::middleware('role:admin,internal_instructor')->group(function () {
         Route::get('reviews', [PlatformController::class, 'submissionReviews'])->name('reviews.index');
@@ -93,9 +104,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('certificates', [PlatformController::class, 'certificates'])->name('certificates.index');
         Route::get('checkout', [PlatformController::class, 'checkout'])->name('payments.checkout');
         Route::post('checkout', [EnrollmentController::class, 'checkout'])->name('payments.checkout.store');
-        Route::get('payments/mock-checkout', [EnrollmentController::class, 'mockCheckout'])->name('payments.mock-checkout');
-        Route::post('payments/{payment}/mock-settle', [PaymentController::class, 'mockSettle'])->name('payments.mock-settle');
-
         Route::get('payments/pending', [PlatformController::class, 'pendingPayment'])->name('payments.pending');
 
         Route::get('payments/success', [PlatformController::class, 'successPayment'])->name('payments.success');
@@ -156,6 +164,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('instructor/lessons/{lesson}/blocks/create', [PlatformController::class, 'createBlock'])->name('instructor.blocks.create');
         Route::get('instructor/blocks/{block}/edit', [PlatformController::class, 'editBlock'])->name('instructor.blocks.edit');
         Route::post('instructor/lessons/{lesson}/blocks', [CurriculumController::class, 'storeBlock'])->name('instructor.blocks.store');
+        Route::post('instructor/lessons/{lesson}/editor-media', [CurriculumController::class, 'uploadEditorMedia'])->name('instructor.lessons.editor-media');
         Route::patch('instructor/blocks/{block}', [CurriculumController::class, 'updateBlock'])->name('instructor.blocks.update');
         Route::delete('instructor/blocks/{block}', [CurriculumController::class, 'destroyBlock'])->name('instructor.blocks.destroy');
         Route::post('instructor/courses/{course}/quizzes', [CurriculumController::class, 'storeQuiz'])->name('instructor.quizzes.store');
@@ -191,6 +200,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('admin/lessons/{lesson}/blocks/create', [PlatformController::class, 'createBlock'])->name('admin.blocks.create');
         Route::get('admin/blocks/{block}/edit', [PlatformController::class, 'editBlock'])->name('admin.blocks.edit');
         Route::post('admin/lessons/{lesson}/blocks', [CurriculumController::class, 'storeBlock'])->name('admin.blocks.store');
+        Route::post('admin/lessons/{lesson}/editor-media', [CurriculumController::class, 'uploadEditorMedia'])->name('admin.lessons.editor-media');
         Route::patch('admin/blocks/{block}', [CurriculumController::class, 'updateBlock'])->name('admin.blocks.update');
         Route::delete('admin/blocks/{block}', [CurriculumController::class, 'destroyBlock'])->name('admin.blocks.destroy');
         Route::post('admin/courses/{course}/quizzes', [CurriculumController::class, 'storeQuiz'])->name('admin.quizzes.store');
@@ -257,6 +267,16 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('admin/reports', [PlatformController::class, 'adminReports'])->name('admin.reports');
         Route::get('admin/payments', [PlatformController::class, 'adminPayments'])->name('admin.payments');
+        Route::get('admin/store', [StoreController::class, 'index'])->name('admin.store');
+        Route::post('admin/store/categories', [StoreController::class, 'storeCategory'])->name('admin.store.categories.store');
+        Route::patch('admin/store/categories/{category}', [StoreController::class, 'updateCategory'])->name('admin.store.categories.update');
+        Route::delete('admin/store/categories/{category}', [StoreController::class, 'destroyCategory'])->name('admin.store.categories.destroy');
+        Route::post('admin/store/products', [StoreController::class, 'storeProduct'])->name('admin.store.products.store');
+        Route::patch('admin/store/products/{product}', [StoreController::class, 'updateProduct'])->name('admin.store.products.update');
+        Route::delete('admin/store/products/{product}', [StoreController::class, 'destroyProduct'])->name('admin.store.products.destroy');
+        Route::patch('admin/store/products/{product}/stock', [StoreController::class, 'adjustStock'])->name('admin.store.products.stock');
+        Route::patch('admin/store/orders/{order}', [StoreController::class, 'updateOrder'])->name('admin.store.orders.update');
+        Route::post('admin/store/activation-codes', [StoreController::class, 'generateActivationCodes'])->name('admin.store.activation-codes.store');
     });
 });
 
