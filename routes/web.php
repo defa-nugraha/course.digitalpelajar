@@ -87,6 +87,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('courses/{course}/enroll', [EnrollmentController::class, 'store'])->name('enrollments.store');
         Route::post('courses/{course}/lessons/{lessonId}/complete', [EnrollmentController::class, 'completeLesson'])->name('lessons.complete');
         Route::post('learning/blocks/{contentBlock}/step', [LearningActionController::class, 'updateBlockStep'])->name('learning.blocks.step');
+        Route::post('learning/blocks/{contentBlock}/interactive-progress', [LearningActionController::class, 'updateInteractiveProgress'])
+            ->middleware('throttle:120,1')
+            ->name('learning.blocks.interactive-progress');
         Route::post('quizzes/{quiz}/attempts', [LearningActionController::class, 'submitQuiz'])->name('quizzes.attempts.store');
         Route::post('courses/{course}/submissions', [LearningActionController::class, 'submitProject'])->name('submissions.store');
     });
@@ -165,6 +168,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('instructor/blocks/{block}/edit', [PlatformController::class, 'editBlock'])->name('instructor.blocks.edit');
         Route::post('instructor/lessons/{lesson}/blocks', [CurriculumController::class, 'storeBlock'])->name('instructor.blocks.store');
         Route::post('instructor/lessons/{lesson}/editor-media', [CurriculumController::class, 'uploadEditorMedia'])->name('instructor.lessons.editor-media');
+        Route::post('instructor/lessons/{lesson}/interactive-media', [CurriculumController::class, 'uploadInteractiveMedia'])->name('instructor.lessons.interactive-media');
         Route::patch('instructor/blocks/{block}', [CurriculumController::class, 'updateBlock'])->name('instructor.blocks.update');
         Route::delete('instructor/blocks/{block}', [CurriculumController::class, 'destroyBlock'])->name('instructor.blocks.destroy');
         Route::post('instructor/courses/{course}/quizzes', [CurriculumController::class, 'storeQuiz'])->name('instructor.quizzes.store');
@@ -201,6 +205,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('admin/blocks/{block}/edit', [PlatformController::class, 'editBlock'])->name('admin.blocks.edit');
         Route::post('admin/lessons/{lesson}/blocks', [CurriculumController::class, 'storeBlock'])->name('admin.blocks.store');
         Route::post('admin/lessons/{lesson}/editor-media', [CurriculumController::class, 'uploadEditorMedia'])->name('admin.lessons.editor-media');
+        Route::post('admin/lessons/{lesson}/interactive-media', [CurriculumController::class, 'uploadInteractiveMedia'])->name('admin.lessons.interactive-media');
         Route::patch('admin/blocks/{block}', [CurriculumController::class, 'updateBlock'])->name('admin.blocks.update');
         Route::delete('admin/blocks/{block}', [CurriculumController::class, 'destroyBlock'])->name('admin.blocks.destroy');
         Route::post('admin/courses/{course}/quizzes', [CurriculumController::class, 'storeQuiz'])->name('admin.quizzes.store');

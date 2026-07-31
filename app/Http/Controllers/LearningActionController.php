@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Course;
 use App\Models\ContentBlock;
+use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Quiz;
 use App\Models\Submission;
 use App\Services\CertificateService;
 use App\Services\EnrollmentService;
+use App\Services\InteractiveProgressService;
 use App\Services\QuizService;
 use App\Services\SubmissionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -170,5 +172,26 @@ class LearningActionController extends Controller
         );
 
         return back();
+    }
+
+    public function updateInteractiveProgress(
+        Request $request,
+        ContentBlock $contentBlock,
+        InteractiveProgressService $interactiveProgress,
+    ): JsonResponse {
+        $data = $request->validate([
+            'scene_id' => ['required', 'string', 'max:120'],
+            'scene_index' => ['required', 'integer', 'min:0'],
+            'completed_element_ids' => ['nullable', 'array'],
+            'completed_element_ids.*' => ['string', 'max:120'],
+            'video_timestamp_seconds' => ['nullable', 'integer', 'min:0'],
+            'video_watched_percent' => ['nullable', 'integer', 'between:0,100'],
+        ]);
+
+        $progress = $interactiveProgress->update($request->user(), $contentBlock, $data);
+
+        return response()->json([
+            'progress' => $interactiveProgress->progressPayload($progress, $contentBlock->metadata ?? []),
+        ]);
     }
 }

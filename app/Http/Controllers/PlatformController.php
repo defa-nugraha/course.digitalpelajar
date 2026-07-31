@@ -6,11 +6,14 @@ use App\Models\ContentBlock;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\HomePageSection;
+use App\Models\InteractiveBlockProgress;
 use App\Models\LearningPath;
 use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\SeoSetting;
 use App\Services\CertificateService;
+use App\Services\InteractiveBlockSchemaService;
+use App\Services\InteractiveProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -504,8 +507,17 @@ class PlatformController extends Controller
                 ->whereIn('content_block_id', $blockRows->pluck('id'))
                 ->pluck('current_step_index', 'content_block_id')
             : collect();
+        $interactiveProgressRows = $blockRows->where('type', 'interactive')->isNotEmpty()
+            ? InteractiveBlockProgress::query()
+                ->where('user_id', $userId)
+                ->whereIn('content_block_id', $blockRows->where('type', 'interactive')->pluck('id'))
+                ->get()
+                ->keyBy('content_block_id')
+            : collect();
+        $interactiveSchema = app(InteractiveBlockSchemaService::class);
+        $interactiveProgress = app(InteractiveProgressService::class);
         $blocks = $blockRows
-            ->map(function ($block) use ($blockStepProgress) {
+            ->map(function ($block) use ($blockStepProgress, $interactiveProgressRows, $interactiveSchema, $interactiveProgress) {
                 $metadata = json_decode($block->metadata ?: '{}', true);
                 if (filled($metadata['media_upload_id'] ?? null)) {
                     $metadata['download_url'] = route('materials.download', $metadata['media_upload_id']);
@@ -513,7 +525,13 @@ class PlatformController extends Controller
                         $metadata['preview_url'] = route('materials.view', $metadata['media_upload_id']);
                     }
                 }
+                if ($block->type === 'interactive') {
+                    $metadata = $interactiveSchema->enrichMediaUrls($metadata);
+                }
                 $steps = $this->contentBlockSteps($block->type, $block->content, $metadata);
+                $interactiveProgressPayload = $block->type === 'interactive'
+                    ? $interactiveProgress->progressPayload($interactiveProgressRows[$block->id] ?? null, $metadata)
+                    : null;
 
                 return [
                     'kind' => 'block',
@@ -524,6 +542,7 @@ class PlatformController extends Controller
                     'steps' => $steps,
                     'hasCustomSteps' => $this->hasCustomContentBlockSteps($metadata),
                     'currentStepIndex' => min((int) ($blockStepProgress[$block->id] ?? 0), max(0, $steps->count() - 1)),
+                    'interactiveProgress' => $interactiveProgressPayload,
                     'status' => $block->status,
                     'orderNo' => (int) $block->order_no,
                 ];
@@ -1545,6 +1564,7 @@ class PlatformController extends Controller
             'backUrl' => $this->courseBuilderUrl($request, $lesson->chapter->course_id),
             'submitUrl' => route($this->managementRoutePrefix($request).'.blocks.store', $lesson),
             'editorUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.editor-media', $lesson),
+            'interactiveUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.interactive-media', $lesson),
             'nextOrder' => ((int) $lesson->contentBlocks()->max('order_no')) + 1,
         ]);
     }
@@ -1559,7 +1579,9 @@ class PlatformController extends Controller
                 'id' => $block->id,
                 'type' => $block->type,
                 'content' => $block->content,
-                'metadata' => $block->metadata ?? [],
+                'metadata' => $block->type === 'interactive'
+                    ? app(InteractiveBlockSchemaService::class)->enrichMediaUrls($block->metadata ?? [])
+                    : ($block->metadata ?? []),
                 'order_no' => $block->order_no,
                 'status' => $block->status,
                 'fileUrl' => $this->blockFileUrl($block),
@@ -1570,6 +1592,7 @@ class PlatformController extends Controller
             'backUrl' => $this->courseBuilderUrl($request, $block->lesson->chapter->course_id),
             'submitUrl' => route($this->managementRoutePrefix($request).'.blocks.update', $block),
             'editorUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.editor-media', $block->lesson),
+            'interactiveUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.interactive-media', $block->lesson),
             'nextOrder' => $block->order_no,
         ]);
     }
@@ -1603,14 +1626,20 @@ class PlatformController extends Controller
                         'id' => $lesson->id,
                         'title' => $lesson->title,
                         'orderNo' => $lesson->order_no,
-                        'blocks' => $lesson->contentBlocks->map(fn ($block) => [
-                            'id' => $block->id,
-                            'type' => $block->type,
-                            'content' => $this->contentBlockDisplayContent($block->type, $block->content, $block->metadata ?? []),
-                            'metadata' => $block->metadata,
-                            'status' => $block->status,
-                            'orderNo' => $block->order_no,
-                        ]),
+                        'blocks' => $lesson->contentBlocks->map(function ($block) {
+                            $metadata = $block->type === 'interactive'
+                                ? app(InteractiveBlockSchemaService::class)->enrichMediaUrls($block->metadata ?? [])
+                                : ($block->metadata ?? []);
+
+                            return [
+                                'id' => $block->id,
+                                'type' => $block->type,
+                                'content' => $this->contentBlockDisplayContent($block->type, $block->content, $metadata),
+                                'metadata' => $metadata,
+                                'status' => $block->status,
+                                'orderNo' => $block->order_no,
+                            ];
+                        }),
                         'quizzes' => $lesson->quizzes->map(fn ($quiz) => [
                             'id' => $quiz->id,
                             'title' => $quiz->title,

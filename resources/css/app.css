@@ -198,6 +198,10 @@
         @apply my-4 max-h-[520px] w-full rounded-xl border border-slate-200 object-contain;
     }
 
+    .prose-content img.ProseMirror-selectednode {
+        @apply ring-2 ring-blue-500 ring-offset-2;
+    }
+
     .prose-content video {
         @apply my-4 aspect-video w-full rounded-xl border border-slate-200 bg-black object-contain;
     }

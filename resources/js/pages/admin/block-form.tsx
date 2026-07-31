@@ -1,4 +1,5 @@
 import { FieldLabel } from '@/components/form-field';
+import { InteractiveBlockBuilder, coerceInteractiveMetadata, requiredElementIds } from '@/components/interactive-learning';
 import InputError from '@/components/input-error';
 import { Panel, Shell } from '@/components/platform';
 import { RichTextEditor } from '@/components/rich-text-editor';
@@ -45,6 +46,7 @@ interface BlockFormProps {
     backUrl: string;
     submitUrl: string;
     editorUploadUrl: string;
+    interactiveUploadUrl: string;
     nextOrder: number;
 }
 
@@ -70,6 +72,7 @@ const typeOptions = [
     { value: 'checklist', label: 'Checklist' },
     { value: 'note', label: 'Catatan' },
     { value: 'warning', label: 'Peringatan' },
+    { value: 'interactive', label: 'Interactive lesson' },
 ];
 
 const statusOptions = [
@@ -78,7 +81,7 @@ const statusOptions = [
     { value: 'published', label: 'Published' },
 ];
 
-export default function BlockForm({ block, lesson, course, backUrl, submitUrl, editorUploadUrl, nextOrder }: BlockFormProps) {
+export default function BlockForm({ block, lesson, course, backUrl, submitUrl, editorUploadUrl, interactiveUploadUrl, nextOrder }: BlockFormProps) {
     const initialType = block?.type ?? 'text';
     const form = useForm<BlockFormData>({
         type: initialType,
@@ -171,6 +174,7 @@ export default function BlockForm({ block, lesson, course, backUrl, submitUrl, e
                                 fileError={form.errors.material_file}
                                 metadataError={form.errors.metadata}
                                 editorUploadUrl={editorUploadUrl}
+                                interactiveUploadUrl={interactiveUploadUrl}
                                 onContentChange={(value) => form.setData('content', value)}
                                 onFileChange={(file) => form.setData('material_file', file)}
                                 onMetadataChange={setMetadata}
@@ -218,6 +222,7 @@ function BlockContentFields({
     fileError,
     metadataError,
     editorUploadUrl,
+    interactiveUploadUrl,
     onContentChange,
     onFileChange,
     onMetadataChange,
@@ -232,6 +237,7 @@ function BlockContentFields({
     fileError?: string;
     metadataError?: string;
     editorUploadUrl: string;
+    interactiveUploadUrl: string;
     onContentChange: (value: string) => void;
     onFileChange: (file: File | null) => void;
     onMetadataChange: (patch: BlockMetadata) => void;
@@ -256,6 +262,10 @@ function BlockContentFields({
 
     if (type === 'text') {
         return stepEditor;
+    }
+
+    if (type === 'interactive') {
+        return <InteractiveBlockBuilder value={metadata} uploadUrl={interactiveUploadUrl} onChange={onMetadataChange} />;
     }
 
 
@@ -518,10 +528,26 @@ function defaultMetadataForType(type: string, current: BlockMetadata = {}, conte
         return { items: checklistItems(current), steps };
     }
 
+    if (type === 'interactive') {
+        return coerceInteractiveMetadata(current) as unknown as BlockMetadata;
+    }
+
     return { steps };
 }
 
 function normalizeMetadata(type: string, metadata: BlockMetadata): BlockMetadata {
+    if (type === 'interactive') {
+        const interactive = coerceInteractiveMetadata(metadata);
+
+        return {
+            ...interactive,
+            completion_rules: {
+                require_last_scene: true,
+                required_element_ids: requiredElementIds(interactive),
+            },
+        } as unknown as BlockMetadata;
+    }
+
     const steps = textSteps(metadata).filter((step) => hasReadableStepContent(step.content));
     const cleanedMetadata = Object.fromEntries(
         Object.entries(metadata).filter(([key, value]) => {
@@ -559,6 +585,15 @@ function normalizeMetadata(type: string, metadata: BlockMetadata): BlockMetadata
 }
 
 function blockContentForSubmit(type: string, content: string, metadata: BlockMetadata): string {
+    if (type === 'interactive') {
+        const interactive = coerceInteractiveMetadata(metadata);
+        const sceneCount = interactive.scenes.length;
+        const requiredCount = requiredElementIds(interactive).length;
+        const title = interactive.scenes[0]?.title || 'Interactive lesson';
+
+        return `${title} · ${sceneCount} scene · ${requiredCount} interaksi wajib`;
+    }
+
     if (type === 'checklist') {
         return checklistItems(metadata).join('\n');
     }

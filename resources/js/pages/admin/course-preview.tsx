@@ -1,3 +1,4 @@
+import { InteractiveBlockPlayer } from '@/components/interactive-learning';
 import { Crumb, Panel, ProgressBar, PublicContent, PublicNav } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -296,6 +297,10 @@ function PreviewBlockCard({ item }: { item: PreviewBlock }) {
                 Buka video materi
             </a>
         );
+    }
+
+    if (item.type === 'interactive') {
+        return <InteractiveBlockPlayer metadata={(metadata ?? {}) as Record<string, unknown>} />;
     }
 
     if (item.type === 'file') {

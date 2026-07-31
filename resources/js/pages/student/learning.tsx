@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { InteractiveBlockPlayer, type InteractiveProgressPayload } from '@/components/interactive-learning';
 import { Crumb, Panel, ProgressBar, Shell } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -39,10 +40,11 @@ interface ContentBlock {
     type: string;
     content: string;
     status: string;
-    metadata: Record<string, string | string[]>;
+    metadata: Record<string, unknown>;
     steps?: BlockStep[];
     hasCustomSteps?: boolean;
     currentStepIndex?: number;
+    interactiveProgress?: InteractiveProgressPayload | null;
 }
 
 interface BlockStep {
@@ -72,10 +74,11 @@ interface LessonItem {
     type?: string;
     content?: string;
     status?: string;
-    metadata?: Record<string, string | string[] | number>;
+    metadata?: Record<string, unknown>;
     steps?: BlockStep[];
     hasCustomSteps?: boolean;
     currentStepIndex?: number;
+    interactiveProgress?: InteractiveProgressPayload | null;
     title?: string;
     passingScore?: number;
     bestScore?: number;
@@ -103,6 +106,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
     const [activeQuiz, setActiveQuiz] = useState<QuizData | null>(null);
     const [submissionOpen, setSubmissionOpen] = useState(false);
     const [copiedBlockId, setCopiedBlockId] = useState<number | null>(null);
+    const [interactiveCompletion, setInteractiveCompletion] = useState<Record<number, boolean>>({});
     const quizForm = useForm<{ answers: string[] }>({ answers: [] });
     const submissionForm = useForm({
         lesson_id: currentLesson ? String(currentLesson.id) : '',
@@ -129,7 +133,15 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
 
         return steps.length > 1 && (item.currentStepIndex ?? 0) < steps.length - 1;
     });
-    const canCompleteLesson = Boolean(currentLesson) && currentLesson?.state !== 'done' && unfinishedStepBlocks.length === 0;
+    const unfinishedInteractiveBlocks = renderedItems.filter((item) => {
+        if (item.kind !== 'block' || item.type !== 'interactive') {
+            return false;
+        }
+
+        return !(interactiveCompletion[item.id] || item.interactiveProgress?.status === 'completed');
+    });
+    const canCompleteLesson =
+        Boolean(currentLesson) && currentLesson?.state !== 'done' && unfinishedStepBlocks.length === 0 && unfinishedInteractiveBlocks.length === 0;
 
     const openQuiz = (item: QuizData) => {
         setActiveQuiz(item);
@@ -273,6 +285,12 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                                     window.setTimeout(() => setCopiedBlockId(null), 1500);
                                                 }}
                                                 onSubmission={() => setSubmissionOpen(true)}
+                                                onInteractiveProgress={(progress) =>
+                                                    setInteractiveCompletion((current) => ({
+                                                        ...current,
+                                                        [item.id]: progress.status === 'completed',
+                                                    }))
+                                                }
                                             />
                                         ),
                                     )}
@@ -315,6 +333,11 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                 {currentLesson?.state !== 'done' && unfinishedStepBlocks.length > 0 && (
                                     <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
                                         Buka materi sampai step terakhir terlebih dahulu sebelum menandai lesson selesai.
+                                    </div>
+                                )}
+                                {currentLesson?.state !== 'done' && unfinishedInteractiveBlocks.length > 0 && (
+                                    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+                                        Selesaikan scene dan interaksi wajib pada materi interactive sebelum menandai lesson selesai.
                                     </div>
                                 )}
                                 <Button
@@ -460,12 +483,14 @@ function LearningBlock({
     copied,
     onCopy,
     onSubmission,
+    onInteractiveProgress,
 }: {
     item: LessonItem;
     submission?: SubmissionData | null;
     copied: boolean;
     onCopy: (content?: string) => void;
     onSubmission: () => void;
+    onInteractiveProgress: (progress: InteractiveProgressPayload) => void;
 }) {
     const metadata = item.metadata ?? {};
     const steps = readableSteps(item.steps);
@@ -496,27 +521,40 @@ function LearningBlock({
     const withStepNavigation = (content: ReactNode) => (
         <div className={hasSteps ? 'rounded-2xl border border-slate-200 bg-white p-4' : ''}>
             {hasSteps && (
-                <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-center md:justify-between">
+                <div className="mb-4 border-b border-slate-200 pb-4">
                     <div>
                         <p className="text-xs font-bold tracking-wide text-blue-700 uppercase">
                             Step {currentStep + 1} dari {steps.length}
                         </p>
                         <h3 className="mt-1 font-bold text-slate-950">{activeStep?.title ?? `Step ${currentStep + 1}`}</h3>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button type="button" variant="outline" size="sm" disabled={currentStep === 0} onClick={() => goToStep(currentStep - 1)}>
-                            Sebelumnya
-                        </Button>
-                        <Button type="button" size="sm" disabled={currentStep >= steps.length - 1} onClick={() => goToStep(currentStep + 1)}>
-                            Berikutnya
-                        </Button>
-                    </div>
                 </div>
             )}
             {stepInstruction}
             {content}
+            {hasSteps && (
+                <div className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
+                    <Button type="button" variant="outline" disabled={currentStep === 0} onClick={() => goToStep(currentStep - 1)}>
+                        Sebelumnya
+                    </Button>
+                    <Button type="button" disabled={currentStep >= steps.length - 1} onClick={() => goToStep(currentStep + 1)}>
+                        Berikutnya
+                    </Button>
+                </div>
+            )}
         </div>
     );
+
+    if (item.type === 'interactive') {
+        return (
+            <InteractiveBlockPlayer
+                metadata={metadata}
+                progress={item.interactiveProgress}
+                progressUrl={`/learning/blocks/${item.id}/interactive-progress`}
+                onProgress={onInteractiveProgress}
+            />
+        );
+    }
 
     if (item.type === 'code') {
         return withStepNavigation(

@@ -10,6 +10,7 @@ use App\Models\Lesson;
 use App\Models\MediaUpload;
 use App\Models\Quiz;
 use App\Services\AuditLogger;
+use App\Services\InteractiveBlockSchemaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -100,20 +101,20 @@ class CurriculumController extends Controller
         return back()->with('success', 'Lesson berhasil dihapus.');
     }
 
-    public function storeBlock(Request $request, Lesson $lesson): RedirectResponse
+    public function storeBlock(Request $request, Lesson $lesson, InteractiveBlockSchemaService $interactiveSchema): RedirectResponse
     {
         $this->authorizeCourse($request, $lesson->chapter->course);
-        $block = $lesson->contentBlocks()->create($this->blockData($request, $lesson));
+        $block = $lesson->contentBlocks()->create($this->blockData($request, $lesson, null, $interactiveSchema));
         AuditLogger::log('content_block.created', $request->user(), $block);
 
         return to_route($this->managementRoutePrefix($request).'.course-builder', ['course' => $lesson->chapter->course_id])
             ->with('success', 'Blok materi berhasil ditambahkan.');
     }
 
-    public function updateBlock(Request $request, ContentBlock $block): RedirectResponse
+    public function updateBlock(Request $request, ContentBlock $block, InteractiveBlockSchemaService $interactiveSchema): RedirectResponse
     {
         $this->authorizeCourse($request, $block->lesson->chapter->course);
-        $data = $this->blockData($request, $block->lesson, $block);
+        $data = $this->blockData($request, $block->lesson, $block, $interactiveSchema);
         $mediaUploadId = $block->metadata['media_upload_id'] ?? null;
 
         if (($block->metadata['source'] ?? null) === 'pdf_conversion' && $mediaUploadId && $block->status === 'draft' && $data['status'] === 'published') {
@@ -193,6 +194,70 @@ class CurriculumController extends Controller
             'path' => $path,
             'url' => Storage::disk('public')->url($path),
             'originalName' => $file->getClientOriginalName(),
+        ]);
+    }
+
+    public function uploadInteractiveMedia(Request $request, Lesson $lesson): JsonResponse
+    {
+        $lesson->loadMissing('chapter.course');
+        $this->authorizeCourse($request, $lesson->chapter->course);
+
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['image', 'video', 'audio'])],
+            'media' => [
+                'required',
+                'file',
+                'max:51200',
+                'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/svg+xml,video/mp4,video/webm,video/ogg,video/quicktime,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/mp4,audio/aac',
+            ],
+        ]);
+
+        $file = $request->file('media');
+        $mimeType = (string) $file->getMimeType();
+        $mediaType = str_starts_with($mimeType, 'image/')
+            ? 'image'
+            : (str_starts_with($mimeType, 'video/')
+                ? 'video'
+                : (str_starts_with($mimeType, 'audio/') ? 'audio' : null));
+
+        if ($mediaType !== $data['type']) {
+            throw ValidationException::withMessages([
+                'media' => match ($data['type']) {
+                    'image' => 'File harus berupa gambar.',
+                    'video' => 'File harus berupa video.',
+                    default => 'File harus berupa audio.',
+                },
+            ]);
+        }
+
+        $course = $lesson->chapter->course;
+        $path = $file->store("course-materials/{$course->id}/{$lesson->id}/interactive/{$mediaType}s", 'public');
+        $upload = MediaUpload::create([
+            'user_id' => $request->user()->id,
+            'mediable_type' => Lesson::class,
+            'mediable_id' => $lesson->id,
+            'disk' => 'public',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $mimeType,
+            'size' => $file->getSize(),
+            'conversion_status' => 'published',
+        ]);
+
+        AuditLogger::log('interactive_media.uploaded', $request->user(), $upload, [
+            'course_id' => $course->id,
+            'lesson_id' => $lesson->id,
+            'type' => $mediaType,
+        ]);
+
+        return response()->json([
+            'id' => $upload->id,
+            'type' => $mediaType,
+            'path' => $path,
+            'url' => Storage::disk('public')->url($path),
+            'originalName' => $file->getClientOriginalName(),
+            'mimeType' => $mimeType,
+            'size' => $file->getSize(),
         ]);
     }
 
@@ -284,12 +349,16 @@ class CurriculumController extends Controller
         return $block;
     }
 
-    private function blockData(Request $request, Lesson $lesson, ?ContentBlock $existingBlock = null): array
-    {
+    private function blockData(
+        Request $request,
+        Lesson $lesson,
+        ?ContentBlock $existingBlock = null,
+        ?InteractiveBlockSchemaService $interactiveSchema = null,
+    ): array {
         $data = $request->validate([
             'type' => [
                 'required',
-                Rule::in(['text', 'image', 'video', 'code', 'file', 'pdf', 'submission', 'checklist', 'note', 'warning']),
+                Rule::in(['text', 'image', 'video', 'code', 'file', 'pdf', 'submission', 'checklist', 'note', 'warning', 'interactive']),
             ],
             'content' => ['nullable', 'string'],
             'metadata' => ['nullable'],
@@ -301,6 +370,12 @@ class CurriculumController extends Controller
         $data['metadata'] = $this->metadataArray($data['metadata'] ?? null);
         $data = $this->withBlockUpload($request, $lesson, $data, $existingBlock);
         unset($data['material_file']);
+
+        if ($data['type'] === 'interactive') {
+            $schema = $interactiveSchema ?? app(InteractiveBlockSchemaService::class);
+            $data['metadata'] = $schema->normalize($data['metadata'], $lesson);
+            $data['content'] = $this->interactiveBlockSummary($data['metadata']);
+        }
 
         if ($this->requiresContent($data['type'], $data['content'] ?? null, $data['metadata'])) {
             throw ValidationException::withMessages([
@@ -408,7 +483,7 @@ class CurriculumController extends Controller
 
     private function requiresContent(string $type, ?string $content, array $metadata): bool
     {
-        if ($type === 'submission') {
+        if (in_array($type, ['submission', 'interactive'], true)) {
             return false;
         }
 
@@ -420,6 +495,16 @@ class CurriculumController extends Controller
         }
 
         return blank($content);
+    }
+
+    private function interactiveBlockSummary(array $metadata): string
+    {
+        $scenes = collect($metadata['scenes'] ?? []);
+        $sceneCount = $scenes->count();
+        $requiredCount = collect($metadata['completion_rules']['required_element_ids'] ?? [])->count();
+        $firstTitle = (string) ($scenes->first()['title'] ?? 'Interactive lesson');
+
+        return "{$firstTitle} · {$sceneCount} scene · {$requiredCount} interaksi wajib";
     }
 
     private function quizData(Request $request): array

@@ -14,7 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class EnrollmentService
 {
-    public function __construct(private readonly MidtransService $midtrans) {}
+    public function __construct(
+        private readonly MidtransService $midtrans,
+        private readonly InteractiveProgressService $interactiveProgress,
+    ) {}
 
     /**
      * Enroll a student in a course following business rules (BR-001, BR-002).
@@ -149,6 +152,7 @@ class EnrollmentService
 
             $this->assertLessonAccessible($user, $course, $lesson);
             $this->assertLessonStepsCompleted($user, $lesson);
+            $this->assertInteractiveBlocksCompleted($user, $lesson);
 
             $unfinishedQuiz = $lesson->quizzes()
                 ->whereDoesntHave('attempts', fn ($query) => $query
@@ -290,6 +294,15 @@ class EnrollmentService
                 'lesson' => 'Buka seluruh step materi sampai step terakhir sebelum menandai lesson selesai.',
             ]);
         }
+    }
+
+    private function assertInteractiveBlocksCompleted(User $user, Lesson $lesson): void
+    {
+        $lesson->contentBlocks()
+            ->where('type', 'interactive')
+            ->where('status', 'published')
+            ->get()
+            ->each(fn ($block) => $this->interactiveProgress->assertCompleted($user, $block));
     }
 
     private function stepHasReadableContent(mixed $content): bool
