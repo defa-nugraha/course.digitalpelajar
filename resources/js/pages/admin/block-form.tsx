@@ -7,8 +7,8 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, FileText, Plus, Save, Trash2 } from 'lucide-react';
-import { FormEvent, ReactNode } from 'react';
+import { ArrowDown, ArrowLeft, ArrowUp, FileText, Plus, Save, Trash2 } from 'lucide-react';
+import { FormEvent, ReactNode, useState } from 'react';
 
 type BlockStep = { title: string; content: string };
 type BlockMetadata = Record<string, unknown>;
@@ -442,6 +442,34 @@ function BlockStepsEditor({
     editorUploadUrl: string;
     onChange: (steps: BlockStep[]) => void;
 }) {
+    const [activeStepIndex, setActiveStepIndex] = useState(0);
+    const moveStep = (index: number, direction: -1 | 1) => {
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= steps.length) {
+            return;
+        }
+
+        const nextSteps = [...steps];
+        const [movedStep] = nextSteps.splice(index, 1);
+        nextSteps.splice(targetIndex, 0, movedStep);
+        setActiveStepIndex(targetIndex);
+        onChange(nextSteps);
+    };
+    const insertStepAfter = (index: number) => {
+        const nextStep = { title: `Step ${steps.length + 1}`, content: '' };
+        const nextSteps = [...steps.slice(0, index + 1), nextStep, ...steps.slice(index + 1)];
+        setActiveStepIndex(index + 1);
+        onChange(nextSteps);
+    };
+    const removeStep = (index: number) => {
+        if (steps.length === 1) {
+            return;
+        }
+
+        setActiveStepIndex(Math.max(0, index - 1));
+        onChange(steps.filter((_, stepIndex) => stepIndex !== index));
+    };
+
     return (
         <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
             <div className="text-sm leading-6 text-blue-800">
@@ -452,7 +480,28 @@ function BlockStepsEditor({
                 </p>
             </div>
             {steps.map((step, index) => (
-                <div key={index} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+                <div
+                    key={index}
+                    onClick={() => setActiveStepIndex(index)}
+                    onFocusCapture={() => setActiveStepIndex(index)}
+                    className={`group relative space-y-3 rounded-2xl border bg-white p-4 pt-12 transition ${activeStepIndex === index ? 'border-blue-500 shadow-sm ring-2 ring-blue-100' : 'border-slate-200 hover:border-blue-200'}`}
+                >
+                    <div
+                        className={`absolute top-3 right-3 z-10 flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-950/90 p-1 text-white shadow-lg transition ${activeStepIndex === index ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                    >
+                        <IconStepButton label="Naikkan step" disabled={index === 0} onClick={() => moveStep(index, -1)}>
+                            <ArrowUp className="size-4" />
+                        </IconStepButton>
+                        <IconStepButton label="Turunkan step" disabled={index === steps.length - 1} onClick={() => moveStep(index, 1)}>
+                            <ArrowDown className="size-4" />
+                        </IconStepButton>
+                        <IconStepButton label="Tambah step setelah ini" onClick={() => insertStepAfter(index)}>
+                            <Plus className="size-4" />
+                        </IconStepButton>
+                        <IconStepButton label="Hapus step" disabled={steps.length === 1} onClick={() => removeStep(index)}>
+                            <Trash2 className="size-4" />
+                        </IconStepButton>
+                    </div>
                     <div className="flex flex-col gap-3 md:flex-row md:items-end">
                         <Field label={`Judul step ${index + 1}`}>
                             <Input
@@ -463,15 +512,6 @@ function BlockStepsEditor({
                                 placeholder={`Step ${index + 1}`}
                             />
                         </Field>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={steps.length === 1}
-                            onClick={() => onChange(steps.filter((_, stepIndex) => stepIndex !== index))}
-                        >
-                            <Trash2 className="size-4" />
-                            Hapus
-                        </Button>
                     </div>
                     <Field label="Materi step" error={index === 0 ? contentError : undefined} required={required && index === 0}>
                         <RichTextEditor
@@ -482,12 +522,37 @@ function BlockStepsEditor({
                     </Field>
                 </div>
             ))}
-            <Button type="button" variant="outline" onClick={() => onChange([...steps, { title: `Step ${steps.length + 1}`, content: '' }])}>
+            <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                    setActiveStepIndex(steps.length);
+                    onChange([...steps, { title: `Step ${steps.length + 1}`, content: '' }]);
+                }}
+            >
                 <Plus className="size-4" />
                 Tambah Step
             </Button>
             <InputError message={contentError} />
         </div>
+    );
+}
+
+function IconStepButton({ label, disabled = false, children, onClick }: { label: string; disabled?: boolean; children: ReactNode; onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            aria-label={label}
+            title={label}
+            disabled={disabled}
+            onClick={(event) => {
+                event.stopPropagation();
+                onClick();
+            }}
+            className="rounded-lg p-2 text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-35"
+        >
+            {children}
+        </button>
     );
 }
 
