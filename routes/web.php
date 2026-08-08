@@ -164,12 +164,15 @@ Route::middleware(['auth'])->group(function () {
         Route::post('instructor/chapters/{chapter}/lessons', [CurriculumController::class, 'storeLesson'])->name('instructor.lessons.store');
         Route::patch('instructor/lessons/{lesson}', [CurriculumController::class, 'updateLesson'])->name('instructor.lessons.update');
         Route::delete('instructor/lessons/{lesson}', [CurriculumController::class, 'destroyLesson'])->name('instructor.lessons.destroy');
+        Route::post('instructor/lessons/{lesson}/interactive-editor', [CurriculumController::class, 'openLessonInteractiveEditor'])->name('instructor.lessons.interactive-editor');
         Route::get('instructor/lessons/{lesson}/blocks/create', [PlatformController::class, 'createBlock'])->name('instructor.blocks.create');
         Route::get('instructor/blocks/{block}/edit', [PlatformController::class, 'editBlock'])->name('instructor.blocks.edit');
+        Route::get('instructor/blocks/{block}/interactive-editor', [PlatformController::class, 'interactiveEditor'])->name('instructor.blocks.interactive-editor');
         Route::post('instructor/lessons/{lesson}/blocks', [CurriculumController::class, 'storeBlock'])->name('instructor.blocks.store');
         Route::post('instructor/lessons/{lesson}/editor-media', [CurriculumController::class, 'uploadEditorMedia'])->name('instructor.lessons.editor-media');
         Route::post('instructor/lessons/{lesson}/interactive-media', [CurriculumController::class, 'uploadInteractiveMedia'])->name('instructor.lessons.interactive-media');
         Route::patch('instructor/blocks/{block}', [CurriculumController::class, 'updateBlock'])->name('instructor.blocks.update');
+        Route::patch('instructor/blocks/{block}/interactive-autosave', [CurriculumController::class, 'autosaveInteractiveBlock'])->name('instructor.blocks.interactive-autosave');
         Route::delete('instructor/blocks/{block}', [CurriculumController::class, 'destroyBlock'])->name('instructor.blocks.destroy');
         Route::post('instructor/courses/{course}/quizzes', [CurriculumController::class, 'storeQuiz'])->name('instructor.quizzes.store');
         Route::patch('instructor/quizzes/{quiz}', [CurriculumController::class, 'updateQuiz'])->name('instructor.quizzes.update');
@@ -201,12 +204,15 @@ Route::middleware(['auth'])->group(function () {
         Route::post('admin/chapters/{chapter}/lessons', [CurriculumController::class, 'storeLesson'])->name('admin.lessons.store');
         Route::patch('admin/lessons/{lesson}', [CurriculumController::class, 'updateLesson'])->name('admin.lessons.update');
         Route::delete('admin/lessons/{lesson}', [CurriculumController::class, 'destroyLesson'])->name('admin.lessons.destroy');
+        Route::post('admin/lessons/{lesson}/interactive-editor', [CurriculumController::class, 'openLessonInteractiveEditor'])->name('admin.lessons.interactive-editor');
         Route::get('admin/lessons/{lesson}/blocks/create', [PlatformController::class, 'createBlock'])->name('admin.blocks.create');
         Route::get('admin/blocks/{block}/edit', [PlatformController::class, 'editBlock'])->name('admin.blocks.edit');
+        Route::get('admin/blocks/{block}/interactive-editor', [PlatformController::class, 'interactiveEditor'])->name('admin.blocks.interactive-editor');
         Route::post('admin/lessons/{lesson}/blocks', [CurriculumController::class, 'storeBlock'])->name('admin.blocks.store');
         Route::post('admin/lessons/{lesson}/editor-media', [CurriculumController::class, 'uploadEditorMedia'])->name('admin.lessons.editor-media');
         Route::post('admin/lessons/{lesson}/interactive-media', [CurriculumController::class, 'uploadInteractiveMedia'])->name('admin.lessons.interactive-media');
         Route::patch('admin/blocks/{block}', [CurriculumController::class, 'updateBlock'])->name('admin.blocks.update');
+        Route::patch('admin/blocks/{block}/interactive-autosave', [CurriculumController::class, 'autosaveInteractiveBlock'])->name('admin.blocks.interactive-autosave');
         Route::delete('admin/blocks/{block}', [CurriculumController::class, 'destroyBlock'])->name('admin.blocks.destroy');
         Route::post('admin/courses/{course}/quizzes', [CurriculumController::class, 'storeQuiz'])->name('admin.quizzes.store');
         Route::patch('admin/quizzes/{quiz}', [CurriculumController::class, 'updateQuiz'])->name('admin.quizzes.update');
@@ -258,6 +264,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('admin/teaching-schedules/{teachingSchedule}', [TeachingScheduleController::class, 'destroy'])->name('admin.teaching-schedules.destroy');
 
         Route::get('admin/teaching-sessions', [TeachingSessionController::class, 'adminIndex'])->name('admin.teaching-sessions');
+        Route::get('admin/teaching-sessions/{teachingSession}', [TeachingSessionController::class, 'show'])->name('admin.teaching-sessions.show');
         Route::get('admin/teaching-feedbacks', [TeachingFeedbackController::class, 'adminIndex'])->name('admin.teaching-feedbacks');
         Route::patch('admin/teaching-sessions/{teachingSession}/review', [TeachingSessionController::class, 'review'])->name('admin.teaching-sessions.review');
         Route::delete('admin/teaching-sessions/{teachingSession}', [TeachingSessionController::class, 'destroy'])->name('admin.teaching-sessions.destroy');

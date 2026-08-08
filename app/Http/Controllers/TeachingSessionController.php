@@ -217,6 +217,26 @@ class TeachingSessionController extends Controller
         return back()->with('success', 'Review laporan pertemuan berhasil disimpan.');
     }
 
+    public function show(Request $request, TeachingSession $teachingSession): Response
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $teachingSession->load([
+            'schedule:id,title,starts_at,ends_at,mode,location,meeting_url,status,notes',
+            'school:id,name,address',
+            'instructor:id,name,email,phone',
+            'course:id,title',
+            'reviewer:id,name,email',
+            'payrollItems.payroll:id,status,period_month,total_amount,paid_at,payment_proof_path,notes',
+        ]);
+
+        return Inertia::render('teaching/session-detail', [
+            'title' => 'Detail Laporan Pertemuan',
+            'session' => $this->sessionDetailPayload($teachingSession),
+            'backUrl' => route('admin.teaching-sessions'),
+        ]);
+    }
+
     public function destroy(Request $request, TeachingSession $teachingSession): RedirectResponse
     {
         if ($teachingSession->payrollItems()->exists()) {
@@ -329,6 +349,153 @@ class TeachingSessionController extends Controller
         ];
     }
 
+    private function sessionDetailPayload(TeachingSession $session): array
+    {
+        $base = $this->sessionPayload($session, 'admin');
+        $attendanceRows = $this->attendanceRows($session);
+        $feedbackRows = $this->feedbackRows($session);
+        $payrollRows = $session->payrollItems->map(fn ($item) => [
+            'id' => $item->id,
+            'status' => $item->payroll?->status ?? 'Payroll tidak tersedia',
+            'period' => $item->payroll?->period_month?->format('Y-m'),
+            'rateAmount' => $item->rate_amount,
+            'amount' => $item->amount,
+            'paidAt' => optional($item->payroll?->paid_at)->format('d M Y H:i'),
+            'proofUrl' => $this->evidenceUrl($item->payroll?->payment_proof_path),
+            'notes' => $item->payroll?->notes,
+        ])->values();
+
+        return [
+            ...$base,
+            'schedule' => [
+                'id' => $session->teaching_schedule_id,
+                'title' => $session->schedule?->title ?? 'Jadwal tidak tersedia',
+                'startsAt' => optional($session->schedule?->starts_at)->format('d M Y H:i'),
+                'endsAt' => optional($session->schedule?->ends_at)->format('d M Y H:i'),
+                'mode' => $session->schedule?->mode ?? '-',
+                'location' => $session->schedule?->location,
+                'meetingUrl' => $session->schedule?->meeting_url,
+                'status' => $session->schedule?->status,
+                'notes' => $session->schedule?->notes,
+            ],
+            'schoolDetail' => [
+                'name' => $session->school?->name ?? 'Sekolah tidak tersedia',
+                'address' => $session->school?->address,
+            ],
+            'instructorDetail' => [
+                'name' => $session->instructor?->name ?? 'Pengajar tidak tersedia',
+                'email' => $session->instructor?->email,
+                'phone' => $session->instructor?->phone,
+            ],
+            'review' => [
+                'reviewer' => $session->reviewer?->name,
+                'reviewerEmail' => $session->reviewer?->email,
+                'reviewedAt' => optional($session->reviewed_at)->format('d M Y H:i'),
+                'notes' => $session->review_notes,
+            ],
+            'attendanceSummary' => $this->attendanceSummary($attendanceRows),
+            'attendances' => $attendanceRows,
+            'feedbackSummary' => [
+                'total' => $feedbackRows->count(),
+                'averageRating' => round($feedbackRows->avg('rating') ?: 0, 1),
+                'needHelp' => $feedbackRows->where('understandingLevel', 'need_help')->count(),
+            ],
+            'feedbacks' => $feedbackRows,
+            'payrolls' => $payrollRows,
+        ];
+    }
+
+    private function attendanceRows(TeachingSession $session)
+    {
+        if (! $session->teaching_schedule_id || ! $session->school_id) {
+            return collect();
+        }
+
+        return DB::table('users')
+            ->leftJoin('teaching_attendances', function ($join) use ($session) {
+                $join->on('users.id', '=', 'teaching_attendances.student_id')
+                    ->where('teaching_attendances.teaching_schedule_id', '=', $session->teaching_schedule_id);
+            })
+            ->where('users.role', 'student')
+            ->where('users.school_id', $session->school_id)
+            ->select(
+                'users.id',
+                'users.name',
+                'users.email',
+                'teaching_attendances.status',
+                'teaching_attendances.checked_in_at as checkedInAt',
+                'teaching_attendances.source',
+                'teaching_attendances.reason',
+                'teaching_attendances.proof_path as proofPath',
+            )
+            ->orderBy('users.name')
+            ->get()
+            ->map(fn ($row) => [
+                'studentId' => $row->id,
+                'student' => $row->name,
+                'email' => $row->email,
+                'status' => $this->normalizedAttendanceStatus($row->status),
+                'statusLabel' => $this->attendanceStatusLabel($row->status),
+                'checkedInAt' => $row->checkedInAt ? date('d M Y H:i', strtotime($row->checkedInAt)) : null,
+                'source' => $row->source,
+                'sourceLabel' => $this->attendanceSourceLabel($row->source),
+                'reason' => $row->reason,
+                'proofUrl' => $this->evidenceUrl($row->proofPath),
+            ]);
+    }
+
+    private function attendanceSummary($attendanceRows): array
+    {
+        return [
+            'total' => $attendanceRows->count(),
+            'present' => $attendanceRows->where('status', 'H')->count(),
+            'sick' => $attendanceRows->where('status', 'S')->count(),
+            'permit' => $attendanceRows->where('status', 'I')->count(),
+            'absent' => $attendanceRows->where('status', 'A')->count(),
+            'missing' => $attendanceRows->whereNull('status')->count(),
+        ];
+    }
+
+    private function feedbackRows(TeachingSession $session)
+    {
+        if (! $session->teaching_schedule_id) {
+            return collect();
+        }
+
+        return DB::table('teaching_feedbacks')
+            ->leftJoin('users', 'teaching_feedbacks.student_id', '=', 'users.id')
+            ->where(function ($query) use ($session) {
+                $query->where('teaching_feedbacks.teaching_session_id', $session->id)
+                    ->orWhere(function ($query) use ($session) {
+                        $query->whereNull('teaching_feedbacks.teaching_session_id')
+                            ->where('teaching_feedbacks.teaching_schedule_id', $session->teaching_schedule_id);
+                    });
+            })
+            ->select(
+                'teaching_feedbacks.id',
+                'teaching_feedbacks.rating',
+                'teaching_feedbacks.understanding_level as understandingLevel',
+                'teaching_feedbacks.comment',
+                'teaching_feedbacks.suggestion',
+                'teaching_feedbacks.created_at as createdAt',
+                'users.name as student',
+                'users.email as email',
+            )
+            ->latest('teaching_feedbacks.created_at')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => $row->id,
+                'student' => $row->student ?? 'Siswa tidak tersedia',
+                'email' => $row->email,
+                'rating' => (int) $row->rating,
+                'understandingLevel' => $row->understandingLevel,
+                'understandingLabel' => $this->understandingLabel($row->understandingLevel),
+                'comment' => $row->comment,
+                'suggestion' => $row->suggestion,
+                'createdAt' => $row->createdAt ? date('d M Y H:i', strtotime($row->createdAt)) : null,
+            ]);
+    }
+
     private function availableSchedulesForInstructor(int $instructorId)
     {
         return TeachingSchedule::query()
@@ -391,5 +558,46 @@ class TeachingSessionController extends Controller
         }
 
         return url('/storage/'.ltrim($path, '/'));
+    }
+
+    private function normalizedAttendanceStatus(?string $status): ?string
+    {
+        return match ($status) {
+            'H', 'present' => 'H',
+            'S' => 'S',
+            'I' => 'I',
+            'A' => 'A',
+            default => null,
+        };
+    }
+
+    private function attendanceStatusLabel(?string $status): string
+    {
+        return match ($this->normalizedAttendanceStatus($status)) {
+            'H' => 'Hadir',
+            'S' => 'Sakit',
+            'I' => 'Izin',
+            'A' => 'Alpa',
+            default => 'Belum tercatat',
+        };
+    }
+
+    private function attendanceSourceLabel(?string $source): string
+    {
+        return match ($source) {
+            'student_qr' => 'Scan QR siswa',
+            'instructor_manual' => 'Input manual pengajar',
+            default => $source ?: '-',
+        };
+    }
+
+    private function understandingLabel(?string $level): string
+    {
+        return match ($level) {
+            'understand' => 'Paham',
+            'partly_understand' => 'Sebagian paham',
+            'need_help' => 'Butuh bantuan',
+            default => $level ?: '-',
+        };
     }
 }

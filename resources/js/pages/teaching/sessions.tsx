@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { confirmDelete } from '@/lib/confirm-delete';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { CheckCircle2, ClipboardCheck, Eye, ImageIcon, Pencil, Plus, Search, Trash2, TriangleAlert, Users } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Eye, FileText, ImageIcon, Pencil, Plus, Search, Trash2, TriangleAlert, Users } from 'lucide-react';
 import { FormEvent, ReactNode, useMemo, useState } from 'react';
 
 interface Option {
@@ -347,6 +347,13 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
                                     )}
                                     <td className="align-top">
                                         <div className="flex justify-end gap-1">
+                                            {scope === 'admin' && (
+                                                <Button asChild variant="ghost" size="icon" aria-label="Detail laporan">
+                                                    <Link href={`/admin/teaching-sessions/${session.id}`}>
+                                                        <FileText className="size-4 text-blue-700" />
+                                                    </Link>
+                                                </Button>
+                                            )}
                                             {session.canEdit && (
                                                 <Button variant="ghost" size="icon" aria-label="Edit laporan" onClick={() => showEdit(session)}>
                                                     <Pencil className="size-4" />
@@ -497,7 +504,8 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
                             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
                                 <p className="font-bold text-slate-950">{completing.topic}</p>
                                 <p className="mt-1 text-slate-500">
-                                    {completing.school} · {completing.course} · {completing.actualDateLabel} · {completing.studentAttendanceCount} siswa absen
+                                    {completing.school} · {completing.course} · {completing.actualDateLabel} · {completing.studentAttendanceCount}{' '}
+                                    siswa absen
                                 </p>
                             </div>
                         )}

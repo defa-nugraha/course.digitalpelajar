@@ -611,3 +611,83 @@ test('admin and instructor can view teaching feedback grouped by meeting', funct
             ->where('stats.feedbacks', 0)
             ->where('stats.meetings', 0));
 });
+
+test('admin can open complete teaching session report detail', function () {
+    $admin = User::factory()->admin()->create();
+    $studentUser = User::factory()->student()->create();
+    $school = School::factory()->create();
+    $instructor = User::factory()->instructor()->create();
+    $student = User::factory()->student()->create([
+        'school_id' => $school->id,
+        'name' => 'Siswa Detail Laporan',
+    ]);
+    $course = Course::factory()->free()->create(['instructor_id' => $instructor->id]);
+    $schedule = TeachingSchedule::create([
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => $course->id,
+        'title' => 'Detail Laporan Robotik',
+        'starts_at' => now()->subDay()->setTime(9, 0),
+        'ends_at' => now()->subDay()->setTime(11, 0),
+        'mode' => 'offline',
+        'location' => 'Lab Robotik',
+        'status' => 'completed',
+        'notes' => 'Bawa kit robotik.',
+    ]);
+    $session = TeachingSession::create([
+        'teaching_schedule_id' => $schedule->id,
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => $course->id,
+        'actual_date' => now()->toDateString(),
+        'started_at' => '09:00',
+        'ended_at' => '11:00',
+        'topic' => 'Sensor Ultrasonik',
+        'student_attendance_count' => 1,
+        'report' => 'Siswa praktik membaca jarak sensor ultrasonik dan membuat alarm sederhana.',
+        'evidence_photo_path' => 'teaching-sessions/detail.jpg',
+        'status' => 'approved',
+        'reviewed_by' => $admin->id,
+        'reviewed_at' => now(),
+        'review_notes' => 'Laporan lengkap.',
+    ]);
+
+    TeachingAttendance::create([
+        'teaching_schedule_id' => $schedule->id,
+        'student_id' => $student->id,
+        'status' => 'H',
+        'checked_in_at' => now(),
+        'source' => 'student_qr',
+    ]);
+
+    DB::table('teaching_feedbacks')->insert([
+        'teaching_schedule_id' => $schedule->id,
+        'teaching_session_id' => $session->id,
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => $course->id,
+        'student_id' => $student->id,
+        'rating' => 5,
+        'understanding_level' => 'understand',
+        'comment' => 'Materi mudah dipahami.',
+        'suggestion' => 'Tambah contoh proyek.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get("/admin/teaching-sessions/{$session->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teaching/session-detail', false)
+            ->where('session.topic', 'Sensor Ultrasonik')
+            ->where('session.attendanceSummary.present', 1)
+            ->where('session.attendances.0.student', 'Siswa Detail Laporan')
+            ->where('session.feedbackSummary.total', 1)
+            ->where('session.feedbacks.0.comment', 'Materi mudah dipahami.')
+            ->where('session.review.notes', 'Laporan lengkap.'));
+
+    $this->actingAs($studentUser)
+        ->get("/admin/teaching-sessions/{$session->id}")
+        ->assertForbidden();
+});
