@@ -33,6 +33,8 @@ interface OfflineAttendance {
     statusLabel: string;
     source?: string | null;
     checkedInAt?: string | null;
+    lateMinutes?: number;
+    lateLabel?: string | null;
 }
 
 interface DashboardProps {
@@ -171,6 +173,17 @@ export default function Dashboard({ stats, currentCourse, courses, tasks, offlin
                                     <div className="flex flex-col items-start gap-2 md:items-end">
                                         <AttendanceStatusPill status={schedule.status} label={schedule.statusLabel} />
                                         {schedule.checkedInAt && <span className="text-xs text-slate-500">{schedule.checkedInAt}</span>}
+                                        {schedule.status === 'H' && (
+                                            <span
+                                                className={`text-xs font-semibold ${
+                                                    (schedule.lateMinutes ?? 0) > 0 ? 'text-amber-700' : 'text-emerald-700'
+                                                }`}
+                                            >
+                                                {(schedule.lateMinutes ?? 0) > 0
+                                                    ? `Terlambat ${schedule.lateLabel || formatLateDuration(schedule.lateMinutes ?? 0)}`
+                                                    : schedule.lateLabel || 'Tepat waktu'}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -219,4 +232,15 @@ function AttendanceStatusPill({ status, label }: { status?: 'H' | 'S' | 'I' | 'A
                   : 'bg-slate-100 text-slate-600';
 
     return <span className={`rounded-full px-3 py-1 text-xs font-bold ${tone}`}>{label}</span>;
+}
+
+function formatLateDuration(minutes: number) {
+    if (!minutes || minutes <= 0) {
+        return '0 menit';
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    return [hours > 0 ? `${hours} jam` : null, remainingMinutes > 0 ? `${remainingMinutes} menit` : null].filter(Boolean).join(' ');
 }

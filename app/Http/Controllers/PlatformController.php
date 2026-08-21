@@ -2012,6 +2012,7 @@ class PlatformController extends Controller
                 'teaching_attendances.status as attendanceStatus',
                 'teaching_attendances.source as attendanceSource',
                 'teaching_attendances.checked_in_at as checkedInAt',
+                'teaching_attendances.late_minutes as lateMinutes',
             )
             ->orderByDesc('teaching_attendances.checked_in_at')
             ->orderBy('teaching_schedules.starts_at')
@@ -2033,6 +2034,8 @@ class PlatformController extends Controller
                     'statusLabel' => $this->attendanceStatusLabel($status),
                     'source' => $schedule->attendanceSource,
                     'checkedInAt' => $schedule->checkedInAt ? date('d M Y H:i', strtotime($schedule->checkedInAt)) : null,
+                    'lateMinutes' => (int) ($schedule->lateMinutes ?? 0),
+                    'lateLabel' => $status === 'H' ? $this->attendanceLateLabel((int) ($schedule->lateMinutes ?? 0)) : null,
                 ];
             });
     }
@@ -2057,6 +2060,21 @@ class PlatformController extends Controller
             'A' => 'Alpa',
             default => 'Belum scan QR',
         };
+    }
+
+    private function attendanceLateLabel(int $minutes): string
+    {
+        if ($minutes <= 0) {
+            return 'Tepat waktu';
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        return collect([
+            $hours > 0 ? "{$hours} jam" : null,
+            $remainingMinutes > 0 ? "{$remainingMinutes} menit" : null,
+        ])->filter()->implode(' ');
     }
 
     private function authorizeCourseManager(Request $request, Course $course): void

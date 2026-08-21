@@ -28,6 +28,13 @@ class StudentTeachingAttendanceController extends Controller
         abort_unless(in_array($teachingSchedule->status, ['scheduled', 'rescheduled'], true), 403);
         abort_unless($teachingSchedule->session()->where('status', 'draft')->exists(), 403);
 
+        $existingAttendance = TeachingAttendance::query()
+            ->where('teaching_schedule_id', $teachingSchedule->id)
+            ->where('student_id', $user->id)
+            ->first();
+        $checkedInAt = in_array($existingAttendance?->status, ['H', 'present'], true) && $existingAttendance?->checked_in_at
+            ? $existingAttendance->checked_in_at
+            : now();
         $attendance = TeachingAttendance::updateOrCreate(
             [
                 'teaching_schedule_id' => $teachingSchedule->id,
@@ -35,7 +42,8 @@ class StudentTeachingAttendanceController extends Controller
             ],
             [
                 'status' => 'H',
-                'checked_in_at' => now(),
+                'checked_in_at' => $checkedInAt,
+                'late_minutes' => $this->lateMinutes($teachingSchedule, $checkedInAt),
                 'source' => 'student_qr',
                 'reason' => null,
                 'proof_path' => null,
@@ -123,5 +131,14 @@ class StudentTeachingAttendanceController extends Controller
             403,
             'Isi presensi terlebih dahulu sebelum memberi feedback.',
         );
+    }
+
+    private function lateMinutes(TeachingSchedule $teachingSchedule, $checkedInAt): int
+    {
+        if (! $teachingSchedule->starts_at || ! $checkedInAt) {
+            return 0;
+        }
+
+        return max(0, (int) $teachingSchedule->starts_at->diffInMinutes($checkedInAt, false));
     }
 }

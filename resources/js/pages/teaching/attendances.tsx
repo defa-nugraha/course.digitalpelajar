@@ -32,6 +32,8 @@ interface StudentRow {
     status: AttendanceValue;
     present: boolean;
     checkedInAt?: string | null;
+    lateMinutes?: number;
+    lateLabel?: string | null;
     source?: string | null;
     reason?: string | null;
     proofUrl?: string | null;
@@ -50,6 +52,8 @@ interface Props {
         sick: number;
         permit: number;
         absent: number;
+        lateStudents: number;
+        totalLateMinutes: number;
         missing: number;
         complete: boolean;
     };
@@ -256,13 +260,27 @@ export default function TeachingAttendances({ session, students, summary, feedba
         >
             <Head title="Presensi Siswa" />
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
                 <AttendanceSummaryCard label="Total siswa" value={String(summaryState.total)} icon={Users} tone="blue" />
                 <AttendanceSummaryCard label="Hadir" value={String(summaryState.present)} icon={CheckCircle2} tone="green" />
                 <AttendanceSummaryCard label="Sakit" value={String(summaryState.sick)} icon={Stethoscope} tone="amber" />
                 <AttendanceSummaryCard label="Izin" value={String(summaryState.permit)} icon={Clock} tone="sky" />
                 <AttendanceSummaryCard label="Alpa" value={String(summaryState.absent)} icon={UserX} tone="red" />
-                <AttendanceSummaryCard label="Status presensi" value={summaryState.complete ? 'Lengkap' : 'Belum lengkap'} icon={Clock} tone="slate" compactValue />
+                <AttendanceSummaryCard label="Terlambat" value={String(summaryState.lateStudents ?? 0)} icon={Clock} tone="amber" />
+                <AttendanceSummaryCard
+                    label="Total telat"
+                    value={formatLateDuration(summaryState.totalLateMinutes ?? 0)}
+                    icon={Clock}
+                    tone="slate"
+                    compactValue
+                />
+                <AttendanceSummaryCard
+                    label="Status presensi"
+                    value={summaryState.complete ? 'Lengkap' : 'Belum lengkap'}
+                    icon={Clock}
+                    tone="slate"
+                    compactValue
+                />
             </div>
 
             <Panel className="mt-6" title={session.topic || session.scheduleTitle}>
@@ -309,8 +327,9 @@ export default function TeachingAttendances({ session, students, summary, feedba
                                 <tr>
                                     <th>Siswa</th>
                                     <th className="py-3">Presensi</th>
+                                    <th>Waktu Presensi</th>
+                                    <th>Keterlambatan</th>
                                     <th>Alasan / Bukti</th>
-                                    <th>Waktu</th>
                                     <th>Sumber</th>
                                 </tr>
                             </thead>
@@ -343,6 +362,10 @@ export default function TeachingAttendances({ session, students, summary, feedba
                                                 ))}
                                             </div>
                                             <InputError message={errorFor(student.id, 'status')} className="mt-2" />
+                                        </td>
+                                        <td className="min-w-44 py-4 align-top text-slate-600">{student.checkedInAt || '-'}</td>
+                                        <td className="min-w-40 py-4 align-top">
+                                            <LateBadge status={student.status} minutes={student.lateMinutes ?? 0} label={student.lateLabel} />
                                         </td>
                                         <td className="min-w-72 align-top">
                                             {student.status === 'S' || student.status === 'I' ? (
@@ -379,15 +402,20 @@ export default function TeachingAttendances({ session, students, summary, feedba
                                                 <span className="text-xs text-slate-500">-</span>
                                             )}
                                         </td>
-                                        <td className="align-top">{student.checkedInAt || '-'}</td>
-                                        <td className="align-top">
-                                            {student.source === 'student_qr' ? 'Scan QR siswa' : student.source === 'instructor_manual' ? 'Manual pengajar' : '-'}
+                                        <td className="py-4 align-top">
+                                            {student.source === 'student_qr'
+                                                ? 'Scan QR siswa'
+                                                : student.source === 'instructor_manual'
+                                                  ? 'Manual pengajar'
+                                                  : '-'}
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                        {visibleRows.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada siswa yang cocok dengan pencarian.</p>}
+                        {visibleRows.length === 0 && (
+                            <p className="py-8 text-center text-sm text-slate-500">Tidak ada siswa yang cocok dengan pencarian.</p>
+                        )}
                     </div>
                     {canEdit && (
                         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -494,6 +522,31 @@ function FeedbackMetric({ label, value, icon: Icon }: { label: string; value: st
             <p className="mt-2 text-2xl font-extrabold text-slate-950">{value}</p>
         </div>
     );
+}
+
+function LateBadge({ status, minutes, label }: { status: AttendanceValue; minutes: number; label?: string | null }) {
+    if (status !== 'H') {
+        return <span className="text-xs text-slate-500">-</span>;
+    }
+
+    if (minutes <= 0) {
+        return <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{label || 'Tepat waktu'}</span>;
+    }
+
+    return (
+        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Terlambat {label || formatLateDuration(minutes)}</span>
+    );
+}
+
+function formatLateDuration(minutes: number) {
+    if (!minutes || minutes <= 0) {
+        return '0 menit';
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    return [hours > 0 ? `${hours} jam` : null, remainingMinutes > 0 ? `${remainingMinutes} menit` : null].filter(Boolean).join(' ');
 }
 
 function AttendanceSummaryCard({

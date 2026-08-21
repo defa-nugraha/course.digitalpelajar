@@ -22,6 +22,8 @@ interface OfflineAttendance {
     status?: 'H' | 'S' | 'I' | 'A' | null;
     statusLabel: string;
     checkedInAt?: string | null;
+    lateMinutes?: number;
+    lateLabel?: string | null;
 }
 
 export default function Upcoming({ tasks, offlineAttendances }: { tasks: Task[]; offlineAttendances: OfflineAttendance[] }) {
@@ -89,6 +91,17 @@ export default function Upcoming({ tasks, offlineAttendances }: { tasks: Task[];
                                         <span className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                                             {schedule.statusLabel}
                                         </span>
+                                        {schedule.status === 'H' && (
+                                            <p
+                                                className={`mt-2 text-xs font-semibold ${
+                                                    (schedule.lateMinutes ?? 0) > 0 ? 'text-amber-700' : 'text-emerald-700'
+                                                }`}
+                                            >
+                                                {(schedule.lateMinutes ?? 0) > 0
+                                                    ? `Terlambat ${schedule.lateLabel || formatLateDuration(schedule.lateMinutes ?? 0)}`
+                                                    : schedule.lateLabel || 'Tepat waktu'}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </article>
@@ -103,4 +116,15 @@ export default function Upcoming({ tasks, offlineAttendances }: { tasks: Task[];
             </div>
         </Shell>
     );
+}
+
+function formatLateDuration(minutes: number) {
+    if (!minutes || minutes <= 0) {
+        return '0 menit';
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    return [hours > 0 ? `${hours} jam` : null, remainingMinutes > 0 ? `${remainingMinutes} menit` : null].filter(Boolean).join(' ');
 }

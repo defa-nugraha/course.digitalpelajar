@@ -15,6 +15,7 @@ class TeachingAttendance extends Model
         'student_id',
         'status',
         'checked_in_at',
+        'late_minutes',
         'source',
         'reason',
         'proof_path',
@@ -22,6 +23,7 @@ class TeachingAttendance extends Model
 
     protected $casts = [
         'checked_in_at' => 'datetime',
+        'late_minutes' => 'integer',
     ];
 
     public function schedule(): BelongsTo

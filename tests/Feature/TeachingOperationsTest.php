@@ -356,6 +356,7 @@ test('school teacher can learn courses from school learning path access only', f
 
 test('student can check in by qr and instructor can edit attendance before submitting report', function () {
     Storage::fake('public');
+    $this->travelTo(CarbonImmutable::parse('2026-07-24 09:17:00', config('app.timezone')));
 
     $school = School::factory()->create();
     $student = User::factory()->student()->create(['school_id' => $school->id]);
@@ -406,6 +407,7 @@ test('student can check in by qr and instructor can edit attendance before submi
         'student_id' => $student->id,
         'status' => 'H',
         'source' => 'student_qr',
+        'late_minutes' => 17,
     ]);
 
     $this->actingAs($student)
@@ -432,7 +434,9 @@ test('student can check in by qr and instructor can edit attendance before submi
         ->assertInertia(fn (Assert $page) => $page
             ->component('dashboard', false)
             ->where('offlineAttendances.0.status', 'H')
-            ->where('offlineAttendances.0.statusLabel', 'Hadir'));
+            ->where('offlineAttendances.0.statusLabel', 'Hadir')
+            ->where('offlineAttendances.0.lateMinutes', 17)
+            ->where('offlineAttendances.0.lateLabel', '17 menit'));
 
     $this->actingAs($instructor)
         ->get("/instructor/teaching-sessions/{$session->id}/attendances")
@@ -442,12 +446,16 @@ test('student can check in by qr and instructor can edit attendance before submi
         ->getJson("/instructor/teaching-sessions/{$session->id}/attendances/data")
         ->assertOk()
         ->assertJsonPath('summary.present', 1)
+        ->assertJsonPath('summary.lateStudents', 1)
+        ->assertJsonPath('summary.totalLateMinutes', 17)
         ->assertJsonPath('feedbackSummary.total', 1)
         ->assertJsonPath('feedbackSummary.averageRating', 5)
         ->assertJsonFragment([
             'id' => $student->id,
             'status' => 'H',
             'source' => 'student_qr',
+            'lateMinutes' => 17,
+            'lateLabel' => '17 menit',
         ]);
 
     $this->actingAs($instructor)
@@ -474,6 +482,7 @@ test('student can check in by qr and instructor can edit attendance before submi
         'status' => 'S',
         'reason' => 'Sakit demam dan izin tidak mengikuti kelas.',
         'source' => 'instructor_manual',
+        'late_minutes' => 0,
     ]);
 
     $this->actingAs($instructor)
@@ -502,6 +511,75 @@ test('student can check in by qr and instructor can edit attendance before submi
             ],
         ])
         ->assertForbidden();
+});
+
+test('qr attendance stores checked time and accumulated lateness', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-07-25 09:12:00', config('app.timezone')));
+
+    $school = School::factory()->create();
+    $student = User::factory()->student()->create(['school_id' => $school->id]);
+    $instructor = User::factory()->instructor()->create();
+    $course = Course::factory()->free()->create(['instructor_id' => $instructor->id]);
+    $schedule = TeachingSchedule::create([
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => $course->id,
+        'title' => 'Presensi Telat',
+        'starts_at' => now()->setTime(9, 0),
+        'ends_at' => now()->setTime(11, 0),
+        'mode' => 'offline',
+        'location' => 'Lab Robotik',
+        'status' => 'scheduled',
+    ]);
+    $session = TeachingSession::create([
+        'teaching_schedule_id' => $schedule->id,
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => $course->id,
+        'actual_date' => now()->toDateString(),
+        'started_at' => '09:00',
+        'ended_at' => '11:00',
+        'topic' => 'Presensi tepat waktu dan telat',
+        'student_attendance_count' => 0,
+        'report' => '',
+        'evidence_photo_path' => '',
+        'status' => 'draft',
+    ]);
+
+    $signedQrUrl = URL::temporarySignedRoute(
+        'student.teaching-attendances.scan.store',
+        now()->addHour(),
+        ['teachingSchedule' => $schedule->id],
+    );
+
+    $this->actingAs($student)
+        ->get($signedQrUrl)
+        ->assertRedirect("/student/teaching-schedules/{$schedule->id}/feedback");
+
+    $attendance = TeachingAttendance::firstOrFail();
+
+    expect($attendance->checked_in_at?->format('Y-m-d H:i'))->toBe('2026-07-25 09:12')
+        ->and($attendance->late_minutes)->toBe(12);
+
+    $this->travelTo(CarbonImmutable::parse('2026-07-25 09:25:00', config('app.timezone')));
+    $this->actingAs($student)
+        ->get($signedQrUrl)
+        ->assertRedirect("/student/teaching-schedules/{$schedule->id}/feedback");
+
+    expect($attendance->fresh()->checked_in_at?->format('Y-m-d H:i'))->toBe('2026-07-25 09:12')
+        ->and($attendance->fresh()->late_minutes)->toBe(12);
+
+    $this->actingAs($instructor)
+        ->getJson("/instructor/teaching-sessions/{$session->id}/attendances/data")
+        ->assertOk()
+        ->assertJsonPath('summary.lateStudents', 1)
+        ->assertJsonPath('summary.totalLateMinutes', 12)
+        ->assertJsonFragment([
+            'id' => $student->id,
+            'checkedInAt' => '25 Jul 2026 09:12',
+            'lateMinutes' => 12,
+            'lateLabel' => '12 menit',
+        ]);
 });
 
 test('instructor can open legacy submission file when assigned to student school', function () {
@@ -657,6 +735,7 @@ test('admin can open complete teaching session report detail', function () {
         'student_id' => $student->id,
         'status' => 'H',
         'checked_in_at' => now(),
+        'late_minutes' => 12,
         'source' => 'student_qr',
     ]);
 
@@ -682,7 +761,11 @@ test('admin can open complete teaching session report detail', function () {
             ->component('teaching/session-detail', false)
             ->where('session.topic', 'Sensor Ultrasonik')
             ->where('session.attendanceSummary.present', 1)
+            ->where('session.attendanceSummary.lateStudents', 1)
+            ->where('session.attendanceSummary.totalLateMinutes', 12)
             ->where('session.attendances.0.student', 'Siswa Detail Laporan')
+            ->where('session.attendances.0.lateMinutes', 12)
+            ->where('session.attendances.0.lateLabel', '12 menit')
             ->where('session.feedbackSummary.total', 1)
             ->where('session.feedbacks.0.comment', 'Materi mudah dipahami.')
             ->where('session.review.notes', 'Laporan lengkap.'));

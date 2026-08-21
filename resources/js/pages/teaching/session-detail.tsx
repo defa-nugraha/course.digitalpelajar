@@ -26,6 +26,8 @@ interface AttendanceRow {
     status?: string | null;
     statusLabel: string;
     checkedInAt?: string | null;
+    lateMinutes?: number;
+    lateLabel?: string | null;
     source?: string | null;
     sourceLabel: string;
     reason?: string | null;
@@ -104,6 +106,8 @@ interface SessionDetail {
         sick: number;
         permit: number;
         absent: number;
+        lateStudents: number;
+        totalLateMinutes: number;
         missing: number;
     };
     attendances: AttendanceRow[];
@@ -162,12 +166,19 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
                 </div>
             </Panel>
 
-            <div className="mt-6 grid gap-5 md:grid-cols-3 xl:grid-cols-6">
+            <div className="mt-6 grid gap-5 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
                 <StatCard label="Total Siswa" value={String(session.attendanceSummary.total)} icon={Users} />
                 <StatCard label="Hadir" value={String(session.attendanceSummary.present)} icon={CheckCircle2} tone="purple" />
                 <StatCard label="Sakit" value={String(session.attendanceSummary.sick)} icon={ClipboardCheck} tone="amber" />
                 <StatCard label="Izin" value={String(session.attendanceSummary.permit)} icon={CalendarClock} tone="slate" />
                 <StatCard label="Alpa" value={String(session.attendanceSummary.absent)} icon={Users} tone="amber" />
+                <StatCard label="Terlambat" value={String(session.attendanceSummary.lateStudents ?? 0)} icon={CalendarClock} tone="amber" />
+                <StatCard
+                    label="Total Telat"
+                    value={formatLateDuration(session.attendanceSummary.totalLateMinutes ?? 0)}
+                    icon={CalendarClock}
+                    tone="slate"
+                />
                 <StatCard label="Feedback" value={`${session.feedbackSummary.total}`} icon={MessageSquareText} tone="slate" />
             </div>
 
@@ -186,7 +197,8 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
                                     <tr>
                                         <th className="py-3">Siswa</th>
                                         <th>Status</th>
-                                        <th>Waktu</th>
+                                        <th>Waktu Presensi</th>
+                                        <th>Keterlambatan</th>
                                         <th>Sumber</th>
                                         <th>Alasan / bukti</th>
                                     </tr>
@@ -202,6 +214,13 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
                                                 <AttendancePill status={attendance.status} label={attendance.statusLabel} />
                                             </td>
                                             <td className="text-slate-600">{attendance.checkedInAt || '-'}</td>
+                                            <td>
+                                                <LatePill
+                                                    status={attendance.status}
+                                                    minutes={attendance.lateMinutes ?? 0}
+                                                    label={attendance.lateLabel}
+                                                />
+                                            </td>
                                             <td className="text-slate-600">{attendance.sourceLabel}</td>
                                             <td className="max-w-xs text-slate-600">
                                                 {attendance.reason ? <p>{attendance.reason}</p> : <span>-</span>}
@@ -380,6 +399,22 @@ function AttendancePill({ status, label }: { status?: string | null; label: stri
     return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${className}`}>{label}</span>;
 }
 
+function LatePill({ status, minutes, label }: { status?: string | null; minutes: number; label?: string | null }) {
+    if (status !== 'H') {
+        return <span className="text-slate-500">-</span>;
+    }
+
+    if (minutes <= 0) {
+        return <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{label || 'Tepat waktu'}</span>;
+    }
+
+    return (
+        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+            Terlambat {label || formatLateDuration(minutes)}
+        </span>
+    );
+}
+
 function statusLabel(status: string) {
     const labels: Record<string, string> = {
         draft: 'Draft laporan',
@@ -396,6 +431,17 @@ function modeLabel(mode: string) {
     if (mode === 'online') return 'Online';
 
     return mode || '-';
+}
+
+function formatLateDuration(minutes: number) {
+    if (!minutes || minutes <= 0) {
+        return '0 menit';
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    return [hours > 0 ? `${hours} jam` : null, remainingMinutes > 0 ? `${remainingMinutes} menit` : null].filter(Boolean).join(' ');
 }
 
 function formatCurrency(value: number) {

@@ -52,6 +52,7 @@ class TeachingAttendanceController extends Controller
     {
         $this->authorizeInstructor($request, $teachingSession);
         abort_unless($this->canEdit($teachingSession), 403);
+        $teachingSession->loadMissing('schedule:id,starts_at');
 
         $data = $request->validate([
             'attendances' => ['required', 'array'],
@@ -81,8 +82,8 @@ class TeachingAttendanceController extends Controller
             ->pluck('id');
         $payloadByStudent = collect($data['attendances'])->keyBy(fn (array $attendance) => (int) $attendance['student_id']);
 
-        DB::transaction(function () use ($request, $teachingSession, $studentIds, $payloadByStudent) {
-            $studentIds->each(function (int $studentId) use ($request, $teachingSession, $payloadByStudent) {
+        DB::transaction(function () use ($teachingSession, $studentIds, $payloadByStudent) {
+            $studentIds->each(function (int $studentId) use ($teachingSession, $payloadByStudent) {
                 $payload = $payloadByStudent->get($studentId);
 
                 if (! $payload) {
@@ -110,6 +111,7 @@ class TeachingAttendanceController extends Controller
                 $source = $existing?->source === 'student_qr' && $status === 'H'
                     ? 'student_qr'
                     : 'instructor_manual';
+                $checkedInAt = $existing?->checked_in_at ?: now();
 
                 TeachingAttendance::updateOrCreate(
                     [
@@ -118,7 +120,8 @@ class TeachingAttendanceController extends Controller
                     ],
                     [
                         'status' => $status,
-                        'checked_in_at' => $existing?->checked_in_at ?: now(),
+                        'checked_in_at' => $checkedInAt,
+                        'late_minutes' => $status === 'H' ? $this->lateMinutes($teachingSession, $checkedInAt) : 0,
                         'source' => $source,
                         'reason' => in_array($status, ['S', 'I'], true) ? ($payload['reason'] ?? null) : null,
                         'proof_path' => $proofPath,
@@ -184,23 +187,31 @@ class TeachingAttendanceController extends Controller
                 'teaching_attendances.id as attendanceId',
                 'teaching_attendances.status',
                 'teaching_attendances.checked_in_at as checkedInAt',
+                'teaching_attendances.late_minutes as lateMinutes',
                 'teaching_attendances.source',
                 'teaching_attendances.reason',
                 'teaching_attendances.proof_path as proofPath',
             )
             ->orderBy('users.name')
             ->get()
-            ->map(fn ($student) => [
-                'id' => $student->id,
-                'name' => $student->name,
-                'email' => $student->email,
-                'status' => $this->normalizedStatus($student->status ?? null),
-                'present' => in_array($this->normalizedStatus($student->status ?? null), ['H'], true),
-                'checkedInAt' => $student->checkedInAt ? date('d M Y H:i', strtotime($student->checkedInAt)) : null,
-                'source' => $student->source,
-                'reason' => $student->reason,
-                'proofUrl' => $this->proofUrl($student->proofPath),
-            ]);
+            ->map(function ($student) {
+                $status = $this->normalizedStatus($student->status ?? null);
+                $lateMinutes = (int) ($student->lateMinutes ?? 0);
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'email' => $student->email,
+                    'status' => $status,
+                    'present' => in_array($status, ['H'], true),
+                    'checkedInAt' => $student->checkedInAt ? date('d M Y H:i', strtotime($student->checkedInAt)) : null,
+                    'source' => $student->source,
+                    'reason' => $student->reason,
+                    'proofUrl' => $this->proofUrl($student->proofPath),
+                    'lateMinutes' => $lateMinutes,
+                    'lateLabel' => $status === 'H' ? $this->lateLabel($lateMinutes) : null,
+                ];
+            });
     }
 
     private function summary(TeachingSession $teachingSession): array
@@ -219,6 +230,8 @@ class TeachingAttendanceController extends Controller
         $permit = (clone $baseQuery)->where('teaching_attendances.status', 'I')->count();
         $absent = (clone $baseQuery)->where('teaching_attendances.status', 'A')->count();
         $recorded = (clone $baseQuery)->whereIn('teaching_attendances.status', ['H', 'S', 'I', 'A', 'present'])->count();
+        $lateStudents = (clone $baseQuery)->whereIn('teaching_attendances.status', ['H', 'present'])->where('late_minutes', '>', 0)->count();
+        $totalLateMinutes = (int) (clone $baseQuery)->whereIn('teaching_attendances.status', ['H', 'present'])->sum('late_minutes');
 
         return [
             'total' => $total,
@@ -226,6 +239,8 @@ class TeachingAttendanceController extends Controller
             'sick' => $sick,
             'permit' => $permit,
             'absent' => $absent,
+            'lateStudents' => $lateStudents,
+            'totalLateMinutes' => $totalLateMinutes,
             'missing' => max(0, $total - $recorded),
             'complete' => $total > 0 && $recorded >= $total,
         ];
@@ -308,6 +323,30 @@ class TeachingAttendanceController extends Controller
             'A' => 'A',
             default => null,
         };
+    }
+
+    private function lateMinutes(TeachingSession $teachingSession, $checkedInAt): int
+    {
+        if (! $teachingSession->schedule?->starts_at || ! $checkedInAt) {
+            return 0;
+        }
+
+        return max(0, (int) $teachingSession->schedule->starts_at->diffInMinutes($checkedInAt, false));
+    }
+
+    private function lateLabel(int $minutes): string
+    {
+        if ($minutes <= 0) {
+            return 'Tepat waktu';
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        return collect([
+            $hours > 0 ? "{$hours} jam" : null,
+            $remainingMinutes > 0 ? "{$remainingMinutes} menit" : null,
+        ])->filter()->implode(' ');
     }
 
     private function proofUrl(?string $path): ?string

@@ -424,24 +424,32 @@ class TeachingSessionController extends Controller
                 'users.email',
                 'teaching_attendances.status',
                 'teaching_attendances.checked_in_at as checkedInAt',
+                'teaching_attendances.late_minutes as lateMinutes',
                 'teaching_attendances.source',
                 'teaching_attendances.reason',
                 'teaching_attendances.proof_path as proofPath',
             )
             ->orderBy('users.name')
             ->get()
-            ->map(fn ($row) => [
-                'studentId' => $row->id,
-                'student' => $row->name,
-                'email' => $row->email,
-                'status' => $this->normalizedAttendanceStatus($row->status),
-                'statusLabel' => $this->attendanceStatusLabel($row->status),
-                'checkedInAt' => $row->checkedInAt ? date('d M Y H:i', strtotime($row->checkedInAt)) : null,
-                'source' => $row->source,
-                'sourceLabel' => $this->attendanceSourceLabel($row->source),
-                'reason' => $row->reason,
-                'proofUrl' => $this->evidenceUrl($row->proofPath),
-            ]);
+            ->map(function ($row) {
+                $status = $this->normalizedAttendanceStatus($row->status);
+                $lateMinutes = (int) ($row->lateMinutes ?? 0);
+
+                return [
+                    'studentId' => $row->id,
+                    'student' => $row->name,
+                    'email' => $row->email,
+                    'status' => $status,
+                    'statusLabel' => $this->attendanceStatusLabel($row->status),
+                    'checkedInAt' => $row->checkedInAt ? date('d M Y H:i', strtotime($row->checkedInAt)) : null,
+                    'source' => $row->source,
+                    'sourceLabel' => $this->attendanceSourceLabel($row->source),
+                    'reason' => $row->reason,
+                    'proofUrl' => $this->evidenceUrl($row->proofPath),
+                    'lateMinutes' => $lateMinutes,
+                    'lateLabel' => $status === 'H' ? $this->lateLabel($lateMinutes) : null,
+                ];
+            });
     }
 
     private function attendanceSummary($attendanceRows): array
@@ -452,6 +460,8 @@ class TeachingSessionController extends Controller
             'sick' => $attendanceRows->where('status', 'S')->count(),
             'permit' => $attendanceRows->where('status', 'I')->count(),
             'absent' => $attendanceRows->where('status', 'A')->count(),
+            'lateStudents' => $attendanceRows->where('status', 'H')->where('lateMinutes', '>', 0)->count(),
+            'totalLateMinutes' => (int) $attendanceRows->where('status', 'H')->sum('lateMinutes'),
             'missing' => $attendanceRows->whereNull('status')->count(),
         ];
     }
@@ -589,6 +599,21 @@ class TeachingSessionController extends Controller
             'instructor_manual' => 'Input manual pengajar',
             default => $source ?: '-',
         };
+    }
+
+    private function lateLabel(int $minutes): string
+    {
+        if ($minutes <= 0) {
+            return 'Tepat waktu';
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        return collect([
+            $hours > 0 ? "{$hours} jam" : null,
+            $remainingMinutes > 0 ? "{$remainingMinutes} menit" : null,
+        ])->filter()->implode(' ');
     }
 
     private function understandingLabel(?string $level): string
