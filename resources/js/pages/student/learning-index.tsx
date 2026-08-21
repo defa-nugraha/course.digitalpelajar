@@ -52,7 +52,9 @@ export default function LearningIndex({ role, courses }: { role: string; courses
                                 <div>
                                     <div className="flex flex-wrap gap-2">
                                         <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{course.level}</span>
-                                        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{course.learningPath}</span>
+                                        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                                            {course.learningPath}
+                                        </span>
                                     </div>
                                     <h3 className="mt-3 text-xl font-extrabold text-slate-950">{course.title}</h3>
                                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{course.description}</p>

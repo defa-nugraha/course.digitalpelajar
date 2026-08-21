@@ -42,7 +42,7 @@ export default function Students({ school, students }: { school: string; student
                             <div className="flex flex-col gap-3 md:flex-row md:items-center">
                                 <div className="min-w-0 flex-1">
                                     <p className="font-bold">{student.name}</p>
-                                <p className="text-sm text-slate-500">
+                                    <p className="text-sm text-slate-500">
                                         {student.email} · {student.status} · {student.enrollments} kelas · hadir {student.attendance.rate}%
                                     </p>
                                 </div>

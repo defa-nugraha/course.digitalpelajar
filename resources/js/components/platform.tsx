@@ -448,8 +448,8 @@ function MobileBottomNav({ items }: { items: NavItem[] }) {
                                     className={cn(
                                         'flex size-12 items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-95',
                                         active
-                                            ? 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white ring-4 ring-white shadow-blue-500/40'
-                                            : 'bg-blue-600 text-white ring-4 ring-white shadow-blue-600/30 hover:bg-blue-700',
+                                            ? 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white ring-4 shadow-blue-500/40 ring-white'
+                                            : 'bg-blue-600 text-white ring-4 shadow-blue-600/30 ring-white hover:bg-blue-700',
                                     )}
                                 >
                                     <Icon className="size-6" />

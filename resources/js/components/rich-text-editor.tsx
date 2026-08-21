@@ -3,7 +3,23 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import ImageExtension from '@tiptap/extension-image';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Code2, Heading2, ImagePlus, Italic, List, ListOrdered, Loader2, Maximize2, Minus, Plus, Quote, Redo2, Undo2, Video } from 'lucide-react';
+import {
+    Bold,
+    Code2,
+    Heading2,
+    ImagePlus,
+    Italic,
+    List,
+    ListOrdered,
+    Loader2,
+    Maximize2,
+    Minus,
+    Plus,
+    Quote,
+    Redo2,
+    Undo2,
+    Video,
+} from 'lucide-react';
 import { ChangeEvent, ReactNode, useEffect, useRef, useState } from 'react';
 
 interface RichTextEditorProps {
@@ -167,9 +183,17 @@ export function RichTextEditor({ value, onChange, className, uploadUrl }: RichTe
             const originalName = payload.originalName || file.name;
 
             if (payload.type === 'image') {
-                editor.chain().focus().insertContent({ type: 'image', attrs: { src: payload.url, alt: originalName, width: '100%' } }).run();
+                editor
+                    .chain()
+                    .focus()
+                    .insertContent({ type: 'image', attrs: { src: payload.url, alt: originalName, width: '100%' } })
+                    .run();
             } else {
-                editor.chain().focus().insertContent({ type: 'video', attrs: { src: payload.url, title: originalName } }).run();
+                editor
+                    .chain()
+                    .focus()
+                    .insertContent({ type: 'video', attrs: { src: payload.url, title: originalName } })
+                    .run();
             }
         } catch (error) {
             setUploadError(error instanceof Error ? error.message : 'Upload media gagal.');
@@ -194,7 +218,13 @@ export function RichTextEditor({ value, onChange, className, uploadUrl }: RichTe
     return (
         <div className={cn('overflow-hidden rounded-md', className)}>
             <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange('image')} />
-            <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime" className="hidden" onChange={handleFileChange('video')} />
+            <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/mp4,video/webm,video/ogg,video/quicktime"
+                className="hidden"
+                onChange={handleFileChange('video')}
+            />
             <div className="flex flex-wrap gap-1 rounded-t-md border border-slate-200 bg-slate-50 p-2">
                 <ToolbarButton label="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
                     <Bold className="size-4" />
@@ -223,11 +253,7 @@ export function RichTextEditor({ value, onChange, className, uploadUrl }: RichTe
                 >
                     <ListOrdered className="size-4" />
                 </ToolbarButton>
-                <ToolbarButton
-                    label="Quote"
-                    active={editor.isActive('blockquote')}
-                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                >
+                <ToolbarButton label="Quote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
                     <Quote className="size-4" />
                 </ToolbarButton>
                 <ToolbarButton
@@ -309,7 +335,9 @@ export function RichTextEditor({ value, onChange, className, uploadUrl }: RichTe
                 {selectedImageWidth === null && <span>Klik gambar di editor untuk mengatur ukurannya.</span>}
             </div>
             <EditorContent editor={editor} />
-            {uploadError && <p className="rounded-b-md border border-t-0 border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{uploadError}</p>}
+            {uploadError && (
+                <p className="rounded-b-md border border-t-0 border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{uploadError}</p>
+            )}
         </div>
     );
 }

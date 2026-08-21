@@ -52,7 +52,9 @@ export default function StoreCatalog({ products, categories }: { products: Produ
                     <main className="mx-auto w-full max-w-7xl px-4 pt-24 pb-16 md:px-10">
                         <div className="rounded-[2rem] bg-gradient-to-br from-blue-700 to-cyan-500 p-6 text-white md:p-10">
                             <Crumb items={['Beranda', 'Toko Robotik']} />
-                            <h1 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight md:text-5xl">Kit robotik dan paket belajar untuk praktik langsung</h1>
+                            <h1 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight md:text-5xl">
+                                Kit robotik dan paket belajar untuk praktik langsung
+                            </h1>
                             <p className="mt-4 max-w-2xl text-base leading-7 text-blue-50 md:text-lg">
                                 Pilih alat robotik, starter kit, atau paket lengkap dengan akses materi pelatihan di platform.
                             </p>
@@ -62,20 +64,51 @@ export default function StoreCatalog({ products, categories }: { products: Produ
                             <div className="grid gap-3 md:grid-cols-[1fr_220px_220px]">
                                 <label className="relative">
                                     <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-                                    <Input className="pl-9" placeholder="Cari produk robotik..." value={term} onChange={(event) => setTerm(event.target.value)} />
+                                    <Input
+                                        className="pl-9"
+                                        placeholder="Cari produk robotik..."
+                                        value={term}
+                                        onChange={(event) => setTerm(event.target.value)}
+                                    />
                                 </label>
-                                <SearchableSelect value={category} onChange={setCategory} options={[{ value: 'all', label: 'Semua kategori' }, ...categories.map((item) => ({ value: String(item.id), label: item.name }))]} />
-                                <SearchableSelect value={type} onChange={setType} options={[{ value: 'all', label: 'Semua tipe' }, { value: 'physical', label: 'Produk fisik' }, { value: 'digital', label: 'Digital' }, { value: 'bundle', label: 'Paket' }]} />
+                                <SearchableSelect
+                                    value={category}
+                                    onChange={setCategory}
+                                    options={[
+                                        { value: 'all', label: 'Semua kategori' },
+                                        ...categories.map((item) => ({ value: String(item.id), label: item.name })),
+                                    ]}
+                                />
+                                <SearchableSelect
+                                    value={type}
+                                    onChange={setType}
+                                    options={[
+                                        { value: 'all', label: 'Semua tipe' },
+                                        { value: 'physical', label: 'Produk fisik' },
+                                        { value: 'digital', label: 'Digital' },
+                                        { value: 'bundle', label: 'Paket' },
+                                    ]}
+                                />
                             </div>
                         </section>
 
                         <section className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                             {visibleProducts.map((product) => (
-                                <article key={product.id} className="flex overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+                                <article
+                                    key={product.id}
+                                    className="flex overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                                >
                                     <div className="flex w-full flex-col">
                                         <div className="relative h-56 bg-slate-100">
-                                            <img src={product.imageUrl} alt={`Foto produk ${product.name}`} className="h-full w-full object-cover" loading="lazy" />
-                                            <span className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-blue-700">{typeLabel(product.type)}</span>
+                                            <img
+                                                src={product.imageUrl}
+                                                alt={`Foto produk ${product.name}`}
+                                                className="h-full w-full object-cover"
+                                                loading="lazy"
+                                            />
+                                            <span className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-blue-700">
+                                                {typeLabel(product.type)}
+                                            </span>
                                         </div>
                                         <div className="flex flex-1 flex-col p-6">
                                             <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
@@ -83,7 +116,9 @@ export default function StoreCatalog({ products, categories }: { products: Produ
                                                 {product.category}
                                             </div>
                                             <h2 className="mt-3 text-2xl font-extrabold text-slate-950">{product.name}</h2>
-                                            <p className="mt-2 line-clamp-2 flex-1 text-sm leading-6 text-slate-600">{product.summary || 'Produk robotik untuk mendukung pembelajaran praktik.'}</p>
+                                            <p className="mt-2 line-clamp-2 flex-1 text-sm leading-6 text-slate-600">
+                                                {product.summary || 'Produk robotik untuk mendukung pembelajaran praktik.'}
+                                            </p>
                                             <div className="mt-5 flex items-center justify-between gap-3">
                                                 <div>
                                                     <p className="text-xs text-slate-500">Harga</p>

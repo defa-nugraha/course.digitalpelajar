@@ -69,12 +69,9 @@ export default function TeachingFeedbacks({ scope, title, stats, meetings, optio
     const canFilterInstructor = scope === 'admin';
     const filteredMeetings = useMemo(() => {
         return meetings.filter((meeting) => {
-            const text = `${meeting.title} ${meeting.topic ?? ''} ${meeting.school} ${meeting.instructor} ${meeting.course}`
-                .toLowerCase()
-                .trim();
+            const text = `${meeting.title} ${meeting.topic ?? ''} ${meeting.school} ${meeting.instructor} ${meeting.course}`.toLowerCase().trim();
             const matchesTerm = text.includes(term.toLowerCase());
-            const matchesUnderstanding =
-                understanding === 'all' || meeting.items.some((item) => item.understandingLevel === understanding);
+            const matchesUnderstanding = understanding === 'all' || meeting.items.some((item) => item.understandingLevel === understanding);
 
             return matchesTerm && matchesUnderstanding;
         });

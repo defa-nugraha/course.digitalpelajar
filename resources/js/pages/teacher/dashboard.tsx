@@ -54,7 +54,15 @@ interface TeacherProps {
     }[];
 }
 
-export default function TeacherDashboard({ school, stats, students, learningAccess, attendanceSummary, upcomingSchedules, recentSessions }: TeacherProps) {
+export default function TeacherDashboard({
+    school,
+    stats,
+    students,
+    learningAccess,
+    attendanceSummary,
+    upcomingSchedules,
+    recentSessions,
+}: TeacherProps) {
     const needAttention = students.filter((student) => student.progress < 70);
 
     return (
@@ -83,7 +91,11 @@ export default function TeacherDashboard({ school, stats, students, learningAcce
                 >
                     <div className="grid gap-3 md:grid-cols-2">
                         {learningAccess.map((path) => (
-                            <Link key={path.id} href={path.url} className="rounded-xl border border-blue-100 bg-blue-50 p-4 transition hover:border-blue-200">
+                            <Link
+                                key={path.id}
+                                href={path.url}
+                                className="rounded-xl border border-blue-100 bg-blue-50 p-4 transition hover:border-blue-200"
+                            >
                                 <div className="flex items-start gap-3">
                                     <span className="rounded-lg bg-white p-2 text-blue-700">
                                         <Route className="size-5" />
@@ -180,7 +192,9 @@ export default function TeacherDashboard({ school, stats, students, learningAcce
                                             {session.course} · {session.dateLabel}
                                         </p>
                                     </div>
-                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{session.total} catatan</span>
+                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                                        {session.total} catatan
+                                    </span>
                                 </div>
                                 <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">H {session.present}</span>

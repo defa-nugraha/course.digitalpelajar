@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { confirmDelete } from '@/lib/confirm-delete';
 import { cn } from '@/lib/utils';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Boxes, KeyRound, Package, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
@@ -44,7 +45,13 @@ interface ProductRow {
     metaTitle?: string | null;
     metaDescription?: string | null;
     bundleItems: { productId: number; name: string; quantity: number }[];
-    courseAccesses: { courseId?: number | null; learningPathId?: number | null; title: string; deliveryMode: string; codeValidDays?: number | null }[];
+    courseAccesses: {
+        courseId?: number | null;
+        learningPathId?: number | null;
+        title: string;
+        deliveryMode: string;
+        codeValidDays?: number | null;
+    }[];
 }
 
 interface OrderRow {
@@ -80,11 +87,13 @@ interface ActivationCodeRow {
 }
 
 interface BundleInput {
+    [key: string]: FormDataConvertible;
     product_id: string;
     quantity: string;
 }
 
 interface AccessInput {
+    [key: string]: FormDataConvertible;
     course_id: string;
     learning_path_id: string;
     delivery_mode: string;
@@ -92,7 +101,7 @@ interface AccessInput {
 }
 
 interface ProductForm {
-    [key: string]: string | File | null | BundleInput[] | AccessInput[];
+    [key: string]: FormDataConvertible;
     product_category_id: string;
     type: string;
     sku: string;
@@ -212,8 +221,12 @@ function ProductsPanel({
     const [term, setTerm] = useState('');
     const form = useForm<ProductForm>(blankProduct);
     const stockForm = useForm({ quantity: '1', notes: '' });
-    const productOptions = products.filter((product) => product.type !== 'bundle').map((product) => ({ value: String(product.id), label: product.name }));
-    const visible = products.filter((product) => `${product.name} ${product.sku ?? ''} ${product.category}`.toLowerCase().includes(term.toLowerCase()));
+    const productOptions = products
+        .filter((product) => product.type !== 'bundle')
+        .map((product) => ({ value: String(product.id), label: product.name }));
+    const visible = products.filter((product) =>
+        `${product.name} ${product.sku ?? ''} ${product.category}`.toLowerCase().includes(term.toLowerCase()),
+    );
 
     const showCreate = () => {
         setEditing(null);
@@ -314,7 +327,9 @@ function ProductsPanel({
                                         <img src={product.imageUrl || '/logo.png'} alt={product.name} className="size-12 rounded-lg object-cover" />
                                         <div>
                                             <p className="font-bold">{product.name}</p>
-                                            <p className="text-xs text-slate-500">{product.category} · {product.sku || 'Tanpa SKU'}</p>
+                                            <p className="text-xs text-slate-500">
+                                                {product.category} · {product.sku || 'Tanpa SKU'}
+                                            </p>
                                         </div>
                                     </div>
                                 </td>
@@ -362,13 +377,20 @@ function ProductsPanel({
                                 <Input value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} />
                             </FormField>
                             <FormField label="Slug" error={form.errors.slug}>
-                                <Input value={form.data.slug} onChange={(event) => form.setData('slug', event.target.value)} placeholder="otomatis jika kosong" />
+                                <Input
+                                    value={form.data.slug}
+                                    onChange={(event) => form.setData('slug', event.target.value)}
+                                    placeholder="otomatis jika kosong"
+                                />
                             </FormField>
                             <FormField label="Kategori" error={form.errors.product_category_id}>
                                 <SearchableSelect
                                     value={form.data.product_category_id}
                                     onChange={(value) => form.setData('product_category_id', value)}
-                                    options={[{ value: '', label: 'Tanpa kategori' }, ...categories.map((category) => ({ value: String(category.id), label: category.name }))]}
+                                    options={[
+                                        { value: '', label: 'Tanpa kategori' },
+                                        ...categories.map((category) => ({ value: String(category.id), label: category.name })),
+                                    ]}
                                 />
                             </FormField>
                             <FormField label="Tipe produk" required error={form.errors.type}>
@@ -397,13 +419,28 @@ function ProductsPanel({
                                 />
                             </FormField>
                             <FormField label="Harga" required error={form.errors.price}>
-                                <Input type="number" min="0" value={form.data.price} onChange={(event) => form.setData('price', event.target.value)} />
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    value={form.data.price}
+                                    onChange={(event) => form.setData('price', event.target.value)}
+                                />
                             </FormField>
                             <FormField label="Stok" required error={form.errors.stock}>
-                                <Input type="number" min="0" value={form.data.stock} onChange={(event) => form.setData('stock', event.target.value)} />
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    value={form.data.stock}
+                                    onChange={(event) => form.setData('stock', event.target.value)}
+                                />
                             </FormField>
                             <FormField label="Berat gram" error={form.errors.weight_gram}>
-                                <Input type="number" min="0" value={form.data.weight_gram} onChange={(event) => form.setData('weight_gram', event.target.value)} />
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    value={form.data.weight_gram}
+                                    onChange={(event) => form.setData('weight_gram', event.target.value)}
+                                />
                             </FormField>
                             <FormField label="Upload gambar" error={form.errors.image}>
                                 <Input type="file" accept="image/*" onChange={(event) => form.setData('image', event.target.files?.[0] ?? null)} />
@@ -416,20 +453,30 @@ function ProductsPanel({
                             </FormField>
                         </div>
                         <FormField label="Deskripsi" error={form.errors.description}>
-                            <textarea className="min-h-28 w-full rounded-md border border-slate-300 p-3 text-sm" value={form.data.description} onChange={(event) => form.setData('description', event.target.value)} />
+                            <textarea
+                                className="min-h-28 w-full rounded-md border border-slate-300 p-3 text-sm"
+                                value={form.data.description}
+                                onChange={(event) => form.setData('description', event.target.value)}
+                            />
                         </FormField>
                         <FormField label="Meta description" error={form.errors.meta_description}>
-                            <textarea className="min-h-20 w-full rounded-md border border-slate-300 p-3 text-sm" value={form.data.meta_description} onChange={(event) => form.setData('meta_description', event.target.value)} />
+                            <textarea
+                                className="min-h-20 w-full rounded-md border border-slate-300 p-3 text-sm"
+                                value={form.data.meta_description}
+                                onChange={(event) => form.setData('meta_description', event.target.value)}
+                            />
                         </FormField>
 
-                        {form.data.type === 'bundle' && (
-                            <DynamicBundleItems form={form} productOptions={productOptions} />
-                        )}
+                        {form.data.type === 'bundle' && <DynamicBundleItems form={form} productOptions={productOptions} />}
                         <DynamicCourseAccesses form={form} courses={courses} learningPaths={learningPaths} />
 
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-                            <Button type="submit" disabled={form.processing}>{form.processing ? 'Menyimpan...' : 'Simpan Produk'}</Button>
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button type="submit" disabled={form.processing}>
+                                {form.processing ? 'Menyimpan...' : 'Simpan Produk'}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
@@ -441,16 +488,26 @@ function ProductsPanel({
                         <DialogTitle>Penyesuaian Stok</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={adjustStock} className="space-y-4">
-                        <p className="text-sm text-slate-600">Produk: <span className="font-bold">{stockProduct?.name}</span></p>
+                        <p className="text-sm text-slate-600">
+                            Produk: <span className="font-bold">{stockProduct?.name}</span>
+                        </p>
                         <FormField label="Jumlah perubahan" required error={stockForm.errors.quantity}>
-                            <Input type="number" value={stockForm.data.quantity} onChange={(event) => stockForm.setData('quantity', event.target.value)} />
+                            <Input
+                                type="number"
+                                value={stockForm.data.quantity}
+                                onChange={(event) => stockForm.setData('quantity', event.target.value)}
+                            />
                         </FormField>
                         <FormField label="Catatan" error={stockForm.errors.notes}>
                             <Input value={stockForm.data.notes} onChange={(event) => stockForm.setData('notes', event.target.value)} />
                         </FormField>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setStockOpen(false)}>Batal</Button>
-                            <Button type="submit" disabled={stockForm.processing}>Simpan</Button>
+                            <Button type="button" variant="outline" onClick={() => setStockOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button type="submit" disabled={stockForm.processing}>
+                                Simpan
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
@@ -459,21 +516,54 @@ function ProductsPanel({
     );
 }
 
-function DynamicBundleItems({ form, productOptions }: { form: ReturnType<typeof useForm<ProductForm>>; productOptions: { value: string; label: string }[] }) {
+function DynamicBundleItems({
+    form,
+    productOptions,
+}: {
+    form: ReturnType<typeof useForm<ProductForm>>;
+    productOptions: { value: string; label: string }[];
+}) {
     const items = form.data.bundle_items;
 
     return (
         <section className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between">
                 <h3 className="font-bold">Isi Paket Fisik</h3>
-                <Button type="button" variant="outline" size="sm" onClick={() => form.setData('bundle_items', [...items, { product_id: '', quantity: '1' }])}>Tambah item</Button>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => form.setData('bundle_items', [...items, { product_id: '', quantity: '1' }])}
+                >
+                    Tambah item
+                </Button>
             </div>
             <div className="mt-3 space-y-3">
                 {items.map((item, index) => (
                     <div key={index} className="grid gap-3 md:grid-cols-[1fr_120px_auto]">
-                        <SearchableSelect value={item.product_id} onChange={(value) => updateBundleItem(form, index, 'product_id', value)} options={[{ value: '', label: 'Pilih produk' }, ...productOptions]} />
-                        <Input type="number" min="1" value={item.quantity} onChange={(event) => updateBundleItem(form, index, 'quantity', event.target.value)} />
-                        <Button type="button" variant="ghost" onClick={() => form.setData('bundle_items', items.filter((_, itemIndex) => itemIndex !== index))}>Hapus</Button>
+                        <SearchableSelect
+                            value={item.product_id}
+                            onChange={(value) => updateBundleItem(form, index, 'product_id', value)}
+                            options={[{ value: '', label: 'Pilih produk' }, ...productOptions]}
+                        />
+                        <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(event) => updateBundleItem(form, index, 'quantity', event.target.value)}
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() =>
+                                form.setData(
+                                    'bundle_items',
+                                    items.filter((_, itemIndex) => itemIndex !== index),
+                                )
+                            }
+                        >
+                            Hapus
+                        </Button>
                     </div>
                 ))}
                 {items.length === 0 && <p className="text-sm text-slate-500">Tambahkan produk fisik yang termasuk dalam paket.</p>}
@@ -482,23 +572,81 @@ function DynamicBundleItems({ form, productOptions }: { form: ReturnType<typeof 
     );
 }
 
-function DynamicCourseAccesses({ form, courses, learningPaths }: { form: ReturnType<typeof useForm<ProductForm>>; courses: SimpleOption[]; learningPaths: SimpleOption[] }) {
+function DynamicCourseAccesses({
+    form,
+    courses,
+    learningPaths,
+}: {
+    form: ReturnType<typeof useForm<ProductForm>>;
+    courses: SimpleOption[];
+    learningPaths: SimpleOption[];
+}) {
     const accesses = form.data.course_accesses;
 
     return (
         <section className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between">
                 <h3 className="font-bold">Akses Materi</h3>
-                <Button type="button" variant="outline" size="sm" onClick={() => form.setData('course_accesses', [...accesses, { course_id: '', learning_path_id: '', delivery_mode: 'activation_code', code_valid_days: '' }])}>Tambah akses</Button>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                        form.setData('course_accesses', [
+                            ...accesses,
+                            { course_id: '', learning_path_id: '', delivery_mode: 'activation_code', code_valid_days: '' },
+                        ])
+                    }
+                >
+                    Tambah akses
+                </Button>
             </div>
             <div className="mt-3 space-y-3">
                 {accesses.map((access, index) => (
                     <div key={index} className="grid gap-3 md:grid-cols-5">
-                        <SearchableSelect value={access.course_id} onChange={(value) => updateAccess(form, index, 'course_id', value)} options={[{ value: '', label: 'Course opsional' }, ...courses.map((course) => ({ value: String(course.id), label: course.title ?? '-' }))]} />
-                        <SearchableSelect value={access.learning_path_id} onChange={(value) => updateAccess(form, index, 'learning_path_id', value)} options={[{ value: '', label: 'Learning path opsional' }, ...learningPaths.map((path) => ({ value: String(path.id), label: path.title ?? '-' }))]} />
-                        <SearchableSelect value={access.delivery_mode} onChange={(value) => updateAccess(form, index, 'delivery_mode', value)} options={[{ value: 'activation_code', label: 'Kode aktivasi' }, { value: 'auto_enroll', label: 'Auto aktif setelah bayar' }]} />
-                        <Input placeholder="Valid hari" type="number" min="1" value={access.code_valid_days} onChange={(event) => updateAccess(form, index, 'code_valid_days', event.target.value)} />
-                        <Button type="button" variant="ghost" onClick={() => form.setData('course_accesses', accesses.filter((_, itemIndex) => itemIndex !== index))}>Hapus</Button>
+                        <SearchableSelect
+                            value={access.course_id}
+                            onChange={(value) => updateAccess(form, index, 'course_id', value)}
+                            options={[
+                                { value: '', label: 'Course opsional' },
+                                ...courses.map((course) => ({ value: String(course.id), label: course.title ?? '-' })),
+                            ]}
+                        />
+                        <SearchableSelect
+                            value={access.learning_path_id}
+                            onChange={(value) => updateAccess(form, index, 'learning_path_id', value)}
+                            options={[
+                                { value: '', label: 'Learning path opsional' },
+                                ...learningPaths.map((path) => ({ value: String(path.id), label: path.title ?? '-' })),
+                            ]}
+                        />
+                        <SearchableSelect
+                            value={access.delivery_mode}
+                            onChange={(value) => updateAccess(form, index, 'delivery_mode', value)}
+                            options={[
+                                { value: 'activation_code', label: 'Kode aktivasi' },
+                                { value: 'auto_enroll', label: 'Auto aktif setelah bayar' },
+                            ]}
+                        />
+                        <Input
+                            placeholder="Valid hari"
+                            type="number"
+                            min="1"
+                            value={access.code_valid_days}
+                            onChange={(event) => updateAccess(form, index, 'code_valid_days', event.target.value)}
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() =>
+                                form.setData(
+                                    'course_accesses',
+                                    accesses.filter((_, itemIndex) => itemIndex !== index),
+                                )
+                            }
+                        >
+                            Hapus
+                        </Button>
                     </div>
                 ))}
                 {accesses.length === 0 && <p className="text-sm text-slate-500">Kosongkan jika produk tidak membuka materi.</p>}
@@ -508,11 +656,17 @@ function DynamicCourseAccesses({ form, courses, learningPaths }: { form: ReturnT
 }
 
 function updateBundleItem(form: ReturnType<typeof useForm<ProductForm>>, index: number, key: keyof BundleInput, value: string) {
-    form.setData('bundle_items', form.data.bundle_items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)));
+    form.setData(
+        'bundle_items',
+        form.data.bundle_items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)),
+    );
 }
 
 function updateAccess(form: ReturnType<typeof useForm<ProductForm>>, index: number, key: keyof AccessInput, value: string) {
-    form.setData('course_accesses', form.data.course_accesses.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)));
+    form.setData(
+        'course_accesses',
+        form.data.course_accesses.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)),
+    );
 }
 
 function CategoriesPanel({ categories }: { categories: CategoryRow[] }) {
@@ -549,18 +703,41 @@ function CategoriesPanel({ categories }: { categories: CategoryRow[] }) {
     };
 
     return (
-        <Panel className="mt-6" title="Kategori Produk" action={<Button onClick={showCreate}><Plus className="size-4" />Tambah Kategori</Button>}>
+        <Panel
+            className="mt-6"
+            title="Kategori Produk"
+            action={
+                <Button onClick={showCreate}>
+                    <Plus className="size-4" />
+                    Tambah Kategori
+                </Button>
+            }
+        >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {categories.map((category) => (
                     <div key={category.id} className="rounded-xl border border-slate-200 p-4">
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <p className="font-bold">{category.name}</p>
-                                <p className="text-xs text-slate-500">{category.products} produk · {category.status}</p>
+                                <p className="text-xs text-slate-500">
+                                    {category.products} produk · {category.status}
+                                </p>
                             </div>
                             <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" onClick={() => showEdit(category)}><Pencil className="size-4" /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => confirmDelete(`Hapus kategori "${category.name}"?`, () => router.delete(`/admin/store/categories/${category.id}`, { preserveScroll: true }))}><Trash2 className="size-4 text-red-600" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => showEdit(category)}>
+                                    <Pencil className="size-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                        confirmDelete(`Hapus kategori "${category.name}"?`, () =>
+                                            router.delete(`/admin/store/categories/${category.id}`, { preserveScroll: true }),
+                                        )
+                                    }
+                                >
+                                    <Trash2 className="size-4 text-red-600" />
+                                </Button>
                             </div>
                         </div>
                         <p className="mt-3 text-sm text-slate-600">{category.description || 'Belum ada deskripsi.'}</p>
@@ -569,13 +746,39 @@ function CategoriesPanel({ categories }: { categories: CategoryRow[] }) {
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>{editing ? 'Edit Kategori' : 'Tambah Kategori'}</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>{editing ? 'Edit Kategori' : 'Tambah Kategori'}</DialogTitle>
+                    </DialogHeader>
                     <form onSubmit={submit} className="space-y-4">
-                        <FormField label="Nama kategori" required error={form.errors.name}><Input value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} /></FormField>
-                        <FormField label="Slug" error={form.errors.slug}><Input value={form.data.slug} onChange={(event) => form.setData('slug', event.target.value)} /></FormField>
-                        <FormField label="Status" required error={form.errors.status}><SearchableSelect value={form.data.status} onChange={(value) => form.setData('status', value)} options={[{ value: 'active', label: 'Aktif' }, { value: 'inactive', label: 'Tidak aktif' }]} /></FormField>
-                        <FormField label="Deskripsi" error={form.errors.description}><textarea className="min-h-24 w-full rounded-md border border-slate-300 p-3 text-sm" value={form.data.description} onChange={(event) => form.setData('description', event.target.value)} /></FormField>
-                        <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button><Button type="submit">Simpan</Button></DialogFooter>
+                        <FormField label="Nama kategori" required error={form.errors.name}>
+                            <Input value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} />
+                        </FormField>
+                        <FormField label="Slug" error={form.errors.slug}>
+                            <Input value={form.data.slug} onChange={(event) => form.setData('slug', event.target.value)} />
+                        </FormField>
+                        <FormField label="Status" required error={form.errors.status}>
+                            <SearchableSelect
+                                value={form.data.status}
+                                onChange={(value) => form.setData('status', value)}
+                                options={[
+                                    { value: 'active', label: 'Aktif' },
+                                    { value: 'inactive', label: 'Tidak aktif' },
+                                ]}
+                            />
+                        </FormField>
+                        <FormField label="Deskripsi" error={form.errors.description}>
+                            <textarea
+                                className="min-h-24 w-full rounded-md border border-slate-300 p-3 text-sm"
+                                value={form.data.description}
+                                onChange={(event) => form.setData('description', event.target.value)}
+                            />
+                        </FormField>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button type="submit">Simpan</Button>
+                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -607,18 +810,34 @@ function OrdersPanel({ orders }: { orders: OrderRow[] }) {
         <Panel className="mt-6" title="Order Produk">
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                    <thead className="text-xs uppercase text-slate-500">
-                        <tr><th className="py-3">Order</th><th>Pelanggan</th><th>Item</th><th>Total</th><th>Status</th><th className="text-right">Aksi</th></tr>
+                    <thead className="text-xs text-slate-500 uppercase">
+                        <tr>
+                            <th className="py-3">Order</th>
+                            <th>Pelanggan</th>
+                            <th>Item</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th className="text-right">Aksi</th>
+                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                         {orders.map((order) => (
                             <tr key={order.id}>
                                 <td className="py-4 font-mono text-xs">{order.orderNumber}</td>
-                                <td><p className="font-semibold">{order.customer}</p><p className="text-xs text-slate-500">{order.email}</p></td>
+                                <td>
+                                    <p className="font-semibold">{order.customer}</p>
+                                    <p className="text-xs text-slate-500">{order.email}</p>
+                                </td>
                                 <td>{order.items.map((item) => `${item.name} x${item.quantity}`).join(', ')}</td>
                                 <td>{order.totalLabel}</td>
-                                <td><StatusBadge value={order.paymentStatus} /> <StatusBadge value={order.fulfillmentStatus} /></td>
-                                <td className="text-right"><Button size="sm" variant="outline" onClick={() => openEdit(order)}>Update</Button></td>
+                                <td>
+                                    <StatusBadge value={order.paymentStatus} /> <StatusBadge value={order.fulfillmentStatus} />
+                                </td>
+                                <td className="text-right">
+                                    <Button size="sm" variant="outline" onClick={() => openEdit(order)}>
+                                        Update
+                                    </Button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -626,15 +845,34 @@ function OrdersPanel({ orders }: { orders: OrderRow[] }) {
             </div>
             <Dialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Update Order</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>Update Order</DialogTitle>
+                    </DialogHeader>
                     <form onSubmit={submit} className="space-y-4">
                         <FormField label="Status fulfillment" required error={form.errors.fulfillment_status}>
-                            <SearchableSelect value={form.data.fulfillment_status} onChange={(value) => form.setData('fulfillment_status', value)} options={['waiting_payment', 'processing', 'packed', 'shipped', 'delivered', 'cancelled', 'not_required'].map((value) => ({ value, label: statusLabel(value) }))} />
+                            <SearchableSelect
+                                value={form.data.fulfillment_status}
+                                onChange={(value) => form.setData('fulfillment_status', value)}
+                                options={['waiting_payment', 'processing', 'packed', 'shipped', 'delivered', 'cancelled', 'not_required'].map(
+                                    (value) => ({ value, label: statusLabel(value) }),
+                                )}
+                            />
                         </FormField>
-                        <FormField label="Kurir" error={form.errors.courier}><Input value={form.data.courier} onChange={(event) => form.setData('courier', event.target.value)} /></FormField>
-                        <FormField label="Nomor resi" error={form.errors.tracking_number}><Input value={form.data.tracking_number} onChange={(event) => form.setData('tracking_number', event.target.value)} /></FormField>
-                        <FormField label="Catatan" error={form.errors.notes}><Input value={form.data.notes} onChange={(event) => form.setData('notes', event.target.value)} /></FormField>
-                        <DialogFooter><Button type="button" variant="outline" onClick={() => setEditing(null)}>Batal</Button><Button type="submit">Simpan</Button></DialogFooter>
+                        <FormField label="Kurir" error={form.errors.courier}>
+                            <Input value={form.data.courier} onChange={(event) => form.setData('courier', event.target.value)} />
+                        </FormField>
+                        <FormField label="Nomor resi" error={form.errors.tracking_number}>
+                            <Input value={form.data.tracking_number} onChange={(event) => form.setData('tracking_number', event.target.value)} />
+                        </FormField>
+                        <FormField label="Catatan" error={form.errors.notes}>
+                            <Input value={form.data.notes} onChange={(event) => form.setData('notes', event.target.value)} />
+                        </FormField>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setEditing(null)}>
+                                Batal
+                            </Button>
+                            <Button type="submit">Simpan</Button>
+                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -642,7 +880,17 @@ function OrdersPanel({ orders }: { orders: OrderRow[] }) {
     );
 }
 
-function CodesPanel({ codes, products, courses, learningPaths }: { codes: ActivationCodeRow[]; products: ProductRow[]; courses: SimpleOption[]; learningPaths: SimpleOption[] }) {
+function CodesPanel({
+    codes,
+    products,
+    courses,
+    learningPaths,
+}: {
+    codes: ActivationCodeRow[];
+    products: ProductRow[];
+    courses: SimpleOption[];
+    learningPaths: SimpleOption[];
+}) {
     const [open, setOpen] = useState(false);
     const form = useForm({ product_id: '', course_id: '', learning_path_id: '', assigned_user_id: '', quantity: '1', expires_at: '' });
 
@@ -652,10 +900,28 @@ function CodesPanel({ codes, products, courses, learningPaths }: { codes: Activa
     };
 
     return (
-        <Panel className="mt-6" title="Kode Aktivasi" action={<Button onClick={() => setOpen(true)}><Plus className="size-4" />Generate Kode</Button>}>
+        <Panel
+            className="mt-6"
+            title="Kode Aktivasi"
+            action={
+                <Button onClick={() => setOpen(true)}>
+                    <Plus className="size-4" />
+                    Generate Kode
+                </Button>
+            }
+        >
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                    <thead className="text-xs uppercase text-slate-500"><tr><th className="py-3">Kode</th><th>Produk</th><th>Target</th><th>User</th><th>Status</th><th>Kedaluwarsa</th></tr></thead>
+                    <thead className="text-xs text-slate-500 uppercase">
+                        <tr>
+                            <th className="py-3">Kode</th>
+                            <th>Produk</th>
+                            <th>Target</th>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th>Kedaluwarsa</th>
+                        </tr>
+                    </thead>
                     <tbody className="divide-y divide-slate-200">
                         {codes.map((code) => (
                             <tr key={code.id}>
@@ -663,7 +929,9 @@ function CodesPanel({ codes, products, courses, learningPaths }: { codes: Activa
                                 <td>{code.product}</td>
                                 <td>{code.target}</td>
                                 <td>{code.redeemedBy ? `Dipakai ${code.redeemedBy}` : code.assignedUser}</td>
-                                <td><StatusBadge value={code.status} /></td>
+                                <td>
+                                    <StatusBadge value={code.status} />
+                                </td>
                                 <td>{code.expiresAt || '-'}</td>
                             </tr>
                         ))}
@@ -672,15 +940,59 @@ function CodesPanel({ codes, products, courses, learningPaths }: { codes: Activa
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Generate Kode Aktivasi</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>Generate Kode Aktivasi</DialogTitle>
+                    </DialogHeader>
                     <form onSubmit={submit} className="space-y-4">
-                        <FormField label="Produk terkait" error={form.errors.product_id}><SearchableSelect value={form.data.product_id} onChange={(value) => form.setData('product_id', value)} options={[{ value: '', label: 'Opsional' }, ...products.map((product) => ({ value: String(product.id), label: product.name }))]} /></FormField>
-                        <FormField label="Course" error={form.errors.course_id}><SearchableSelect value={form.data.course_id} onChange={(value) => form.setData('course_id', value)} options={[{ value: '', label: 'Opsional' }, ...courses.map((course) => ({ value: String(course.id), label: course.title ?? '-' }))]} /></FormField>
-                        <FormField label="Learning Path" error={form.errors.learning_path_id}><SearchableSelect value={form.data.learning_path_id} onChange={(value) => form.setData('learning_path_id', value)} options={[{ value: '', label: 'Opsional' }, ...learningPaths.map((path) => ({ value: String(path.id), label: path.title ?? '-' }))]} /></FormField>
-                        <FormField label="Jumlah kode" required error={form.errors.quantity}><Input type="number" min="1" max="200" value={form.data.quantity} onChange={(event) => form.setData('quantity', event.target.value)} /></FormField>
-                        <FormField label="Kedaluwarsa" error={form.errors.expires_at}><Input type="date" value={form.data.expires_at} onChange={(event) => form.setData('expires_at', event.target.value)} /></FormField>
+                        <FormField label="Produk terkait" error={form.errors.product_id}>
+                            <SearchableSelect
+                                value={form.data.product_id}
+                                onChange={(value) => form.setData('product_id', value)}
+                                options={[
+                                    { value: '', label: 'Opsional' },
+                                    ...products.map((product) => ({ value: String(product.id), label: product.name })),
+                                ]}
+                            />
+                        </FormField>
+                        <FormField label="Course" error={form.errors.course_id}>
+                            <SearchableSelect
+                                value={form.data.course_id}
+                                onChange={(value) => form.setData('course_id', value)}
+                                options={[
+                                    { value: '', label: 'Opsional' },
+                                    ...courses.map((course) => ({ value: String(course.id), label: course.title ?? '-' })),
+                                ]}
+                            />
+                        </FormField>
+                        <FormField label="Learning Path" error={form.errors.learning_path_id}>
+                            <SearchableSelect
+                                value={form.data.learning_path_id}
+                                onChange={(value) => form.setData('learning_path_id', value)}
+                                options={[
+                                    { value: '', label: 'Opsional' },
+                                    ...learningPaths.map((path) => ({ value: String(path.id), label: path.title ?? '-' })),
+                                ]}
+                            />
+                        </FormField>
+                        <FormField label="Jumlah kode" required error={form.errors.quantity}>
+                            <Input
+                                type="number"
+                                min="1"
+                                max="200"
+                                value={form.data.quantity}
+                                onChange={(event) => form.setData('quantity', event.target.value)}
+                            />
+                        </FormField>
+                        <FormField label="Kedaluwarsa" error={form.errors.expires_at}>
+                            <Input type="date" value={form.data.expires_at} onChange={(event) => form.setData('expires_at', event.target.value)} />
+                        </FormField>
                         <InputError message={form.errors.course_id} />
-                        <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button><Button type="submit">Generate</Button></DialogFooter>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button type="submit">Generate</Button>
+                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -689,7 +1001,20 @@ function CodesPanel({ codes, products, courses, learningPaths }: { codes: Activa
 }
 
 function StatusBadge({ value }: { value: string }) {
-    return <span className={cn('mr-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-bold capitalize text-slate-700', value === 'paid' || value === 'published' || value === 'unused' ? 'bg-emerald-50 text-emerald-700' : value === 'pending' || value === 'processing' ? 'bg-amber-50 text-amber-700' : '')}>{statusLabel(value)}</span>;
+    return (
+        <span
+            className={cn(
+                'mr-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700 capitalize',
+                value === 'paid' || value === 'published' || value === 'unused'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : value === 'pending' || value === 'processing'
+                      ? 'bg-amber-50 text-amber-700'
+                      : '',
+            )}
+        >
+            {statusLabel(value)}
+        </span>
+    );
 }
 
 function statusLabel(value: string) {

@@ -14,6 +14,7 @@ use App\Services\InteractiveBlockSchemaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -62,7 +63,8 @@ class CurriculumController extends Controller
     {
         $this->authorizeCourse($request, $chapter->course);
         $lessonData = $this->lessonData($request);
-        $initialBlockData = $this->initialBlockData($request);
+        $isStudioCourse = $chapter->course->learning_format === 'interactive';
+        $initialBlockData = $isStudioCourse ? null : $this->initialBlockData($request);
 
         $lesson = DB::transaction(function () use ($chapter, $lessonData, $initialBlockData) {
             $lesson = $chapter->lessons()->create($lessonData);
@@ -79,7 +81,25 @@ class CurriculumController extends Controller
             AuditLogger::log('content_block.created', $request->user(), $lesson->contentBlocks()->latest('id')->first());
         }
 
+        if ($isStudioCourse) {
+            $block = $this->ensureInteractiveBlockForLesson($lesson, app(InteractiveBlockSchemaService::class), $request);
+
+            return to_route($this->managementRoutePrefix($request).'.blocks.interactive-editor', $block)
+                ->with('success', 'Lesson berhasil dibuat. Studio interaktif siap digunakan.');
+        }
+
         return back()->with('success', 'Lesson berhasil ditambahkan.');
+    }
+
+    public function openLessonInteractiveEditor(Request $request, Lesson $lesson, InteractiveBlockSchemaService $interactiveSchema): RedirectResponse
+    {
+        $lesson->load('chapter.course');
+        $this->authorizeCourse($request, $lesson->chapter->course);
+        abort_unless($lesson->chapter->course->learning_format === 'interactive', 404);
+
+        $block = $this->ensureInteractiveBlockForLesson($lesson, $interactiveSchema, $request);
+
+        return to_route($this->managementRoutePrefix($request).'.blocks.interactive-editor', $block);
     }
 
     public function updateLesson(Request $request, Lesson $lesson): RedirectResponse
@@ -129,6 +149,51 @@ class CurriculumController extends Controller
 
         return to_route($this->managementRoutePrefix($request).'.course-builder', ['course' => $block->lesson->chapter->course_id])
             ->with('success', 'Blok materi berhasil diperbarui.');
+    }
+
+    public function autosaveInteractiveBlock(Request $request, ContentBlock $block, InteractiveBlockSchemaService $interactiveSchema): JsonResponse
+    {
+        $block->loadMissing('lesson.chapter.course');
+        $this->authorizeCourse($request, $block->lesson->chapter->course);
+        abort_unless($block->type === 'interactive', 404);
+
+        $data = $request->validate([
+            'metadata' => ['required', 'array'],
+            'status' => ['nullable', Rule::in(['draft', 'reviewed', 'published'])],
+            'updated_at' => ['required', 'date'],
+        ]);
+
+        if ($block->updated_at && ! Carbon::parse($data['updated_at'])->equalTo($block->updated_at)) {
+            return response()->json([
+                'message' => 'Konten sudah berubah di server. Muat ulang data terbaru sebelum menyimpan lagi.',
+                'metadata' => $interactiveSchema->enrichMediaUrls($block->metadata ?? []),
+                'status' => $block->status,
+                'content' => $block->content,
+                'updatedAt' => $block->updated_at?->toJSON(),
+            ], 409);
+        }
+
+        $nextStatus = $data['status'] ?? $block->status;
+        $metadata = $interactiveSchema->normalize($this->metadataArray($data['metadata']), $block->lesson);
+        if ($nextStatus === 'published') {
+            $interactiveSchema->assertPublishable($metadata);
+        }
+
+        $block->update([
+            'metadata' => $metadata,
+            'content' => $this->interactiveBlockSummary($metadata),
+            'status' => $nextStatus,
+        ]);
+
+        AuditLogger::log('content_block.interactive_autosaved', $request->user(), $block);
+
+        return response()->json([
+            'message' => 'Perubahan editor berhasil disimpan.',
+            'metadata' => $interactiveSchema->enrichMediaUrls($block->fresh()->metadata ?? []),
+            'status' => $block->status,
+            'content' => $block->content,
+            'updatedAt' => $block->updated_at?->toJSON(),
+        ]);
     }
 
     public function destroyBlock(Request $request, ContentBlock $block): RedirectResponse
@@ -349,6 +414,58 @@ class CurriculumController extends Controller
         return $block;
     }
 
+    private function ensureInteractiveBlockForLesson(Lesson $lesson, InteractiveBlockSchemaService $interactiveSchema, ?Request $request = null): ContentBlock
+    {
+        $lesson->loadMissing('chapter.course');
+        $existing = $lesson->contentBlocks()
+            ->where('type', 'interactive')
+            ->orderBy('order_no')
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $metadata = $interactiveSchema->normalize([
+            'schema_version' => 1,
+            'canvas' => [
+                'width' => 1280,
+                'height' => 720,
+                'aspect_ratio' => '16:9',
+                'background_color' => '#f8fafc',
+            ],
+            'scenes' => [
+                [
+                    'id' => 'scene-intro',
+                    'title' => $lesson->title,
+                    'order' => 1,
+                    'text' => 'Mulai susun materi interaktif pada Visual Editor.',
+                    'background' => null,
+                    'narration' => null,
+                    'hotspots' => [],
+                    'buttons' => [],
+                    'assets' => [],
+                ],
+            ],
+        ], $lesson);
+
+        $block = $lesson->contentBlocks()->create([
+            'type' => 'interactive',
+            'content' => $this->interactiveBlockSummary($metadata),
+            'metadata' => $metadata,
+            'order_no' => ((int) $lesson->contentBlocks()->max('order_no')) + 1,
+            'status' => 'draft',
+        ]);
+
+        if ($request) {
+            AuditLogger::log('content_block.created', $request->user(), $block, [
+                'source' => 'studio_interactive_auto_create',
+            ]);
+        }
+
+        return $block;
+    }
+
     private function blockData(
         Request $request,
         Lesson $lesson,
@@ -374,6 +491,9 @@ class CurriculumController extends Controller
         if ($data['type'] === 'interactive') {
             $schema = $interactiveSchema ?? app(InteractiveBlockSchemaService::class);
             $data['metadata'] = $schema->normalize($data['metadata'], $lesson);
+            if ($data['status'] === 'published') {
+                $schema->assertPublishable($data['metadata']);
+            }
             $data['content'] = $this->interactiveBlockSummary($data['metadata']);
         }
 

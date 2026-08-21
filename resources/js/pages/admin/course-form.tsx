@@ -5,6 +5,7 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SharedData } from '@/types';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Image, Save } from 'lucide-react';
 import { Children, FormEvent, ReactNode, isValidElement, useEffect, useState } from 'react';
@@ -22,6 +23,7 @@ interface Course {
     price_type: string;
     price: number;
     access_mode: string;
+    learning_format?: string | null;
     status: string;
     meta_title?: string | null;
     meta_description?: string | null;
@@ -36,7 +38,7 @@ interface Option {
 }
 
 interface CourseFormData {
-    [key: string]: unknown;
+    [key: string]: FormDataConvertible;
     learning_path_id: string;
     learning_path_order: string;
     instructor_id: string;
@@ -49,6 +51,7 @@ interface CourseFormData {
     price_type: string;
     price: string;
     access_mode: string;
+    learning_format: string;
     status: string;
     meta_title: string;
     meta_description: string;
@@ -95,6 +98,7 @@ export default function CourseForm({
         price_type: course?.price_type ?? 'free',
         price: String(course?.price ?? 0),
         access_mode: course?.access_mode ?? 'sequential',
+        learning_format: course?.learning_format ?? 'guided',
         status: course?.status ?? 'draft',
         meta_title: course?.meta_title ?? initialSeo.meta_title,
         meta_description: course?.meta_description ?? initialSeo.meta_description,
@@ -162,6 +166,21 @@ export default function CourseForm({
             <form onSubmit={submit} className="grid gap-6 xl:grid-cols-[1fr_380px]">
                 <div className="space-y-6">
                     <Panel title="Informasi kursus">
+                        <div className="mb-5 grid gap-3 md:grid-cols-2">
+                            <LearningFormatCard
+                                active={form.data.learning_format === 'guided'}
+                                title="Materi Bertahap"
+                                description="Cocok untuk kelas dengan teks, video, PDF, file, quiz, dan submission yang disusun berurutan."
+                                onClick={() => form.setData('learning_format', 'guided')}
+                            />
+                            <LearningFormatCard
+                                active={form.data.learning_format === 'interactive'}
+                                title="Studio Interaktif"
+                                description="Cocok untuk materi berbasis scene, hotspot, tombol, narator TTS, dan canvas drag-and-drop."
+                                onClick={() => form.setData('learning_format', 'interactive')}
+                            />
+                        </div>
+                        <InputError message={form.errors.learning_format} />
                         <div className="grid gap-4 md:grid-cols-2">
                             <Field label="Judul" error={form.errors.title} required>
                                 <Input value={form.data.title} onChange={(event) => setCourseData({ title: event.target.value })} />
@@ -350,9 +369,7 @@ export default function CourseForm({
                         </div>
                     </Panel>
                     <Panel title="Preview publish">
-                        {imagePreview && (
-                            <img src={imagePreview} alt="Preview cover course" className="mb-4 h-40 w-full rounded-2xl object-cover" />
-                        )}
+                        {imagePreview && <img src={imagePreview} alt="Preview cover course" className="mb-4 h-40 w-full rounded-2xl object-cover" />}
                         <p className="text-xs font-bold tracking-wider text-blue-700 uppercase">{form.data.level}</p>
                         <h2 className="mt-2 text-2xl font-extrabold text-slate-950">{form.data.title || 'Judul kursus'}</h2>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -412,6 +429,26 @@ function generatedCourseSeo(title: string, description: string, preferredSlug?: 
         meta_description: truncateSeo(metaDescription, 165),
         canonical_url: publicUrl(`/produk/${slug}`),
     };
+}
+
+function LearningFormatCard({ active, title, description, onClick }: { active: boolean; title: string; description: string; onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`rounded-2xl border p-4 text-left transition ${
+                active ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white hover:border-blue-200'
+            }`}
+        >
+            <span className="text-sm font-extrabold text-slate-950">{title}</span>
+            <span className="mt-2 block text-sm leading-6 text-slate-600">{description}</span>
+            <span
+                className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+            >
+                {active ? 'Dipilih' : 'Pilih format'}
+            </span>
+        </button>
+    );
 }
 
 function Field({

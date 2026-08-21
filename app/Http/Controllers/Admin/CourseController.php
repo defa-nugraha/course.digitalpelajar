@@ -129,6 +129,7 @@ class CourseController extends Controller
                 Rule::when($request->input('price_type') === 'free', ['in:0'], ['min:1']),
             ],
             'access_mode' => ['required', Rule::in(['sequential', 'open', 'scheduled'])],
+            'learning_format' => ['sometimes', Rule::in(['guided', 'interactive'])],
             'status' => ['required', Rule::in(['draft', 'reviewed', 'published', 'archived'])],
             'meta_title' => ['nullable', 'string', 'max:70'],
             'meta_description' => ['nullable', 'string', 'max:170'],
@@ -138,6 +139,7 @@ class CourseController extends Controller
         ]);
 
         $data['learning_path_order'] ??= $course?->learning_path_order ?? 0;
+        $data['learning_format'] ??= $course?->learning_format ?? 'guided';
         $data['slug'] = $this->uniqueSlug(($data['slug'] ?? null) ?: $data['title'], $course?->id);
         $data['meta_title'] = filled($data['meta_title'] ?? null)
             ? $data['meta_title']

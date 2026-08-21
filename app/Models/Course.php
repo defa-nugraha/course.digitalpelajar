@@ -28,6 +28,7 @@ class Course extends Model
         'price_type',
         'price',
         'access_mode',
+        'learning_format',
         'status',
         'meta_title',
         'meta_description',

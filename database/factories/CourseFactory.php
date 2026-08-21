@@ -25,6 +25,7 @@ class CourseFactory extends Factory
             'price_type' => 'free',
             'price' => 0,
             'access_mode' => 'sequential',
+            'learning_format' => 'guided',
             'status' => 'published',
             'meta_title' => $title.' | RoboAcademy',
             'meta_description' => fake()->sentence(18),

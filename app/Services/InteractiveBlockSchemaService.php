@@ -46,7 +46,10 @@ class InteractiveBlockSchemaService
         }
 
         $elementIds = collect($scenes)
-            ->flatMap(fn (array $scene) => collect($scene['hotspots'])->pluck('id')->merge(collect($scene['buttons'])->pluck('id')));
+            ->flatMap(fn (array $scene) => collect($scene['hotspots'])
+                ->pluck('id')
+                ->merge(collect($scene['buttons'])->pluck('id'))
+                ->merge(collect($scene['assets'])->pluck('id')));
 
         if ($elementIds->duplicates()->isNotEmpty()) {
             throw ValidationException::withMessages([
@@ -56,6 +59,7 @@ class InteractiveBlockSchemaService
 
         $normalized = [
             'schema_version' => self::SCHEMA_VERSION,
+            'canvas' => $this->normalizeCanvas($metadata['canvas'] ?? null),
             'settings' => [
                 'navigation' => 'sequential',
                 'show_progress' => true,
@@ -69,9 +73,48 @@ class InteractiveBlockSchemaService
             'required_element_ids' => $this->requiredElementIds($normalized),
         ];
 
+        $this->assertButtonTargetsExist($normalized);
         $this->assertMediaUploadsBelongToLesson($normalized, $lesson);
 
         return $normalized;
+    }
+
+    public function assertPublishable(array $metadata): void
+    {
+        $missingLabels = collect($metadata['scenes'] ?? [])
+            ->filter(fn ($scene) => is_array($scene))
+            ->flatMap(function (array $scene) {
+                $missing = [];
+
+                if (isset($scene['background']) && is_array($scene['background']) && in_array(($scene['background']['type'] ?? null), ['image', 'video'], true) && blank($scene['background']['media_upload_id'] ?? null)) {
+                    $missing[] = ($scene['title'] ?? 'Scene').' background';
+                }
+
+                if (isset($scene['narration']) && is_array($scene['narration']) && ($scene['narration']['type'] ?? null) === 'audio' && blank($scene['narration']['media_upload_id'] ?? null)) {
+                    $missing[] = ($scene['title'] ?? 'Scene').' narasi';
+                }
+
+                foreach (($scene['assets'] ?? []) as $asset) {
+                    if (
+                        is_array($asset)
+                        && ! ($asset['hidden'] ?? false)
+                        && in_array(($asset['type'] ?? null), ['image', 'video', 'audio'], true)
+                        && blank($asset['media']['media_upload_id'] ?? null)
+                    ) {
+                        $missing[] = $asset['label'] ?? $asset['id'] ?? 'Media';
+                    }
+                }
+
+                return $missing;
+            })
+            ->values()
+            ->all();
+
+        if ($missingLabels !== []) {
+            throw ValidationException::withMessages([
+                'metadata' => 'Lengkapi media sebelum publish: '.implode(', ', $missingLabels).'.',
+            ]);
+        }
     }
 
     public function enrichMediaUrls(array $metadata): array
@@ -100,6 +143,21 @@ class InteractiveBlockSchemaService
                     $scene['narration'] = $this->withMediaPayload($scene['narration'], $uploads);
                 }
 
+                $scene['assets'] = collect($scene['assets'] ?? [])
+                    ->map(function ($asset) use ($uploads) {
+                        if (! is_array($asset)) {
+                            return $asset;
+                        }
+
+                        if (isset($asset['media']) && is_array($asset['media'])) {
+                            $asset['media'] = $this->withMediaPayload($asset['media'], $uploads);
+                        }
+
+                        return $asset;
+                    })
+                    ->values()
+                    ->all();
+
                 return $scene;
             })
             ->values()
@@ -115,7 +173,11 @@ class InteractiveBlockSchemaService
             ->flatMap(function (array $scene) {
                 return [
                     $scene['background']['media_upload_id'] ?? null,
-                    $scene['narration']['media_upload_id'] ?? null,
+                    ($scene['narration']['type'] ?? null) === 'audio' ? ($scene['narration']['media_upload_id'] ?? null) : null,
+                    ...collect($scene['assets'] ?? [])
+                        ->filter(fn ($asset) => is_array($asset))
+                        ->map(fn (array $asset) => $asset['media']['media_upload_id'] ?? null)
+                        ->all(),
                 ];
             })
             ->filter(fn ($id) => filled($id))
@@ -131,7 +193,7 @@ class InteractiveBlockSchemaService
             ->filter(fn ($scene) => is_array($scene) && ($sceneId === null || ($scene['id'] ?? null) === $sceneId))
             ->flatMap(fn (array $scene) => collect($scene['hotspots'] ?? [])
                 ->merge($scene['buttons'] ?? [])
-                ->filter(fn ($element) => is_array($element) && (bool) ($element['required'] ?? false))
+                ->filter(fn ($element) => is_array($element) && (bool) ($element['required'] ?? false) && ! (bool) ($element['hidden'] ?? false))
                 ->pluck('id'))
             ->filter()
             ->map(fn ($id) => (string) $id)
@@ -210,7 +272,7 @@ class InteractiveBlockSchemaService
         $title = $this->sanitizeText($scene['title'] ?? '');
         $text = $this->sanitizeLongText($scene['text'] ?? '');
         $background = $this->normalizeMedia($scene['background'] ?? null, ['image', 'video']);
-        $narration = $this->normalizeMedia($scene['narration'] ?? null, ['audio']);
+        $narration = $this->normalizeNarration($scene['narration'] ?? null);
         $hotspots = collect($scene['hotspots'] ?? [])
             ->filter(fn ($hotspot) => is_array($hotspot))
             ->map(fn (array $hotspot) => $this->normalizeHotspot($hotspot))
@@ -221,6 +283,11 @@ class InteractiveBlockSchemaService
             ->map(fn (array $button) => $this->normalizeButton($button))
             ->values()
             ->all();
+        $assets = collect($scene['assets'] ?? [])
+            ->filter(fn ($asset) => is_array($asset))
+            ->map(fn (array $asset) => $this->normalizeAsset($asset))
+            ->values()
+            ->all();
 
         if (blank($title)) {
             throw ValidationException::withMessages([
@@ -228,7 +295,7 @@ class InteractiveBlockSchemaService
             ]);
         }
 
-        if (blank($text) && ! $background && ! $narration && $hotspots === [] && $buttons === []) {
+        if (blank($text) && ! $background && ! $narration && $hotspots === [] && $buttons === [] && $assets === []) {
             throw ValidationException::withMessages([
                 'metadata' => 'Scene interactive harus memiliki teks, media, hotspot, audio, atau tombol.',
             ]);
@@ -243,6 +310,7 @@ class InteractiveBlockSchemaService
             'narration' => $narration,
             'hotspots' => $hotspots,
             'buttons' => $buttons,
+            'assets' => $assets,
         ];
     }
 
@@ -270,6 +338,7 @@ class InteractiveBlockSchemaService
             'explanation' => $explanation,
             'required' => (bool) ($hotspot['required'] ?? false),
             'position' => $this->normalizePosition($hotspot['position'] ?? []),
+            ...$this->normalizeElementState($hotspot),
         ];
     }
 
@@ -277,7 +346,7 @@ class InteractiveBlockSchemaService
     {
         $label = $this->sanitizeText($button['label'] ?? '');
         $explanation = $this->sanitizeLongText($button['explanation'] ?? '');
-        $action = in_array(($button['action'] ?? 'show_explanation'), ['show_explanation', 'next_scene'], true)
+        $action = in_array(($button['action'] ?? 'show_explanation'), ['show_explanation', 'next_scene', 'go_to_scene'], true)
             ? $button['action']
             : 'show_explanation';
 
@@ -300,7 +369,111 @@ class InteractiveBlockSchemaService
             'explanation' => $explanation,
             'required' => (bool) ($button['required'] ?? false),
             'action' => $action,
+            'target_scene_id' => filled($button['target_scene_id'] ?? null)
+                ? Str::limit($this->sanitizeText($button['target_scene_id']), 80, '')
+                : null,
+            'position' => $this->normalizePosition($button['position'] ?? ['x' => 58, 'y' => 76, 'width' => 22, 'height' => 10]),
+            ...$this->normalizeElementState($button),
         ];
+    }
+
+    private function normalizeAsset(array $asset): array
+    {
+        $type = in_array(($asset['type'] ?? 'shape'), ['shape', 'icon', 'text', 'image', 'video', 'audio'], true)
+            ? (string) $asset['type']
+            : 'shape';
+        $label = Str::limit($this->sanitizeText($asset['label'] ?? 'Asset'), 120, '');
+        $content = Str::limit($this->sanitizeLongText($asset['content'] ?? ''), 1000, '');
+        $media = match ($type) {
+            'image' => $this->normalizeMedia($asset['media'] ?? null, ['image']),
+            'video' => $this->normalizeMedia($asset['media'] ?? null, ['video']),
+            'audio' => $this->normalizeMedia($asset['media'] ?? null, ['audio']),
+            default => null,
+        };
+        $style = is_array($asset['style'] ?? null) ? $asset['style'] : [];
+
+        if ($type === 'text' && blank($content)) {
+            throw ValidationException::withMessages([
+                'metadata' => 'Asset teks interactive wajib memiliki isi teks.',
+            ]);
+        }
+
+        return [
+            'id' => $this->stableId($asset['id'] ?? null, 'asset'),
+            'type' => $type,
+            'label' => $label ?: 'Asset',
+            'content' => $content,
+            'position' => $this->normalizePosition($asset['position'] ?? ['x' => 12, 'y' => 12, 'width' => 18, 'height' => 14]),
+            'style' => [
+                'shape' => $this->sanitizeToken($style['shape'] ?? 'rounded-rectangle', 'rounded-rectangle'),
+                'icon' => $this->sanitizeToken($style['icon'] ?? 'Lightbulb', 'Lightbulb'),
+                'color' => $this->sanitizeCssColor($style['color'] ?? '#1d4ed8', '#1d4ed8'),
+                'backgroundColor' => $this->sanitizeCssColor($style['backgroundColor'] ?? '#dbeafe', '#dbeafe'),
+                'borderColor' => $this->sanitizeCssColor($style['borderColor'] ?? '#dbeafe', '#dbeafe'),
+                'fontSize' => max(8, min(96, (int) ($style['fontSize'] ?? 16))),
+                'fontWeight' => in_array(($style['fontWeight'] ?? '700'), ['400', '500', '600', '700', '800'], true) ? (string) ($style['fontWeight'] ?? '700') : '700',
+                'textAlign' => in_array(($style['textAlign'] ?? 'center'), ['left', 'center', 'right'], true) ? (string) ($style['textAlign'] ?? 'center') : 'center',
+                'lineHeight' => max(1, min(2.2, (float) ($style['lineHeight'] ?? 1.25))),
+                'borderWidth' => max(0, min(12, (int) ($style['borderWidth'] ?? 0))),
+                'borderRadius' => max(0, min(80, (int) ($style['borderRadius'] ?? 12))),
+                'objectFit' => in_array(($style['objectFit'] ?? 'contain'), ['contain', 'cover', 'fill'], true) ? (string) ($style['objectFit'] ?? 'contain') : 'contain',
+            ],
+            'media' => $media,
+            ...$this->normalizeElementState($asset),
+        ];
+    }
+
+    private function normalizeCanvas(mixed $canvas): array
+    {
+        $canvas = is_array($canvas) ? $canvas : [];
+        $width = max(640, min(3840, (int) ($canvas['width'] ?? 1280)));
+        $height = max(360, min(2160, (int) ($canvas['height'] ?? 720)));
+
+        return [
+            'width' => $width,
+            'height' => $height,
+            'aspect_ratio' => Str::limit($this->sanitizeText($canvas['aspect_ratio'] ?? '16:9'), 20, ''),
+            'background_color' => $this->sanitizeCssColor($canvas['background_color'] ?? '#f8fafc', '#f8fafc'),
+        ];
+    }
+
+    private function normalizeElementState(array $element): array
+    {
+        return [
+            'rotation' => max(-180, min(180, (float) ($element['rotation'] ?? 0))),
+            'opacity' => max(0.1, min(1, (float) ($element['opacity'] ?? 1))),
+            'layer_order' => max(0, min(9999, (int) ($element['layer_order'] ?? 0))),
+            'locked' => (bool) ($element['locked'] ?? false),
+            'hidden' => (bool) ($element['hidden'] ?? false),
+        ];
+    }
+
+    private function normalizeNarration(mixed $narration): ?array
+    {
+        if (! is_array($narration)) {
+            return null;
+        }
+
+        if (($narration['type'] ?? null) === 'tts') {
+            $text = Str::limit($this->sanitizeLongText($narration['text'] ?? ''), 3000, '');
+
+            if (blank($text)) {
+                throw ValidationException::withMessages([
+                    'metadata' => 'Teks narator wajib diisi jika mode text-to-speech digunakan.',
+                ]);
+            }
+
+            return [
+                'type' => 'tts',
+                'text' => $text,
+                'lang' => Str::limit($this->sanitizeText($narration['lang'] ?? 'id-ID'), 20, ''),
+                'voice_name' => Str::limit($this->sanitizeText($narration['voice_name'] ?? ''), 160, ''),
+                'rate' => max(0.6, min(1.4, (float) ($narration['rate'] ?? 1))),
+                'pitch' => max(0.6, min(1.4, (float) ($narration['pitch'] ?? 1))),
+            ];
+        }
+
+        return $this->normalizeMedia($narration, ['audio']);
     }
 
     /**
@@ -331,8 +504,8 @@ class InteractiveBlockSchemaService
         $position = is_array($position) ? $position : [];
         $x = $this->percent($position['x'] ?? 45);
         $y = $this->percent($position['y'] ?? 45);
-        $width = max(4, min(40, $this->percent($position['width'] ?? 10)));
-        $height = max(4, min(40, $this->percent($position['height'] ?? 10)));
+        $width = max(2, min(100, $this->percent($position['width'] ?? 10)));
+        $height = max(2, min(100, $this->percent($position['height'] ?? 10)));
 
         if ($x + $width > 100) {
             $x = max(0, 100 - $width);
@@ -365,6 +538,23 @@ class InteractiveBlockSchemaService
         if ($missing !== []) {
             throw ValidationException::withMessages([
                 'metadata' => 'Media interactive tidak valid atau tidak termasuk lesson ini.',
+            ]);
+        }
+    }
+
+    private function assertButtonTargetsExist(array $metadata): void
+    {
+        $sceneIds = collect($metadata['scenes'] ?? [])->pluck('id')->filter()->values();
+        $invalidTarget = collect($metadata['scenes'] ?? [])
+            ->filter(fn ($scene) => is_array($scene))
+            ->flatMap(fn (array $scene) => collect($scene['buttons'] ?? []))
+            ->first(fn ($button) => is_array($button)
+                && ($button['action'] ?? null) === 'go_to_scene'
+                && ! $sceneIds->contains($button['target_scene_id'] ?? null));
+
+        if ($invalidTarget) {
+            throw ValidationException::withMessages([
+                'metadata' => 'Target scene pada tombol interactive tidak valid.',
             ]);
         }
     }
@@ -410,5 +600,19 @@ class InteractiveBlockSchemaService
         $number = is_numeric($value) ? (float) $value : 0.0;
 
         return round(max(0, min(100, $number)), 2);
+    }
+
+    private function sanitizeCssColor(mixed $value, string $fallback): string
+    {
+        $color = trim((string) $value);
+
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? strtolower($color) : $fallback;
+    }
+
+    private function sanitizeToken(mixed $value, string $fallback): string
+    {
+        $token = trim((string) $value);
+
+        return preg_match('/^[A-Za-z0-9_-]{1,80}$/', $token) ? $token : $fallback;
     }
 }

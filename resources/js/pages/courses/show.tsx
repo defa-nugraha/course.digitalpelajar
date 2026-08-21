@@ -42,30 +42,27 @@ export default function CourseShow({ seo, course, relatedCourses }: { seo?: SeoD
     const role = auth?.user?.role;
     const canUseLearningFlow = !auth?.user || role === 'student' || role === 'school_teacher';
     const teacherCanAccess = role !== 'school_teacher' || course.enrolled || course.schoolAccess;
-    const ctaHref = !canUseLearningFlow || !teacherCanAccess
-        ? '/dashboard'
-        : course.enrolled
-          ? `/learning?course=${course.id}`
-          : !auth?.user
-            ? '/login'
-            : course.priceType === 'free' || course.schoolAccess
-              ? `/courses/${course.id}/enroll`
-              : `/checkout?course=${course.id}`;
+    const ctaHref =
+        !canUseLearningFlow || !teacherCanAccess
+            ? '/dashboard'
+            : course.enrolled
+              ? `/learning?course=${course.id}`
+              : !auth?.user
+                ? '/login'
+                : course.priceType === 'free' || course.schoolAccess
+                  ? `/courses/${course.id}/enroll`
+                  : `/checkout?course=${course.id}`;
     const shouldPost =
-        canUseLearningFlow &&
-        teacherCanAccess &&
-        (course.priceType === 'free' || course.schoolAccess) &&
-        Boolean(auth?.user) &&
-        !course.enrolled;
+        canUseLearningFlow && teacherCanAccess && (course.priceType === 'free' || course.schoolAccess) && Boolean(auth?.user) && !course.enrolled;
     const ctaLabel = !teacherCanAccess
         ? 'Tidak tersedia untuk sekolah'
         : course.enrolled
-        ? 'Lanjut Belajar'
-        : course.schoolAccess
-          ? 'Daftar via Akses Sekolah'
-          : course.priceType === 'free'
-            ? 'Daftar Kelas'
-            : 'Beli Kelas';
+          ? 'Lanjut Belajar'
+          : course.schoolAccess
+            ? 'Daftar via Akses Sekolah'
+            : course.priceType === 'free'
+              ? 'Daftar Kelas'
+              : 'Beli Kelas';
 
     return (
         <>
@@ -204,7 +201,7 @@ function Info({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3 last:border-b-0">
             <dt className="font-semibold text-slate-500">{label}</dt>
-            <dd className="break-words text-right font-bold text-[#131B2E]">{value}</dd>
+            <dd className="text-right font-bold break-words text-[#131B2E]">{value}</dd>
         </div>
     );
 }

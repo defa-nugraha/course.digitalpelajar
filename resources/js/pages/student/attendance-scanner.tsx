@@ -1,8 +1,8 @@
 import { Panel, Shell } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Head } from '@inertiajs/react';
-import { Camera, QrCode, TriangleAlert } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats, type CameraDevice } from 'html5-qrcode';
+import { Camera, QrCode, TriangleAlert } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 export default function AttendanceScanner() {
@@ -179,9 +179,9 @@ function isAllowedAttendanceUrl(value: string) {
         const url = new URL(value);
 
         return (
-            url.origin === window.location.origin
-            && url.pathname.startsWith('/student/teaching-schedules/')
-            && url.pathname.endsWith('/attendance/scan')
+            url.origin === window.location.origin &&
+            url.pathname.startsWith('/student/teaching-schedules/') &&
+            url.pathname.endsWith('/attendance/scan')
         );
     } catch {
         return false;

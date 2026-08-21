@@ -13,13 +13,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: { child
     const { auth } = usePage().props as { auth?: { user?: { role?: string } } };
     const role = auth?.user?.role;
     const navItems =
-        role === 'admin'
-            ? adminNav
-            : role === 'internal_instructor'
-              ? instructorNav
-              : role === 'school_teacher'
-                ? teacherNav
-                : studentNav;
+        role === 'admin' ? adminNav : role === 'internal_instructor' ? instructorNav : role === 'school_teacher' ? teacherNav : studentNav;
 
     return (
         <AppShell variant="sidebar">
@@ -62,8 +56,8 @@ function AppLayoutBottomNav({ items }: { items: NavItem[] }) {
                                     className={cn(
                                         'flex size-12 items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-95',
                                         active
-                                            ? 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white ring-4 ring-white shadow-blue-500/40'
-                                            : 'bg-blue-600 text-white ring-4 ring-white shadow-blue-600/30 hover:bg-blue-700',
+                                            ? 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white ring-4 shadow-blue-500/40 ring-white'
+                                            : 'bg-blue-600 text-white ring-4 shadow-blue-600/30 ring-white hover:bg-blue-700',
                                     )}
                                 >
                                     <Icon className="size-6" />

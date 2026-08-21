@@ -675,7 +675,11 @@ function LearningBlock({
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-sm text-slate-800">
                 <div className="mb-3 flex items-center justify-between text-slate-500">
                     <span>{String(metadata.file ?? 'program.ino')}</span>
-                    <button type="button" onClick={() => onCopy(stepItem.content)} className="flex items-center gap-1 font-sans text-xs font-bold text-blue-700">
+                    <button
+                        type="button"
+                        onClick={() => onCopy(stepItem.content)}
+                        className="flex items-center gap-1 font-sans text-xs font-bold text-blue-700"
+                    >
                         <Copy className="size-4" />
                         {copied ? 'Tersalin' : 'Salin'}
                     </button>
@@ -689,7 +693,9 @@ function LearningBlock({
         return withStepNavigation(
             <figure className="overflow-hidden rounded-lg border border-slate-200">
                 <img src={stepItem.content} alt={String(metadata.alt ?? 'Gambar materi')} className="max-h-[520px] w-full object-contain" />
-                {metadata.caption && <figcaption className="p-3 text-sm text-slate-500">{String(metadata.caption)}</figcaption>}
+                {typeof metadata.caption === 'string' && metadata.caption.trim() !== '' && (
+                    <figcaption className="p-3 text-sm text-slate-500">{metadata.caption}</figcaption>
+                )}
             </figure>,
         );
     }

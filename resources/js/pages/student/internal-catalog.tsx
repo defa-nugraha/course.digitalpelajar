@@ -33,8 +33,7 @@ export default function InternalCatalog({ role, courses }: { role: string; cours
     const visibleCourses = useMemo(() => {
         return courses.filter((course) => {
             const matchesTerm = `${course.title} ${course.description ?? ''} ${course.learningPath}`.toLowerCase().includes(term.toLowerCase());
-            const matchesStatus =
-                status === 'all' || (status === 'enrolled' && course.enrolled) || (status === 'available' && !course.enrolled);
+            const matchesStatus = status === 'all' || (status === 'enrolled' && course.enrolled) || (status === 'available' && !course.enrolled);
 
             return matchesTerm && matchesStatus;
         });
@@ -156,7 +155,8 @@ export default function InternalCatalog({ role, courses }: { role: string; cours
             {visibleCourses.length === 0 && (
                 <Panel className="mt-6" title="Kelas tidak ditemukan">
                     <p className="text-sm text-slate-600">
-                        Tidak ada kelas yang cocok dengan filter saat ini. Untuk guru, kelas hanya muncul jika learning path sudah diberikan ke sekolah.
+                        Tidak ada kelas yang cocok dengan filter saat ini. Untuk guru, kelas hanya muncul jika learning path sudah diberikan ke
+                        sekolah.
                     </p>
                 </Panel>
             )}

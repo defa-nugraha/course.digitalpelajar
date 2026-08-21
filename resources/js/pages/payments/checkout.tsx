@@ -70,7 +70,7 @@ export default function Checkout({ course, summary, user }: CheckoutProps) {
                                                 {course.level}
                                             </div>
                                         </div>
-                                        <div className="min-w-0 flex flex-col gap-2">
+                                        <div className="flex min-w-0 flex-col gap-2">
                                             <h3 className="text-lg font-bold">{course.title}</h3>
                                             <div className="flex flex-wrap items-center gap-4 text-sm text-[#414753]">
                                                 <span className="flex items-center gap-1">

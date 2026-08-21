@@ -29,8 +29,15 @@ export default function StoreOrders({ orders, redeemedCodes }: { orders: OrderRo
         <Shell title="Order Toko Robotik" eyebrow="Toko Robotik">
             <Head title="Order Toko Robotik" />
             <div className="mb-6 flex flex-wrap gap-2">
-                <Button asChild><Link href="/store">Belanja Produk</Link></Button>
-                <Button asChild variant="outline"><Link href="/activation-codes/redeem"><KeyRound className="size-4" />Redeem Kode</Link></Button>
+                <Button asChild>
+                    <Link href="/store">Belanja Produk</Link>
+                </Button>
+                <Button asChild variant="outline">
+                    <Link href="/activation-codes/redeem">
+                        <KeyRound className="size-4" />
+                        Redeem Kode
+                    </Link>
+                </Button>
             </div>
             <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
                 <Panel title="Riwayat Order">
@@ -41,11 +48,15 @@ export default function StoreOrders({ orders, redeemedCodes }: { orders: OrderRo
                                     <div>
                                         <p className="font-mono text-xs text-slate-500">{order.orderNumber}</p>
                                         <h2 className="mt-1 font-extrabold text-slate-950">{order.totalLabel}</h2>
-                                        <p className="mt-1 text-sm text-slate-500">Pembayaran: {statusLabel(order.paymentStatus)} · Pengiriman: {statusLabel(order.fulfillmentStatus)}</p>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            Pembayaran: {statusLabel(order.paymentStatus)} · Pengiriman: {statusLabel(order.fulfillmentStatus)}
+                                        </p>
                                     </div>
                                     {order.paymentStatus !== 'paid' && order.checkoutUrl && (
                                         <Button asChild size="sm">
-                                            <a href={order.checkoutUrl}>Lanjut Bayar <ExternalLink className="size-4" /></a>
+                                            <a href={order.checkoutUrl}>
+                                                Lanjut Bayar <ExternalLink className="size-4" />
+                                            </a>
                                         </Button>
                                     )}
                                 </div>
@@ -53,7 +64,9 @@ export default function StoreOrders({ orders, redeemedCodes }: { orders: OrderRo
                                     {order.items.map((item) => (
                                         <div key={`${order.id}-${item.name}`} className="rounded-xl bg-slate-50 p-3 text-sm">
                                             <p className="font-bold">{item.name}</p>
-                                            <p className="text-slate-500">{item.quantity}x · {item.totalLabel}</p>
+                                            <p className="text-slate-500">
+                                                {item.quantity}x · {item.totalLabel}
+                                            </p>
                                         </div>
                                     ))}
                                 </div>
@@ -62,9 +75,14 @@ export default function StoreOrders({ orders, redeemedCodes }: { orders: OrderRo
                                         <p className="mb-2 font-bold text-blue-900">Kode aktivasi dari order ini</p>
                                         <div className="space-y-2">
                                             {order.activationCodes.map((code) => (
-                                                <div key={code.code} className="flex flex-col gap-1 rounded-lg bg-white p-3 text-sm md:flex-row md:items-center md:justify-between">
+                                                <div
+                                                    key={code.code}
+                                                    className="flex flex-col gap-1 rounded-lg bg-white p-3 text-sm md:flex-row md:items-center md:justify-between"
+                                                >
                                                     <span className="font-mono font-bold">{code.code}</span>
-                                                    <span>{code.target} · {statusLabel(code.status)}</span>
+                                                    <span>
+                                                        {code.target} · {statusLabel(code.status)}
+                                                    </span>
                                                 </div>
                                             ))}
                                         </div>

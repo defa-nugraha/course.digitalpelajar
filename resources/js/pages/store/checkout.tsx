@@ -59,16 +59,30 @@ export default function StoreCheckout({ product, user }: { product: ProductCard;
                             <Input value={form.data.recipient_phone} onChange={(event) => form.setData('recipient_phone', event.target.value)} />
                         </FormField>
                         <FormField label="Jumlah" required error={form.errors.quantity}>
-                            <Input type="number" min="1" max="99" value={form.data.quantity} onChange={(event) => form.setData('quantity', event.target.value)} />
+                            <Input
+                                type="number"
+                                min="1"
+                                max="99"
+                                value={form.data.quantity}
+                                onChange={(event) => form.setData('quantity', event.target.value)}
+                            />
                         </FormField>
                     </div>
                     {needsShipping && (
                         <FormField label="Alamat pengiriman" required error={form.errors.shipping_address}>
-                            <textarea className="min-h-28 w-full rounded-md border border-slate-300 p-3 text-sm" value={form.data.shipping_address} onChange={(event) => form.setData('shipping_address', event.target.value)} />
+                            <textarea
+                                className="min-h-28 w-full rounded-md border border-slate-300 p-3 text-sm"
+                                value={form.data.shipping_address}
+                                onChange={(event) => form.setData('shipping_address', event.target.value)}
+                            />
                         </FormField>
                     )}
                     <FormField label="Catatan" error={form.errors.notes}>
-                        <textarea className="min-h-20 w-full rounded-md border border-slate-300 p-3 text-sm" value={form.data.notes} onChange={(event) => form.setData('notes', event.target.value)} />
+                        <textarea
+                            className="min-h-20 w-full rounded-md border border-slate-300 p-3 text-sm"
+                            value={form.data.notes}
+                            onChange={(event) => form.setData('notes', event.target.value)}
+                        />
                     </FormField>
                 </Panel>
                 <Panel title="Ringkasan Order">
@@ -81,15 +95,25 @@ export default function StoreCheckout({ product, user }: { product: ProductCard;
                         </div>
                     </div>
                     <div className="mt-6 space-y-3 rounded-2xl bg-slate-50 p-4 text-sm">
-                        <div className="flex justify-between"><span>Harga satuan</span><span className="font-bold">{product.priceLabel}</span></div>
-                        <div className="flex justify-between"><span>Jumlah</span><span className="font-bold">{form.data.quantity || 1}</span></div>
-                        <div className="flex items-center gap-2 pt-3 text-slate-500"><Package className="size-4" /> Stok produk dicek saat order dibuat.</div>
+                        <div className="flex justify-between">
+                            <span>Harga satuan</span>
+                            <span className="font-bold">{product.priceLabel}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>Jumlah</span>
+                            <span className="font-bold">{form.data.quantity || 1}</span>
+                        </div>
+                        <div className="flex items-center gap-2 pt-3 text-slate-500">
+                            <Package className="size-4" /> Stok produk dicek saat order dibuat.
+                        </div>
                     </div>
                     <Button type="submit" className="mt-6 w-full" disabled={form.processing}>
                         <CreditCard className="size-4" />
                         {form.processing ? 'Menyiapkan pembayaran...' : 'Bayar Sekarang'}
                     </Button>
-                    <p className="mt-3 text-center text-xs text-slate-500">Pembayaran diproses melalui Midtrans/mock checkout sesuai konfigurasi project.</p>
+                    <p className="mt-3 text-center text-xs text-slate-500">
+                        Pembayaran diproses melalui Midtrans/mock checkout sesuai konfigurasi project.
+                    </p>
                 </Panel>
             </form>
         </Shell>

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { confirmDelete } from '@/lib/confirm-delete';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { BookOpen, Boxes, Eye, FileQuestion, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, Boxes, Eye, FileQuestion, FileText, MousePointer2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Children, FormEvent, ReactNode, isValidElement, useState } from 'react';
 
 interface Course {
@@ -23,6 +23,7 @@ interface Course {
     price_type: string;
     price: number;
     access_mode: string;
+    learning_format?: string | null;
     status: string;
     meta_title?: string | null;
     meta_description?: string | null;
@@ -109,6 +110,7 @@ interface BuilderForm {
     price_type: string;
     price: string;
     access_mode: string;
+    learning_format: string;
     status: string;
     meta_title: string;
     meta_description: string;
@@ -144,6 +146,7 @@ const blankForm: BuilderForm = {
     price_type: 'free',
     price: '0',
     access_mode: 'sequential',
+    learning_format: 'guided',
     status: 'draft',
     meta_title: '',
     meta_description: '',
@@ -335,6 +338,7 @@ export default function CourseBuilder({
 }: BuilderProps) {
     const [editor, setEditor] = useState<Editor | null>(null);
     const form = useForm<BuilderForm>(blankForm);
+    const isStudioCourse = course?.learning_format === 'interactive';
 
     const setCourseFormData = (patch: Partial<BuilderForm>) => {
         const nextData = { ...form.data, ...patch };
@@ -365,6 +369,7 @@ export default function CourseBuilder({
                 price_type: item.price_type,
                 price: String(item.price),
                 access_mode: item.access_mode,
+                learning_format: item.learning_format ?? 'guided',
                 status: item.status,
                 meta_title: item.meta_title ?? generatedSeo.meta_title,
                 meta_description: item.meta_description ?? generatedSeo.meta_description,
@@ -471,6 +476,18 @@ export default function CourseBuilder({
         });
     };
 
+    const openStudio = (lesson: Lesson) => {
+        const interactiveBlock = lesson.blocks.find((block) => block.type === 'interactive');
+
+        if (interactiveBlock) {
+            router.visit(`${routeBase}/blocks/${interactiveBlock.id}/interactive-editor`);
+
+            return;
+        }
+
+        router.post(`${routeBase}/lessons/${lesson.id}/interactive-editor`, {}, { preserveScroll: true });
+    };
+
     return (
         <Shell
             title={course?.title ?? 'Course Builder'}
@@ -526,10 +543,11 @@ export default function CourseBuilder({
                             </div>
                         }
                     >
-                        <div className="grid gap-4 text-sm md:grid-cols-4">
+                        <div className="grid gap-4 text-sm md:grid-cols-5">
                             <Info label="Level" value={course.level} />
                             <Info label="Harga" value={course.price_type === 'free' ? 'Gratis' : `Rp ${course.price.toLocaleString('id-ID')}`} />
                             <Info label="Mode akses" value={course.access_mode} />
+                            <Info label="Format" value={course.learning_format === 'interactive' ? 'Studio Interaktif' : 'Materi Bertahap'} />
                             <Info label="Status" value={course.status} />
                         </div>
                         <p className="mt-4 leading-6 text-slate-600">{course.description || 'Belum ada deskripsi.'}</p>
@@ -581,7 +599,8 @@ export default function CourseBuilder({
                                                                 {lesson.order_no}. {lesson.title}
                                                             </p>
                                                             <p className="text-xs text-slate-500">
-                                                                {lesson.is_required ? 'Wajib' : 'Opsional'} · {lesson.blocks.length} blok ·{' '}
+                                                                {lesson.is_required ? 'Wajib' : 'Opsional'} ·{' '}
+                                                                {isStudioCourse ? 'Studio Interaktif' : `${lesson.blocks.length} blok`} ·{' '}
                                                                 {lesson.quizzes.length} kuis
                                                             </p>
                                                         </div>
@@ -603,12 +622,19 @@ export default function CourseBuilder({
                                                         >
                                                             <Trash2 className="size-4 text-red-600" />
                                                         </Button>
-                                                        <Button asChild variant="outline" size="sm">
-                                                            <Link href={`${routeBase}/lessons/${lesson.id}/blocks/create`}>
-                                                                <Plus className="size-4" />
-                                                                Blok
-                                                            </Link>
-                                                        </Button>
+                                                        {isStudioCourse ? (
+                                                            <Button type="button" size="sm" onClick={() => openStudio(lesson)}>
+                                                                <MousePointer2 className="size-4" />
+                                                                Buka Studio
+                                                            </Button>
+                                                        ) : (
+                                                            <Button asChild variant="outline" size="sm">
+                                                                <Link href={`${routeBase}/lessons/${lesson.id}/blocks/create`}>
+                                                                    <Plus className="size-4" />
+                                                                    Blok
+                                                                </Link>
+                                                            </Button>
+                                                        )}
                                                         <Button asChild variant="outline" size="sm">
                                                             <Link href={`${routeBase}/courses/${course.id}/quizzes/create?lesson=${lesson.id}`}>
                                                                 <Plus className="size-4" />
@@ -618,15 +644,25 @@ export default function CourseBuilder({
                                                     </div>
                                                 </div>
                                                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                                    {lesson.blocks.map((block) => (
-                                                        <ResourceRow
-                                                            key={`block-${block.id}`}
-                                                            icon={Boxes}
-                                                            title={`${block.type} · ${block.status}`}
-                                                            editHref={`${routeBase}/blocks/${block.id}/edit`}
-                                                            onDelete={() => remove('block', block.id, `blok ${block.type}`)}
-                                                        />
-                                                    ))}
+                                                    {isStudioCourse ? (
+                                                        <StudioLessonCard lesson={lesson} onOpen={() => openStudio(lesson)} />
+                                                    ) : (
+                                                        lesson.blocks.map((block) => (
+                                                            <ResourceRow
+                                                                key={`block-${block.id}`}
+                                                                icon={Boxes}
+                                                                title={`${block.type} · ${block.status}`}
+                                                                editHref={`${routeBase}/blocks/${block.id}/edit`}
+                                                                secondaryHref={
+                                                                    block.type === 'interactive'
+                                                                        ? `${routeBase}/blocks/${block.id}/interactive-editor`
+                                                                        : undefined
+                                                                }
+                                                                secondaryLabel="Editor Visual"
+                                                                onDelete={() => remove('block', block.id, `blok ${block.type}`)}
+                                                            />
+                                                        ))
+                                                    )}
                                                     {lesson.quizzes.map((quiz) => (
                                                         <ResourceRow
                                                             key={`quiz-${quiz.id}`}
@@ -889,7 +925,12 @@ export default function CourseBuilder({
                                         checked={form.data.is_required}
                                         onChange={(value) => form.setData('is_required', value)}
                                     />
-                                    {!editor.id && (
+                                    {!editor.id && isStudioCourse && (
+                                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+                                            Setelah lesson dibuat, sistem otomatis membuat draft Studio Interaktif dan langsung membuka Visual Editor.
+                                        </div>
+                                    )}
+                                    {!editor.id && !isStudioCourse && (
                                         <div className="space-y-4 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
                                             <div>
                                                 <p className="text-sm font-bold text-slate-900">Materi awal</p>
@@ -994,7 +1035,6 @@ export default function CourseBuilder({
                     )}
                 </DialogContent>
             </Dialog>
-
         </Shell>
     );
 }
@@ -1012,16 +1052,46 @@ function Info({ label, value }: { label: string; value: string }) {
     );
 }
 
+function StudioLessonCard({ lesson, onOpen }: { lesson: Lesson; onOpen: () => void }) {
+    const interactiveBlock = lesson.blocks.find((block) => block.type === 'interactive');
+
+    return (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p className="flex items-center gap-2 font-bold text-slate-950">
+                        <MousePointer2 className="size-4 text-blue-700" />
+                        Studio Visual
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                        {interactiveBlock
+                            ? `Draft studio tersedia · status ${interactiveBlock.status}`
+                            : 'Belum ada draft studio. Sistem akan membuat draft otomatis saat dibuka.'}
+                    </p>
+                </div>
+                <Button type="button" onClick={onOpen}>
+                    <MousePointer2 className="size-4" />
+                    Buka Studio
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 function ResourceRow({
     icon: Icon,
     title,
     editHref,
+    secondaryHref,
+    secondaryLabel = 'Buka',
     onEdit,
     onDelete,
 }: {
     icon: typeof Boxes;
     title: string;
     editHref?: string;
+    secondaryHref?: string;
+    secondaryLabel?: string;
     onEdit?: () => void;
     onDelete: () => void;
 }) {
@@ -1033,7 +1103,7 @@ function ResourceRow({
     );
 
     return (
-        <div className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-3 sm:flex-row sm:items-center">
             {editHref ? (
                 <Link href={editHref} className="flex min-w-0 flex-1 items-center gap-3 hover:text-blue-700">
                     {content}
@@ -1052,6 +1122,14 @@ function ResourceRow({
             ) : (
                 <Button variant="ghost" size="icon" aria-label="Edit" onClick={onEdit}>
                     <Pencil className="size-4" />
+                </Button>
+            )}
+            {secondaryHref && (
+                <Button asChild size="sm" className="w-full sm:w-auto">
+                    <Link href={secondaryHref}>
+                        <MousePointer2 className="size-4" />
+                        {secondaryLabel}
+                    </Link>
                 </Button>
             )}
             <Button variant="ghost" size="icon" aria-label="Hapus" onClick={onDelete}>
@@ -1175,7 +1253,11 @@ function BlockContentFields({
                         error={metadataError}
                         onChange={(value) => onMetadataChange({ file: value })}
                     />
-                    <SelectField label="Bahasa kode" value={String(metadata.language ?? 'cpp')} onChange={(value) => onMetadataChange({ language: value })}>
+                    <SelectField
+                        label="Bahasa kode"
+                        value={String(metadata.language ?? 'cpp')}
+                        onChange={(value) => onMetadataChange({ language: value })}
+                    >
                         <option value="cpp">Arduino/C++</option>
                         <option value="python">Python</option>
                         <option value="javascript">JavaScript</option>

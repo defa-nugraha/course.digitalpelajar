@@ -1562,6 +1562,7 @@ class PlatformController extends Controller
         $this->authorizeCourseManager($request, $lesson->chapter->course);
 
         return Inertia::render('admin/block-form', [
+            'routeBase' => $this->managementBasePath($request),
             'block' => null,
             'lesson' => $this->blockLessonPayload($lesson),
             'course' => $this->blockCoursePayload($lesson->chapter->course),
@@ -1569,16 +1570,22 @@ class PlatformController extends Controller
             'submitUrl' => route($this->managementRoutePrefix($request).'.blocks.store', $lesson),
             'editorUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.editor-media', $lesson),
             'interactiveUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.interactive-media', $lesson),
+            'interactiveEditorUrl' => null,
             'nextOrder' => ((int) $lesson->contentBlocks()->max('order_no')) + 1,
         ]);
     }
 
-    public function editBlock(Request $request, ContentBlock $block): Response
+    public function editBlock(Request $request, ContentBlock $block): Response|RedirectResponse
     {
         $block->load('lesson.chapter.course');
         $this->authorizeCourseManager($request, $block->lesson->chapter->course);
 
+        if ($block->lesson->chapter->course->learning_format === 'interactive' && $block->type === 'interactive') {
+            return to_route($this->managementRoutePrefix($request).'.blocks.interactive-editor', $block);
+        }
+
         return Inertia::render('admin/block-form', [
+            'routeBase' => $this->managementBasePath($request),
             'block' => [
                 'id' => $block->id,
                 'type' => $block->type,
@@ -1597,7 +1604,39 @@ class PlatformController extends Controller
             'submitUrl' => route($this->managementRoutePrefix($request).'.blocks.update', $block),
             'editorUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.editor-media', $block->lesson),
             'interactiveUploadUrl' => route($this->managementRoutePrefix($request).'.lessons.interactive-media', $block->lesson),
+            'interactiveEditorUrl' => $block->type === 'interactive'
+                ? route($this->managementRoutePrefix($request).'.blocks.interactive-editor', $block)
+                : null,
             'nextOrder' => $block->order_no,
+        ]);
+    }
+
+    public function interactiveEditor(Request $request, ContentBlock $block): Response
+    {
+        $block->load('lesson.chapter.course');
+        $this->authorizeCourseManager($request, $block->lesson->chapter->course);
+        abort_unless($block->type === 'interactive', 404);
+
+        $prefix = $this->managementRoutePrefix($request);
+        $schema = app(InteractiveBlockSchemaService::class);
+
+        return Inertia::render('admin/interactive-editor', [
+            'routeBase' => $this->managementBasePath($request),
+            'block' => [
+                'id' => $block->id,
+                'type' => $block->type,
+                'content' => $block->content,
+                'metadata' => $schema->enrichMediaUrls($block->metadata ?? []),
+                'status' => $block->status,
+                'order_no' => $block->order_no,
+                'updatedAt' => $block->updated_at?->toJSON(),
+            ],
+            'lesson' => $this->blockLessonPayload($block->lesson),
+            'course' => $this->blockCoursePayload($block->lesson->chapter->course),
+            'backUrl' => $this->courseBuilderUrl($request, $block->lesson->chapter->course_id),
+            'blockEditUrl' => route($prefix.'.blocks.edit', $block),
+            'autosaveUrl' => route($prefix.'.blocks.interactive-autosave', $block),
+            'interactiveUploadUrl' => route($prefix.'.lessons.interactive-media', $block->lesson),
         ]);
     }
 
@@ -1927,6 +1966,7 @@ class PlatformController extends Controller
         return [
             'id' => $course->id,
             'title' => $course->title,
+            'learningFormat' => $course->learning_format ?? 'guided',
         ];
     }
 

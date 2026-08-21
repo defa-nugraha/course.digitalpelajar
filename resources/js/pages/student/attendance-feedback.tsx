@@ -54,9 +54,7 @@ export default function AttendanceFeedback({ schedule, feedback }: { schedule: S
                             <MessageSquare className="mt-1 size-5 shrink-0 text-blue-700" />
                             <div>
                                 <p className="font-bold text-slate-950">Pengajar: {schedule.instructor}</p>
-                                <p className="mt-1">
-                                    Feedback ini membantu pengajar memperbaiki cara penyampaian materi pada pertemuan berikutnya.
-                                </p>
+                                <p className="mt-1">Feedback ini membantu pengajar memperbaiki cara penyampaian materi pada pertemuan berikutnya.</p>
                             </div>
                         </div>
                         <Button asChild variant="outline" className="w-full">

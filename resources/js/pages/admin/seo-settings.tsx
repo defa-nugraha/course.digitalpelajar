@@ -154,9 +154,7 @@ export default function AdminSeoSettings({ settings }: { settings: SeoSetting[] 
                                     </div>
                                     <span
                                         className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                                            setting.isActive && !setting.noindex
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : 'bg-slate-100 text-slate-600'
+                                            setting.isActive && !setting.noindex ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
                                         }`}
                                     >
                                         {setting.isActive && !setting.noindex ? 'Index' : 'Nonaktif'}
@@ -331,7 +329,9 @@ export default function AdminSeoSettings({ settings }: { settings: SeoSetting[] 
                                 </div>
                                 <div className="rounded-2xl bg-slate-50 p-4">
                                     <p className="font-bold text-slate-900">SEO produk/course</p>
-                                    <p className="mt-2">Tetap dikelola dari Course Builder agar title, description, slug, dan gambar unik per course.</p>
+                                    <p className="mt-2">
+                                        Tetap dikelola dari Course Builder agar title, description, slug, dan gambar unik per course.
+                                    </p>
                                 </div>
                             </div>
                         </Panel>

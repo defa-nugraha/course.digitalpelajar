@@ -1,17 +1,18 @@
 import { FieldLabel } from '@/components/form-field';
-import { InteractiveBlockBuilder, coerceInteractiveMetadata, requiredElementIds } from '@/components/interactive-learning';
 import InputError from '@/components/input-error';
+import { InteractiveBlockBuilder, coerceInteractiveMetadata, requiredElementIds } from '@/components/interactive-learning';
 import { Panel, Shell } from '@/components/platform';
 import { RichTextEditor } from '@/components/rich-text-editor';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowDown, ArrowLeft, ArrowUp, FileText, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, FileText, MousePointer2, Plus, Save, Trash2 } from 'lucide-react';
 import { FormEvent, ReactNode, useState } from 'react';
 
-type BlockStep = { title: string; content: string };
-type BlockMetadata = Record<string, unknown>;
+type BlockStep = { [key: string]: FormDataConvertible; title: string; content: string };
+type BlockMetadata = Record<string, FormDataConvertible>;
 
 interface BlockData {
     id: number;
@@ -37,9 +38,11 @@ interface LessonData {
 interface CourseData {
     id: number;
     title: string;
+    learningFormat?: string;
 }
 
 interface BlockFormProps {
+    routeBase?: string;
     block?: BlockData | null;
     lesson: LessonData;
     course: CourseData;
@@ -47,11 +50,12 @@ interface BlockFormProps {
     submitUrl: string;
     editorUploadUrl: string;
     interactiveUploadUrl: string;
+    interactiveEditorUrl?: string | null;
     nextOrder: number;
 }
 
 interface BlockFormData {
-    [key: string]: string | File | null | BlockMetadata;
+    [key: string]: FormDataConvertible;
     type: string;
     content: string;
     metadata: BlockMetadata;
@@ -72,7 +76,7 @@ const typeOptions = [
     { value: 'checklist', label: 'Checklist' },
     { value: 'note', label: 'Catatan' },
     { value: 'warning', label: 'Peringatan' },
-    { value: 'interactive', label: 'Interactive lesson' },
+    { value: 'interactive', label: 'Lesson interaktif' },
 ];
 
 const statusOptions = [
@@ -81,8 +85,19 @@ const statusOptions = [
     { value: 'published', label: 'Published' },
 ];
 
-export default function BlockForm({ block, lesson, course, backUrl, submitUrl, editorUploadUrl, interactiveUploadUrl, nextOrder }: BlockFormProps) {
-    const initialType = block?.type ?? 'text';
+export default function BlockForm({
+    routeBase,
+    block,
+    lesson,
+    course,
+    backUrl,
+    submitUrl,
+    editorUploadUrl,
+    interactiveUploadUrl,
+    interactiveEditorUrl,
+    nextOrder,
+}: BlockFormProps) {
+    const initialType = block?.type ?? (course.learningFormat === 'interactive' ? 'interactive' : 'text');
     const form = useForm<BlockFormData>({
         type: initialType,
         content: block?.content ?? '',
@@ -130,18 +145,31 @@ export default function BlockForm({ block, lesson, course, backUrl, submitUrl, e
     const setMetadata = (patch: BlockMetadata) => {
         form.setData('metadata', { ...form.data.metadata, ...patch });
     };
+    const inferredRouteBase = routeBase ?? (backUrl.startsWith('/instructor') ? '/instructor' : '/admin');
+    const resolvedInteractiveEditorUrl =
+        interactiveEditorUrl ?? (block && form.data.type === 'interactive' ? `${inferredRouteBase}/blocks/${block.id}/interactive-editor` : null);
 
     return (
         <Shell
             title={block ? 'Edit Blok Materi' : 'Tambah Blok Materi'}
             eyebrow="Course Builder"
             actions={
-                <Button asChild variant="outline">
-                    <Link href={backUrl}>
-                        <ArrowLeft className="size-4" />
-                        Kembali
-                    </Link>
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    {form.data.type === 'interactive' && resolvedInteractiveEditorUrl && (
+                        <Button asChild>
+                            <Link href={resolvedInteractiveEditorUrl}>
+                                <MousePointer2 className="size-4" />
+                                Buka Editor Visual
+                            </Link>
+                        </Button>
+                    )}
+                    <Button asChild variant="outline">
+                        <Link href={backUrl}>
+                            <ArrowLeft className="size-4" />
+                            Kembali
+                        </Link>
+                    </Button>
+                </div>
             }
         >
             <Head title={block ? 'Edit Blok Materi' : 'Tambah Blok Materi'} />
@@ -163,6 +191,30 @@ export default function BlockForm({ block, lesson, course, backUrl, submitUrl, e
                         </div>
 
                         <div className="mt-5">
+                            {form.data.type === 'interactive' && resolvedInteractiveEditorUrl && (
+                                <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <p className="font-bold text-slate-950">Editor visual tersedia untuk blok ini.</p>
+                                            <p className="mt-1 text-sm text-slate-600">
+                                                Gunakan editor visual untuk mengatur scene, hotspot, media, layer, dan preview siswa.
+                                            </p>
+                                        </div>
+                                        <Button asChild className="shrink-0">
+                                            <Link href={resolvedInteractiveEditorUrl}>
+                                                <MousePointer2 className="size-4" />
+                                                Buka Editor Visual
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                            {form.data.type === 'interactive' && !resolvedInteractiveEditorUrl && (
+                                <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                                    Simpan blok interaktif terlebih dahulu. Setelah tersimpan, tombol{' '}
+                                    <span className="font-bold">Buka Editor Visual</span> akan muncul di halaman edit dan Course Builder.
+                                </div>
+                            )}
                             <BlockContentFields
                                 type={form.data.type}
                                 content={form.data.content}
@@ -197,7 +249,9 @@ export default function BlockForm({ block, lesson, course, backUrl, submitUrl, e
                             <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-slate-700">
                                 <p className="font-bold text-slate-950">{course.title}</p>
                                 <p className="mt-1">{lesson.chapter.title}</p>
-                                <p className="mt-1">Lesson {lesson.order_no}: {lesson.title}</p>
+                                <p className="mt-1">
+                                    Lesson {lesson.order_no}: {lesson.title}
+                                </p>
                             </div>
                             <Button type="submit" className="w-full" disabled={form.processing}>
                                 <Save className="size-4" />
@@ -265,9 +319,14 @@ function BlockContentFields({
     }
 
     if (type === 'interactive') {
-        return <InteractiveBlockBuilder value={metadata} uploadUrl={interactiveUploadUrl} onChange={onMetadataChange} />;
+        return (
+            <InteractiveBlockBuilder
+                value={metadata}
+                uploadUrl={interactiveUploadUrl}
+                onChange={(nextMetadata) => onMetadataChange(nextMetadata as BlockMetadata)}
+            />
+        );
     }
-
 
     if (type === 'image') {
         return (
@@ -302,9 +361,15 @@ function BlockContentFields({
             <div className="space-y-4">
                 {stepEditor}
                 <Field label={isPdf ? 'Upload PDF materi' : 'Upload file materi'} error={fileError} required={!existingFileUrl}>
-                    <Input type="file" accept={isPdf ? 'application/pdf,.pdf' : undefined} onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} />
+                    <Input
+                        type="file"
+                        accept={isPdf ? 'application/pdf,.pdf' : undefined}
+                        onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+                    />
                     <p className="text-xs leading-5 text-slate-500">
-                        {isPdf ? 'Maksimal 20MB. PDF akan tampil sebagai preview di halaman belajar siswa.' : 'Maksimal 20MB. File akan diunduh melalui endpoint aplikasi.'}
+                        {isPdf
+                            ? 'Maksimal 20MB. PDF akan tampil sebagai preview di halaman belajar siswa.'
+                            : 'Maksimal 20MB. File akan diunduh melalui endpoint aplikasi.'}
                     </p>
                     {file && <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">File baru: {file.name}</p>}
                     {existingFileUrl && (
@@ -418,7 +483,11 @@ function BlockContentFields({
     return (
         <div className="space-y-4">
             {stepEditor}
-            <Field label={type === 'submission' ? 'Instruksi submission' : type === 'warning' ? 'Isi peringatan' : 'Isi catatan'} error={contentError} required>
+            <Field
+                label={type === 'submission' ? 'Instruksi submission' : type === 'warning' ? 'Isi peringatan' : 'Isi catatan'}
+                error={contentError}
+                required
+            >
                 <textarea
                     className="min-h-40 w-full rounded-md border border-slate-200 bg-white p-3 text-sm"
                     value={content}
@@ -487,7 +556,7 @@ function BlockStepsEditor({
                     className={`group relative space-y-3 rounded-2xl border bg-white p-4 pt-12 transition ${activeStepIndex === index ? 'border-blue-500 shadow-sm ring-2 ring-blue-100' : 'border-slate-200 hover:border-blue-200'}`}
                 >
                     <div
-                        className={`absolute top-3 right-3 z-10 flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-950/90 p-1 text-white shadow-lg transition ${activeStepIndex === index ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                        className={`absolute top-3 right-3 z-10 flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-950/90 p-1 text-white shadow-lg transition ${activeStepIndex === index ? 'opacity-100' : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'}`}
                     >
                         <IconStepButton label="Naikkan step" disabled={index === 0} onClick={() => moveStep(index, -1)}>
                             <ArrowUp className="size-4" />
@@ -538,7 +607,17 @@ function BlockStepsEditor({
     );
 }
 
-function IconStepButton({ label, disabled = false, children, onClick }: { label: string; disabled?: boolean; children: ReactNode; onClick: () => void }) {
+function IconStepButton({
+    label,
+    disabled = false,
+    children,
+    onClick,
+}: {
+    label: string;
+    disabled?: boolean;
+    children: ReactNode;
+    onClick: () => void;
+}) {
     return (
         <button
             type="button"
@@ -638,7 +717,9 @@ function normalizeMetadata(type: string, metadata: BlockMetadata): BlockMetadata
     if (type === 'checklist') {
         return {
             ...cleanedMetadata,
-            items: checklistItems(metadata).map((item) => item.trim()).filter(Boolean),
+            items: checklistItems(metadata)
+                .map((item) => item.trim())
+                .filter(Boolean),
             ...(steps.length > 0 ? { steps } : {}),
         };
     }
@@ -654,7 +735,7 @@ function blockContentForSubmit(type: string, content: string, metadata: BlockMet
         const interactive = coerceInteractiveMetadata(metadata);
         const sceneCount = interactive.scenes.length;
         const requiredCount = requiredElementIds(interactive).length;
-        const title = interactive.scenes[0]?.title || 'Interactive lesson';
+        const title = interactive.scenes[0]?.title || 'Lesson interaktif';
 
         return `${title} · ${sceneCount} scene · ${requiredCount} interaksi wajib`;
     }
@@ -679,7 +760,7 @@ function checklistItems(metadata: BlockMetadata): string[] {
 function textSteps(metadata: BlockMetadata, fallbackContent = ''): BlockStep[] {
     const rawSteps = Array.isArray(metadata.steps) ? metadata.steps : [];
     const steps = rawSteps
-        .filter((step): step is Record<string, unknown> => typeof step === 'object' && step !== null)
+        .filter((step): step is Record<string, FormDataConvertible> => typeof step === 'object' && step !== null)
         .map((step, index) => ({
             title: String(step.title ?? `Step ${index + 1}`),
             content: String(step.content ?? ''),
@@ -689,11 +770,18 @@ function textSteps(metadata: BlockMetadata, fallbackContent = ''): BlockStep[] {
 }
 
 function firstTextStepContent(metadata: BlockMetadata): string {
-    return textSteps(metadata)
-        .map((step) => step.content)
-        .find((content) => hasReadableStepContent(content)) ?? '';
+    return (
+        textSteps(metadata)
+            .map((step) => step.content)
+            .find((content) => hasReadableStepContent(content)) ?? ''
+    );
 }
 
 function hasReadableStepContent(content: string): boolean {
-    return content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() !== '' || /<(img|video)\b/i.test(content);
+    return (
+        content
+            .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .trim() !== '' || /<(img|video)\b/i.test(content)
+    );
 }

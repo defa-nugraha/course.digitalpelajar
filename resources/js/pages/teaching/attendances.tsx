@@ -3,8 +3,23 @@ import { Panel, Shell } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Clock, ExternalLink, LucideIcon, MessageSquare, QrCode, Save, Search, Star, Stethoscope, Users, UserX } from 'lucide-react';
+import {
+    ArrowLeft,
+    CheckCircle2,
+    Clock,
+    ExternalLink,
+    LucideIcon,
+    MessageSquare,
+    QrCode,
+    Save,
+    Search,
+    Star,
+    Stethoscope,
+    Users,
+    UserX,
+} from 'lucide-react';
 import QRCode from 'qrcode';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -94,6 +109,17 @@ const statusOptions: Array<{ value: AttendanceStatus; label: string; tone: strin
     { value: 'A', label: 'A', tone: 'border-red-200 bg-red-50 text-red-700' },
 ];
 
+interface AttendanceFormData {
+    [key: string]: FormDataConvertible;
+    attendances: Array<{
+        [key: string]: FormDataConvertible;
+        student_id: string;
+        status: string;
+        reason: string;
+        proof: File | null;
+    }>;
+}
+
 export default function TeachingAttendances({ session, students, summary, feedbackSummary, qrUrl, canEdit, backUrl }: Props) {
     const [term, setTerm] = useState('');
     const [qrOpen, setQrOpen] = useState(false);
@@ -103,7 +129,7 @@ export default function TeachingAttendances({ session, students, summary, feedba
     const [feedbackState, setFeedbackState] = useState(feedbackSummary);
     const [qrUrlState, setQrUrlState] = useState(qrUrl);
     const [attendanceRows, setAttendanceRows] = useState<AttendanceState[]>(() => toAttendanceState(students));
-    const form = useForm<{ [key: string]: unknown }>({ attendances: [] });
+    const form = useForm<AttendanceFormData>({ attendances: [] });
 
     const fetchAttendanceData = useCallback(
         async ({ updateQr = false, forceRows = false }: { updateQr?: boolean; forceRows?: boolean } = {}) => {
@@ -143,7 +169,9 @@ export default function TeachingAttendances({ session, students, summary, feedba
             return;
         }
 
-        QRCode.toDataURL(qrUrlState, { width: 360, margin: 2 }).then(setQrImage).catch(() => setQrImage(null));
+        QRCode.toDataURL(qrUrlState, { width: 360, margin: 2 })
+            .then(setQrImage)
+            .catch(() => setQrImage(null));
     }, [qrUrlState]);
 
     useEffect(() => {
@@ -434,7 +462,11 @@ export default function TeachingAttendances({ session, students, summary, feedba
             <Panel className="mt-6" title="Feedback siswa">
                 <div className="grid gap-3 md:grid-cols-3">
                     <FeedbackMetric label="Total feedback" value={String(feedbackState.total)} icon={MessageSquare} />
-                    <FeedbackMetric label="Rata-rata rating" value={feedbackState.averageRating ? `${feedbackState.averageRating}/5` : '-'} icon={Star} />
+                    <FeedbackMetric
+                        label="Rata-rata rating"
+                        value={feedbackState.averageRating ? `${feedbackState.averageRating}/5` : '-'}
+                        icon={Star}
+                    />
                     <FeedbackMetric label="Butuh bantuan" value={String(feedbackState.needHelp)} icon={Users} />
                 </div>
                 <div className="mt-5 space-y-3">
@@ -456,9 +488,7 @@ export default function TeachingAttendances({ session, students, summary, feedba
                             </div>
                             {feedback.comment && <p className="mt-3 text-sm leading-6 text-slate-600">{feedback.comment}</p>}
                             {feedback.suggestion && (
-                                <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600">
-                                    Saran: {feedback.suggestion}
-                                </p>
+                                <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600">Saran: {feedback.suggestion}</p>
                             )}
                         </div>
                     ))}
@@ -607,7 +637,9 @@ function AttendanceSummaryCard({
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <p className={`text-xs font-bold tracking-wide uppercase ${selectedTone.label}`}>{label}</p>
-                    <p className={`${compactValue ? 'mt-2 text-xl font-extrabold leading-tight' : 'mt-2 text-3xl font-extrabold'} ${selectedTone.value}`}>
+                    <p
+                        className={`${compactValue ? 'mt-2 text-xl leading-tight font-extrabold' : 'mt-2 text-3xl font-extrabold'} ${selectedTone.value}`}
+                    >
                         {value}
                     </p>
                 </div>

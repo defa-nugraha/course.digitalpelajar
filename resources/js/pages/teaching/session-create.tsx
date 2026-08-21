@@ -132,8 +132,8 @@ export default function TeachingSessionCreate({ title, schedules, defaults, back
                             </Field>
 
                             <div className="rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-                                Setelah draft disimpan, lanjutkan dari daftar <strong>Laporan Saya</strong> melalui tombol <strong>Lengkapi laporan</strong> untuk
-                                mengisi laporan kegiatan dan upload bukti foto.
+                                Setelah draft disimpan, lanjutkan dari daftar <strong>Laporan Saya</strong> melalui tombol{' '}
+                                <strong>Lengkapi laporan</strong> untuk mengisi laporan kegiatan dan upload bukti foto.
                             </div>
 
                             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

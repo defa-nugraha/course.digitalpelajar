@@ -63,11 +63,7 @@ export function ConfirmationDialogHost() {
                         <Button type="button" variant="outline" onClick={close}>
                             {payload?.cancelLabel ?? 'Batal'}
                         </Button>
-                        <Button
-                            type="button"
-                            onClick={confirm}
-                            className={isDanger ? 'bg-red-600 text-white hover:bg-red-700' : undefined}
-                        >
+                        <Button type="button" onClick={confirm} className={isDanger ? 'bg-red-600 text-white hover:bg-red-700' : undefined}>
                             {payload?.confirmLabel ?? 'Lanjutkan'}
                         </Button>
                     </DialogFooter>

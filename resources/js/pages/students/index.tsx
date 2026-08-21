@@ -54,8 +54,7 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                     searchable.includes(term.toLowerCase()) &&
                     (schoolId === 'all' || String(student.schoolId) === schoolId) &&
                     (status === 'all' || student.status === status) &&
-                    (reviewState === 'all' ||
-                        (reviewState === 'needs_review' ? student.pendingSubmissions > 0 : student.pendingSubmissions === 0))
+                    (reviewState === 'all' || (reviewState === 'needs_review' ? student.pendingSubmissions > 0 : student.pendingSubmissions === 0))
                 );
             }),
         [reviewState, schoolId, status, students, term],
@@ -174,9 +173,7 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                     <td>
                                         <span
                                             className={`rounded-full px-2 py-1 text-xs font-bold ${
-                                                student.pendingSubmissions > 0
-                                                    ? 'bg-amber-50 text-amber-700'
-                                                    : 'bg-emerald-50 text-emerald-700'
+                                                student.pendingSubmissions > 0 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
                                             }`}
                                         >
                                             {student.pendingSubmissions} pending

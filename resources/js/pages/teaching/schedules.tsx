@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { confirmDelete } from '@/lib/confirm-delete';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Building2, CalendarDays, CheckCircle2, Clock, Laptop, MapPin, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
@@ -62,7 +63,7 @@ interface SchedulesProps {
 }
 
 interface ScheduleFormData {
-    [key: string]: unknown;
+    [key: string]: FormDataConvertible;
     schedule_basis: 'course' | 'school';
     school_id: string;
     instructor_id: string;
@@ -459,8 +460,8 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
                         )}
                         {!editing && form.data.schedule_basis === 'school' && (
                             <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
-                                Jadwal berbasis sekolah akan membuat beberapa jadwal sekaligus sesuai periode tanggal dan hari yang dipilih.
-                                Course tidak wajib karena pertemuan bersifat umum untuk sekolah.
+                                Jadwal berbasis sekolah akan membuat beberapa jadwal sekaligus sesuai periode tanggal dan hari yang dipilih. Course
+                                tidak wajib karena pertemuan bersifat umum untuk sekolah.
                             </div>
                         )}
                         <div className="grid gap-4 md:grid-cols-2">
