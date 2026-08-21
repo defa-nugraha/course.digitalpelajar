@@ -19,6 +19,8 @@ class QuizFactory extends Factory
             'course_id' => Course::factory(),
             'title' => 'Quiz: '.fake()->words(3, true),
             'passing_score' => 70,
+            'time_limit_mode' => 'none',
+            'time_limit_seconds' => null,
             'is_final_exam' => false,
             'questions' => [
                 [

@@ -28,9 +28,13 @@ interface QuizInfo {
     title: string;
     order_no: number;
     passing_score: number;
+    time_limit_mode?: TimerMode | null;
+    time_limit_seconds?: number | null;
     is_final_exam: boolean;
     questions: StoredQuestion[];
 }
+
+type TimerMode = 'none' | 'total' | 'per_question';
 
 interface StoredQuestion {
     question?: string;
@@ -50,9 +54,17 @@ interface QuizForm {
     title: string;
     order_no: string;
     passing_score: string;
+    time_limit_mode: TimerMode;
+    time_limit_seconds: string;
     is_final_exam: boolean;
     questions: string;
 }
+
+const timerModeOptions = [
+    { value: 'none', label: 'Tanpa batas waktu' },
+    { value: 'total', label: 'Batas waktu keseluruhan quiz' },
+    { value: 'per_question', label: 'Batas waktu per soal' },
+];
 
 export default function QuizEditor({
     course,
@@ -76,9 +88,12 @@ export default function QuizEditor({
         title: quiz?.title ?? (initialLessonId ? 'Kuis Lesson' : 'Ujian Akhir'),
         order_no: String(quiz?.order_no ?? 0),
         passing_score: String(quiz?.passing_score ?? (initialLessonId ? 70 : 75)),
+        time_limit_mode: quiz?.time_limit_mode ?? 'none',
+        time_limit_seconds: quiz?.time_limit_seconds ? String(quiz.time_limit_seconds) : '',
         is_final_exam: quiz?.is_final_exam ?? !initialLessonId,
         questions: '',
     });
+    const timerMode = form.data.time_limit_mode || 'none';
 
     const updateQuestion = (index: number, patch: Partial<QuestionForm>) => {
         setQuestions((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
@@ -110,6 +125,8 @@ export default function QuizEditor({
             lesson_id: data.lesson_id || null,
             order_no: Number(data.order_no),
             passing_score: Number(data.passing_score),
+            time_limit_mode: data.time_limit_mode || 'none',
+            time_limit_seconds: data.time_limit_mode === 'none' ? null : Number(data.time_limit_seconds),
             is_final_exam: !data.lesson_id || data.is_final_exam,
             questions: JSON.stringify(cleanedQuestions),
         }));
@@ -182,6 +199,41 @@ export default function QuizEditor({
                                     placeholder="Pilih letak ujian"
                                 />
                             </Field>
+                            <Field label="Batas waktu" error={form.errors.time_limit_mode}>
+                                <SearchableSelect
+                                    value={timerMode}
+                                    onChange={(mode) => {
+                                        form.setData({
+                                            ...form.data,
+                                            time_limit_mode: mode as TimerMode,
+                                            time_limit_seconds: mode === 'none' ? '' : form.data.time_limit_seconds,
+                                        });
+                                    }}
+                                    options={timerModeOptions}
+                                    placeholder="Pilih mode waktu"
+                                />
+                            </Field>
+                            {timerMode !== 'none' && (
+                                <Field
+                                    label={timerMode === 'per_question' ? 'Durasi per soal (detik)' : 'Durasi total quiz (detik)'}
+                                    error={form.errors.time_limit_seconds}
+                                    required
+                                >
+                                    <Input
+                                        type="number"
+                                        min={15}
+                                        max={14400}
+                                        value={form.data.time_limit_seconds}
+                                        placeholder={timerMode === 'per_question' ? 'Contoh: 60' : 'Contoh: 1800'}
+                                        onChange={(event) => form.setData('time_limit_seconds', event.target.value)}
+                                    />
+                                    <p className="text-xs text-slate-500">
+                                        {timerMode === 'per_question'
+                                            ? 'Timer akan reset setiap siswa pindah ke soal berikutnya.'
+                                            : 'Timer berjalan untuk seluruh quiz dan akan submit otomatis saat habis.'}
+                                    </p>
+                                </Field>
+                            )}
                         </div>
                     </Panel>
 
@@ -290,6 +342,7 @@ export default function QuizEditor({
                             </p>
                             <h2 className="mt-2 text-xl font-extrabold text-slate-950">{form.data.title || 'Judul ujian'}</h2>
                             <p className="mt-2 text-sm text-slate-600">Passing score {form.data.passing_score || 70}.</p>
+                            <p className="mt-1 text-sm text-slate-600">{timerSummary(timerMode, form.data.time_limit_seconds)}</p>
                         </div>
                         {questions.map((question, index) => (
                             <div key={index} className="rounded-xl border border-slate-200 p-4">
@@ -339,6 +392,28 @@ function normalizeQuestions(questions?: StoredQuestion[] | null): QuestionForm[]
         answer: question.answer ?? '',
         options: Array.isArray(question.options) && question.options.length > 0 ? question.options : ['', '', '', ''],
     }));
+}
+
+function timerSummary(mode: TimerMode, seconds: string): string {
+    if (mode === 'none') {
+        return 'Tanpa batas waktu pengerjaan.';
+    }
+
+    const duration = Number(seconds || 0);
+    const label = duration > 0 ? formatDuration(duration) : 'durasi belum diatur';
+
+    return mode === 'per_question' ? `Batas waktu ${label} per soal.` : `Batas waktu total ${label}.`;
+}
+
+function formatDuration(totalSeconds: number): string {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes <= 0) {
+        return `${seconds} detik`;
+    }
+
+    return seconds > 0 ? `${minutes} menit ${seconds} detik` : `${minutes} menit`;
 }
 
 function Field({ label, error, required = false, children }: { label: string; error?: string; required?: boolean; children: React.ReactNode }) {

@@ -19,12 +19,15 @@ class Quiz extends Model
         'title',
         'order_no',
         'passing_score',
+        'time_limit_mode',
+        'time_limit_seconds',
         'is_final_exam',
         'questions',
     ];
 
     protected $casts = [
         'passing_score' => 'integer',
+        'time_limit_seconds' => 'integer',
         'order_no' => 'integer',
         'is_final_exam' => 'boolean',
         'questions' => 'array',

@@ -12,6 +12,7 @@ use App\Models\Quiz;
 use App\Models\School;
 use App\Models\Submission;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('admin can manage schools users and course curriculum', function () {
     $admin = User::factory()->admin()->create();
@@ -200,4 +201,50 @@ test('role middleware prevents students from accessing admin crud', function () 
 
     $this->actingAs($student)->get('/admin/users')->assertForbidden();
     $this->actingAs($student)->post('/admin/schools', [])->assertForbidden();
+});
+
+test('admin can configure quiz timer and student receives timer payload', function () {
+    $admin = User::factory()->admin()->create();
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->free()->create();
+    $chapter = Chapter::factory()->create(['course_id' => $course->id, 'order_no' => 1]);
+    $lesson = Lesson::factory()->create(['chapter_id' => $chapter->id, 'order_no' => 1]);
+
+    $this->actingAs($admin)
+        ->post("/admin/courses/{$course->id}/quizzes", [
+            'lesson_id' => $lesson->id,
+            'title' => 'Kuis Timer Sensor',
+            'order_no' => 1,
+            'passing_score' => 70,
+            'time_limit_mode' => 'per_question',
+            'time_limit_seconds' => 45,
+            'is_final_exam' => false,
+            'questions' => json_encode([
+                [
+                    'question' => 'Pin trigger sensor ultrasonik?',
+                    'options' => ['Pin 9', 'Pin 10'],
+                    'answer' => 'Pin 9',
+                ],
+            ]),
+        ])
+        ->assertSessionHasNoErrors();
+
+    $quiz = Quiz::where('title', 'Kuis Timer Sensor')->firstOrFail();
+
+    expect($quiz->time_limit_mode)->toBe('per_question')
+        ->and($quiz->time_limit_seconds)->toBe(45);
+
+    Enrollment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($student)
+        ->get("/learning?course={$course->id}&lesson={$lesson->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/learning', false)
+            ->where('lessonItems.0.timeLimitMode', 'per_question')
+            ->where('lessonItems.0.timeLimitSeconds', 45));
 });

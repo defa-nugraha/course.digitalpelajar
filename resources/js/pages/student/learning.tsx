@@ -9,6 +9,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     CheckCircle2,
     ClipboardCheck,
+    Clock3,
     Code2,
     Copy,
     FileText,
@@ -21,7 +22,7 @@ import {
     Upload,
     Video,
 } from 'lucide-react';
-import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
 interface Lesson {
     id: number;
@@ -57,8 +58,12 @@ interface QuizData {
     title: string;
     passingScore: number;
     bestScore: number;
+    timeLimitMode?: QuizTimeLimitMode | null;
+    timeLimitSeconds?: number | null;
     questions: { index: number; question: string; options?: string[] }[];
 }
+
+type QuizTimeLimitMode = 'none' | 'total' | 'per_question';
 
 interface SubmissionData {
     id: number;
@@ -82,6 +87,8 @@ interface LessonItem {
     title?: string;
     passingScore?: number;
     bestScore?: number;
+    timeLimitMode?: QuizTimeLimitMode | null;
+    timeLimitSeconds?: number | null;
     questions?: { index: number; question: string; options?: string[] }[];
 }
 
@@ -104,9 +111,12 @@ interface LearningProps {
 
 export default function Learning({ course, currentLesson, blocks, lessonItems = [], quiz, finalQuiz, submission }: LearningProps) {
     const [activeQuiz, setActiveQuiz] = useState<QuizData | null>(null);
+    const [activeQuizQuestionIndex, setActiveQuizQuestionIndex] = useState(0);
+    const [remainingQuizSeconds, setRemainingQuizSeconds] = useState<number | null>(null);
     const [submissionOpen, setSubmissionOpen] = useState(false);
     const [copiedBlockId, setCopiedBlockId] = useState<number | null>(null);
     const [interactiveCompletion, setInteractiveCompletion] = useState<Record<number, boolean>>({});
+    const quizSubmittingRef = useRef(false);
     const quizForm = useForm<{ answers: string[] }>({ answers: [] });
     const submissionForm = useForm({
         lesson_id: currentLesson ? String(currentLesson.id) : '',
@@ -144,7 +154,10 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         Boolean(currentLesson) && currentLesson?.state !== 'done' && unfinishedStepBlocks.length === 0 && unfinishedInteractiveBlocks.length === 0;
 
     const openQuiz = (item: QuizData) => {
+        quizSubmittingRef.current = false;
         setActiveQuiz(item);
+        setActiveQuizQuestionIndex(0);
+        setRemainingQuizSeconds(initialQuizTimerSeconds(item));
         quizForm.setData(
             'answers',
             item.questions.map(() => ''),
@@ -152,14 +165,82 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         quizForm.clearErrors();
     };
 
-    const submitQuiz = (event: FormEvent) => {
-        event.preventDefault();
+    const closeQuizAfterSubmit = useCallback(() => {
+        setActiveQuiz(null);
+        setActiveQuizQuestionIndex(0);
+        setRemainingQuizSeconds(null);
+        quizSubmittingRef.current = false;
+    }, []);
+
+    const finishQuiz = useCallback(() => {
         if (!activeQuiz) return;
+        if (quizSubmittingRef.current) return;
+        quizSubmittingRef.current = true;
         quizForm.post(`/quizzes/${activeQuiz.id}/attempts`, {
             preserveScroll: true,
-            onSuccess: () => setActiveQuiz(null),
+            onSuccess: closeQuizAfterSubmit,
+            onError: () => {
+                quizSubmittingRef.current = false;
+            },
+            onFinish: () => {
+                if (activeQuiz) {
+                    quizSubmittingRef.current = false;
+                }
+            },
         });
+    }, [activeQuiz, closeQuizAfterSubmit, quizForm]);
+
+    const submitQuiz = (event: FormEvent) => {
+        event.preventDefault();
+        finishQuiz();
     };
+
+    const goToNextQuizQuestion = () => {
+        if (!activeQuiz) return;
+        const nextIndex = Math.min(activeQuizQuestionIndex + 1, activeQuiz.questions.length - 1);
+        setActiveQuizQuestionIndex(nextIndex);
+        setRemainingQuizSeconds(isPerQuestionTimedQuiz(activeQuiz) ? (activeQuiz.timeLimitSeconds ?? null) : remainingQuizSeconds);
+    };
+
+    useEffect(() => {
+        if (!activeQuiz || remainingQuizSeconds === null) {
+            return;
+        }
+
+        if (remainingQuizSeconds <= 0) {
+            if (isPerQuestionTimedQuiz(activeQuiz) && activeQuizQuestionIndex < activeQuiz.questions.length - 1) {
+                setActiveQuizQuestionIndex((current) => current + 1);
+                setRemainingQuizSeconds(activeQuiz.timeLimitSeconds ?? null);
+
+                return;
+            }
+
+            finishQuiz();
+
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            setRemainingQuizSeconds((current) => (current === null ? null : Math.max(current - 1, 0)));
+        }, 1000);
+
+        return () => window.clearTimeout(timeout);
+    }, [activeQuiz, activeQuizQuestionIndex, finishQuiz, remainingQuizSeconds]);
+
+    useEffect(() => {
+        if (!activeQuiz) {
+            return;
+        }
+
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [activeQuiz]);
 
     const submitProject = (event: FormEvent) => {
         event.preventDefault();
@@ -177,6 +258,12 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         if (!currentLesson || !canCompleteLesson) return;
         router.post(`/courses/${course.id}/lessons/${currentLesson.id}/complete`, {}, { preserveScroll: true });
     };
+    const activeQuizQuestions =
+        activeQuiz && isPerQuestionTimedQuiz(activeQuiz)
+            ? activeQuiz.questions.slice(activeQuizQuestionIndex, activeQuizQuestionIndex + 1)
+            : (activeQuiz?.questions ?? []);
+    const activeQuizIsPerQuestionTimed = activeQuiz ? isPerQuestionTimedQuiz(activeQuiz) : false;
+    const activeQuizHasNextQuestion = activeQuizIsPerQuestionTimed && activeQuizQuestionIndex < (activeQuiz?.questions.length ?? 0) - 1;
 
     return (
         <>
@@ -260,6 +347,8 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                                         title: item.title ?? 'Quiz',
                                                         passingScore: item.passingScore ?? 70,
                                                         bestScore: item.bestScore ?? 0,
+                                                        timeLimitMode: item.timeLimitMode ?? 'none',
+                                                        timeLimitSeconds: item.timeLimitSeconds ?? null,
                                                         questions: item.questions ?? [],
                                                     })
                                                 }
@@ -270,6 +359,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                                     <span className="block font-bold">{item.title}</span>
                                                     <span className="text-sm text-slate-600">
                                                         Nilai terbaik {item.bestScore ?? 0} · passing {item.passingScore ?? 70}
+                                                        {quizTimeSummary(item.timeLimitMode, item.timeLimitSeconds)}
                                                     </span>
                                                 </span>
                                             </button>
@@ -302,7 +392,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                     {quiz && lessonItems.length === 0 && (
                                         <ActionButton
                                             icon={ClipboardCheck}
-                                            title={`${quiz.title} · nilai terbaik ${quiz.bestScore}`}
+                                            title={`${quiz.title} · nilai terbaik ${quiz.bestScore}${quizTimeSummary(quiz.timeLimitMode, quiz.timeLimitSeconds)}`}
                                             onClick={() => openQuiz(quiz)}
                                         />
                                     )}
@@ -356,7 +446,8 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                     <div>
                                         <p className="font-bold">{finalQuiz.title}</p>
                                         <p className="mt-1 text-sm text-slate-500">
-                                            Passing score {finalQuiz.passingScore}. Nilai terbaik {finalQuiz.bestScore}.
+                                            Passing score {finalQuiz.passingScore}. Nilai terbaik {finalQuiz.bestScore}
+                                            {quizTimeSummary(finalQuiz.timeLimitMode, finalQuiz.timeLimitSeconds)}.
                                         </p>
                                     </div>
                                     <Button onClick={() => openQuiz(finalQuiz)}>
@@ -370,13 +461,33 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                 </main>
             </Shell>
 
-            <Dialog open={Boolean(activeQuiz)} onOpenChange={(value) => !value && setActiveQuiz(null)}>
-                <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <Dialog open={Boolean(activeQuiz)} onOpenChange={() => undefined}>
+                <DialogContent
+                    className="max-h-[90vh] overflow-y-auto [&>button]:hidden"
+                    onEscapeKeyDown={(event) => event.preventDefault()}
+                    onPointerDownOutside={(event) => event.preventDefault()}
+                >
                     <DialogHeader>
                         <DialogTitle>{activeQuiz?.title}</DialogTitle>
+                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+                            Quiz sedang berjalan. Selesaikan dan kirim jawaban terlebih dahulu sebelum kembali ke materi.
+                        </div>
+                        {activeQuiz && activeQuiz.timeLimitMode !== 'none' && activeQuiz.timeLimitSeconds ? (
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                                <span className="inline-flex items-center gap-2 font-semibold">
+                                    <Clock3 className="size-4" />
+                                    {activeQuiz.timeLimitMode === 'per_question'
+                                        ? `Soal ${activeQuizQuestionIndex + 1} dari ${activeQuiz.questions.length}`
+                                        : 'Batas waktu keseluruhan quiz'}
+                                </span>
+                                <span className="rounded-full bg-white px-3 py-1 font-bold text-blue-700 shadow-sm">
+                                    Sisa waktu {formatQuizDuration(remainingQuizSeconds ?? 0)}
+                                </span>
+                            </div>
+                        ) : null}
                     </DialogHeader>
                     <form onSubmit={submitQuiz} className="space-y-5">
-                        {activeQuiz?.questions.map((question) => (
+                        {activeQuizQuestions.map((question) => (
                             <div key={question.index} className="space-y-2">
                                 <Label>
                                     {question.index + 1}. {question.question}
@@ -416,12 +527,15 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                             </div>
                         ))}
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setActiveQuiz(null)}>
-                                Batal
-                            </Button>
-                            <Button type="submit" disabled={quizForm.processing}>
-                                Kirim Jawaban
-                            </Button>
+                            {activeQuizHasNextQuestion ? (
+                                <Button type="button" disabled={quizForm.processing} onClick={goToNextQuizQuestion}>
+                                    Soal berikutnya
+                                </Button>
+                            ) : (
+                                <Button type="submit" disabled={quizForm.processing}>
+                                    Kirim Jawaban
+                                </Button>
+                            )}
                         </DialogFooter>
                     </form>
                 </DialogContent>
@@ -742,5 +856,41 @@ function readableSteps(steps: BlockStep[] | undefined): BlockStep[] {
 }
 
 function hasReadableContent(content: string): boolean {
-    return content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() !== '' || /<(img|video)\b/i.test(content);
+    return (
+        content
+            .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .trim() !== '' || /<(img|video)\b/i.test(content)
+    );
+}
+
+function isPerQuestionTimedQuiz(quiz: QuizData): boolean {
+    return quiz.timeLimitMode === 'per_question' && Number(quiz.timeLimitSeconds ?? 0) > 0;
+}
+
+function initialQuizTimerSeconds(quiz: QuizData): number | null {
+    if (quiz.timeLimitMode === 'none' || !quiz.timeLimitSeconds) {
+        return null;
+    }
+
+    return quiz.timeLimitSeconds;
+}
+
+function quizTimeSummary(mode?: QuizTimeLimitMode | null, seconds?: number | null): string {
+    if (!mode || mode === 'none' || !seconds) {
+        return '';
+    }
+
+    return mode === 'per_question' ? ` · ${formatQuizDuration(seconds)} per soal` : ` · ${formatQuizDuration(seconds)} total`;
+}
+
+function formatQuizDuration(totalSeconds: number): string {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes <= 0) {
+        return `${seconds} detik`;
+    }
+
+    return seconds > 0 ? `${minutes} menit ${seconds} detik` : `${minutes} menit`;
 }

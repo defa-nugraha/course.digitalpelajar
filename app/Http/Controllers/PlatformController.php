@@ -560,6 +560,8 @@ class PlatformController extends Controller
                         'id' => $quiz->id,
                         'title' => $quiz->title,
                         'passingScore' => (int) $quiz->passing_score,
+                        'timeLimitMode' => $quiz->time_limit_mode ?? 'none',
+                        'timeLimitSeconds' => $quiz->time_limit_seconds ? (int) $quiz->time_limit_seconds : null,
                         'bestScore' => (int) DB::table('quiz_attempts')
                             ->where('quiz_id', $quiz->id)
                             ->where('user_id', $userId)
@@ -580,11 +582,13 @@ class PlatformController extends Controller
             ? DB::table('quizzes')
                 ->where('course_id', $course['id'])
                 ->where('is_final_exam', true)
-                ->select('id', 'title', 'passing_score as passingScore', 'questions')
+                ->select('id', 'title', 'passing_score as passingScore', 'time_limit_mode as timeLimitMode', 'time_limit_seconds as timeLimitSeconds', 'questions')
                 ->first()
             : null;
 
         if ($finalQuiz) {
+            $finalQuiz->timeLimitMode = $finalQuiz->timeLimitMode ?? 'none';
+            $finalQuiz->timeLimitSeconds = $finalQuiz->timeLimitSeconds ? (int) $finalQuiz->timeLimitSeconds : null;
             $finalQuiz->questions = collect(json_decode($finalQuiz->questions ?: '[]', true))
                 ->map(fn (array $question, int $index) => [
                     'index' => $index,
@@ -1646,6 +1650,8 @@ class PlatformController extends Controller
                             'status' => 'quiz',
                             'orderNo' => $quiz->order_no,
                             'passingScore' => $quiz->passing_score,
+                            'timeLimitMode' => $quiz->time_limit_mode ?? 'none',
+                            'timeLimitSeconds' => $quiz->time_limit_seconds,
                             'questions' => $quiz->questions ?? [],
                         ]),
                     ]),
@@ -1660,6 +1666,8 @@ class PlatformController extends Controller
                         'status' => 'quiz',
                         'orderNo' => $quiz->order_no,
                         'passingScore' => $quiz->passing_score,
+                        'timeLimitMode' => $quiz->time_limit_mode ?? 'none',
+                        'timeLimitSeconds' => $quiz->time_limit_seconds,
                         'questions' => $quiz->questions ?? [],
                     ]),
             ],
@@ -1698,6 +1706,8 @@ class PlatformController extends Controller
                 'title' => $quiz->title,
                 'order_no' => $quiz->order_no,
                 'passing_score' => $quiz->passing_score,
+                'time_limit_mode' => $quiz->time_limit_mode ?? 'none',
+                'time_limit_seconds' => $quiz->time_limit_seconds,
                 'is_final_exam' => $quiz->is_final_exam,
                 'questions' => $quiz->questions ?? [],
             ],

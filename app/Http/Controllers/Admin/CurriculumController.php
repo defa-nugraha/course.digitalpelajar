@@ -514,6 +514,8 @@ class CurriculumController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'order_no' => ['required', 'integer', 'min:0'],
             'passing_score' => ['required', 'integer', 'between:1,100'],
+            'time_limit_mode' => ['nullable', Rule::in(['none', 'total', 'per_question'])],
+            'time_limit_seconds' => ['nullable', 'integer', 'min:15', 'max:14400'],
             'is_final_exam' => ['required', 'boolean'],
             'questions' => ['required', 'json'],
         ]);
@@ -547,6 +549,17 @@ class CurriculumController extends Controller
         }
 
         $data['questions'] = $questions;
+        $data['time_limit_mode'] = $data['time_limit_mode'] ?? 'none';
+
+        if ($data['time_limit_mode'] === 'none') {
+            $data['time_limit_seconds'] = null;
+        } elseif (blank($data['time_limit_seconds'] ?? null)) {
+            throw ValidationException::withMessages([
+                'time_limit_seconds' => 'Durasi wajib diisi saat batas waktu quiz aktif.',
+            ]);
+        } else {
+            $data['time_limit_seconds'] = (int) $data['time_limit_seconds'];
+        }
 
         return $data;
     }
