@@ -11,12 +11,15 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { WalkthroughManager, openWalkthroughGuide } from '@/components/walkthrough';
 import { NavItem, adminNav, instructorNav, studentNav, teacherNav } from '@/lib/platform-data';
 import { cn } from '@/lib/utils';
+import { tourTargetForNavItem } from '@/lib/walkthrough-data';
 import { Link, usePage } from '@inertiajs/react';
 import {
     ChevronDown,
     ChevronRight,
+    CircleHelp,
     Clock,
     LogOut,
     LucideIcon,
@@ -173,7 +176,7 @@ export function Shell({
         errors = {},
     } = page.props as {
         flash?: FlashPayload;
-        auth?: { user?: { name?: string; email?: string; role?: string; avatar?: string | null } };
+        auth?: { user?: { id?: number; name?: string; email?: string; role?: string; avatar?: string | null } };
         errors?: Record<string, string>;
     };
     const validationError = errors ? Object.values(errors)[0] : undefined;
@@ -230,7 +233,12 @@ export function Shell({
                         </Button>
                         <div className="min-w-0">
                             {eyebrow && <p className="text-xs font-bold tracking-wider text-blue-700 uppercase">{eyebrow}</p>}
-                            <h1 className="truncate text-lg font-bold tracking-tight text-slate-950 sm:text-xl md:text-2xl">{title}</h1>
+                            <h1
+                                data-tour="tour-page-title"
+                                className="truncate text-lg font-bold tracking-tight text-slate-950 sm:text-xl md:text-2xl"
+                            >
+                                {title}
+                            </h1>
                         </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -239,7 +247,11 @@ export function Shell({
                                 <Search className="size-4" />
                             </Link>
                         </Button>
-                        {actions && <div className="hidden items-center gap-2 sm:flex">{actions}</div>}
+                        {actions && (
+                            <div data-tour="tour-primary-actions" className="hidden items-center gap-2 sm:flex">
+                                {actions}
+                            </div>
+                        )}
                         <ProfileDropdown user={auth?.user} />
                     </div>
                 </header>
@@ -265,6 +277,7 @@ export function Shell({
                 <div className="max-w-full overflow-hidden p-3 sm:p-4 md:p-8">{loading ? <ShellPageSkeleton /> : children}</div>
             </main>
             <MobileBottomNav items={mobileNavItems} />
+            <WalkthroughManager user={auth?.user} currentPath={(page.url ?? '/').split('?')[0]} enabled={!loading} />
         </div>
     );
 }
@@ -303,6 +316,7 @@ function ProfileDropdown({ user }: { user?: { name?: string; email?: string; ava
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
+                    data-tour="tour-account-menu"
                     className="inline-flex size-10 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-sm font-bold text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
                     aria-label="Buka menu profil"
                 >
@@ -324,6 +338,16 @@ function ProfileDropdown({ user }: { user?: { name?: string; email?: string; ava
                         <Settings className="size-4" />
                         Pengaturan
                     </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    className="cursor-pointer"
+                    onSelect={(event) => {
+                        event.preventDefault();
+                        openWalkthroughGuide('menu');
+                    }}
+                >
+                    <CircleHelp className="size-4" />
+                    Panduan Menggunakan
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer text-red-700 focus:text-red-700">
                     <Link href="/logout" method="post" as="button" className="w-full">
@@ -366,6 +390,7 @@ function SideGroup({ item }: { item: NavItem }) {
                     'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition',
                     active ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950',
                 )}
+                data-tour={tourTargetForNavItem(item)}
             >
                 <Icon className="size-4" />
                 <span className="min-w-0 flex-1">{item.title}</span>
@@ -392,6 +417,7 @@ function SideLeaf({ item, nested = false }: { item: NavItem; nested?: boolean })
                 nested && 'py-2 pl-3 text-xs',
                 active ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950',
             )}
+            data-tour={tourTargetForNavItem(item)}
         >
             <Icon className="size-4" />
             {item.title}
@@ -437,7 +463,10 @@ function MobileBottomNav({ items }: { items: NavItem[] }) {
     const hasMore = overflowItems.length > 0;
 
     return (
-        <nav className="fixed right-0 bottom-0 left-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <nav
+            data-tour="tour-bottom-navigation"
+            className="fixed right-0 bottom-0 left-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden"
+        >
             <div className={cn('mx-auto grid max-w-md gap-1', hasMore ? 'grid-cols-5' : 'grid-cols-4')}>
                 {primaryItems.map((item) => renderMobileNavItem(item))}
                 {hasMore && (
@@ -450,6 +479,7 @@ function MobileBottomNav({ items }: { items: NavItem[] }) {
                                     activeItem && overflowItems.includes(activeItem) ? 'bg-blue-50 text-blue-700' : 'text-slate-500',
                                 )}
                                 aria-label="Buka pengaturan dan menu aplikasi"
+                                data-tour="tour-nav-pengaturan"
                             >
                                 <Settings className="mb-1 size-5" />
                                 <span>Pengaturan</span>
@@ -486,6 +516,7 @@ function MobileMenuSheet({ items }: { items: NavItem[] }) {
                                     'flex min-h-12 items-center gap-3 rounded-2xl px-4 text-sm font-bold transition',
                                     active ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50',
                                 )}
+                                data-tour={tourTargetForNavItem(item)}
                             >
                                 <Icon className="size-5 shrink-0" />
                                 <span className="min-w-0 flex-1 truncate">{item.title}</span>
@@ -506,7 +537,12 @@ function renderMobileNavItem(item: NavItem) {
 
     if (isScan) {
         return (
-            <Link key={item.href ?? item.title} href={item.href ?? '#'} className="group relative -mt-6 flex flex-col items-center justify-center">
+            <Link
+                key={item.href ?? item.title}
+                href={item.href ?? '#'}
+                className="group relative -mt-6 flex flex-col items-center justify-center"
+                data-tour={tourTargetForNavItem(item)}
+            >
                 <div
                     className={cn(
                         'flex size-12 items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-95',
@@ -532,6 +568,7 @@ function renderMobileNavItem(item: NavItem) {
                 'flex min-w-0 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[10px] font-bold transition',
                 active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 active:bg-slate-100',
             )}
+            data-tour={tourTargetForNavItem(item)}
         >
             <Icon className="mb-1 size-5" />
             <span className="max-w-full truncate">{shortMobileLabel(item.title)}</span>

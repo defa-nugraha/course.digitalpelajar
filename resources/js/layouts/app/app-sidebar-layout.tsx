@@ -5,15 +5,18 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import BrandLogo from '@/components/brand-logo';
 import { ShellPageSkeleton, usePageComponentLoading } from '@/components/component-skeletons';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { WalkthroughManager } from '@/components/walkthrough';
 import { NavItem, adminNav, instructorNav, studentNav, teacherNav } from '@/lib/platform-data';
 import { cn } from '@/lib/utils';
+import { tourTargetForNavItem } from '@/lib/walkthrough-data';
 import { type BreadcrumbItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronRight, Settings } from 'lucide-react';
 
 export default function AppSidebarLayout({ children, breadcrumbs = [] }: { children: React.ReactNode; breadcrumbs?: BreadcrumbItem[] }) {
     const loading = usePageComponentLoading();
-    const { auth } = usePage().props as { auth?: { user?: { role?: string } } };
+    const page = usePage();
+    const { auth } = page.props as { auth?: { user?: { id?: number; role?: string } } };
     const role = auth?.user?.role;
     const navItems =
         role === 'admin' ? adminNav : role === 'internal_instructor' ? instructorNav : role === 'school_teacher' ? teacherNav : studentNav;
@@ -28,6 +31,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: { child
                 </div>
             </AppContent>
             <AppLayoutBottomNav items={flattenNavItems(navItems)} />
+            <WalkthroughManager user={auth?.user} currentPath={(page.url ?? '/').split('?')[0]} enabled={!loading} />
         </AppShell>
     );
 }
@@ -44,7 +48,10 @@ function AppLayoutBottomNav({ items }: { items: NavItem[] }) {
     const hasMore = overflowItems.length > 0;
 
     return (
-        <nav className="fixed right-0 bottom-0 left-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <nav
+            data-tour="tour-bottom-navigation"
+            className="fixed right-0 bottom-0 left-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden"
+        >
             <div className={cn('mx-auto grid max-w-md gap-1', hasMore ? 'grid-cols-5' : 'grid-cols-4')}>
                 {primaryItems.map((item) => renderNavItem(item))}
                 {hasMore && (
@@ -57,6 +64,7 @@ function AppLayoutBottomNav({ items }: { items: NavItem[] }) {
                                     activeItem && overflowItems.includes(activeItem) ? 'bg-blue-50 text-blue-700' : 'text-slate-500',
                                 )}
                                 aria-label="Buka pengaturan dan menu aplikasi"
+                                data-tour="tour-nav-pengaturan"
                             >
                                 <Settings className="mb-1 size-5" />
                                 <span>Pengaturan</span>
@@ -93,6 +101,7 @@ function MobileMenuSheet({ items }: { items: NavItem[] }) {
                                     'flex min-h-12 items-center gap-3 rounded-2xl px-4 text-sm font-bold transition',
                                     active ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50',
                                 )}
+                                data-tour={tourTargetForNavItem(item)}
                             >
                                 <Icon className="size-5 shrink-0" />
                                 <span className="min-w-0 flex-1 truncate">{item.title}</span>
@@ -113,7 +122,12 @@ function renderNavItem(item: NavItem) {
 
     if (isScan) {
         return (
-            <Link key={item.href ?? item.title} href={item.href ?? '#'} className="group relative -mt-6 flex flex-col items-center justify-center">
+            <Link
+                key={item.href ?? item.title}
+                href={item.href ?? '#'}
+                className="group relative -mt-6 flex flex-col items-center justify-center"
+                data-tour={tourTargetForNavItem(item)}
+            >
                 <div
                     className={cn(
                         'flex size-12 items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-95',
@@ -139,6 +153,7 @@ function renderNavItem(item: NavItem) {
                 'flex min-w-0 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[10px] font-bold transition',
                 active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 active:bg-slate-100',
             )}
+            data-tour={tourTargetForNavItem(item)}
         >
             <Icon className="mb-1 size-5" />
             <span className="max-w-full truncate">{shortLabel(item.title)}</span>

@@ -13,7 +13,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                         <SidebarMenuButton asChild isActive={item.url === page.url}>
                             <Link href={item.url} prefetch>
                                 {item.icon && <item.icon />}
-                                <span>{item.title}</span>
+                                <span data-tour={`tour-nav-${slugifyTourTarget(item.title)}`}>{item.title}</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -21,4 +21,13 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
             </SidebarMenu>
         </SidebarGroup>
     );
+}
+
+function slugifyTourTarget(value: string) {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
 }
