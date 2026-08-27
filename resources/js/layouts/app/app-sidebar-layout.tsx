@@ -2,20 +2,14 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import BrandLogo from '@/components/brand-logo';
 import { ShellPageSkeleton, usePageComponentLoading } from '@/components/component-skeletons';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { NavItem, adminNav, instructorNav, studentNav, teacherNav } from '@/lib/platform-data';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { MoreHorizontal } from 'lucide-react';
+import { ChevronRight, Settings } from 'lucide-react';
 
 export default function AppSidebarLayout({ children, breadcrumbs = [] }: { children: React.ReactNode; breadcrumbs?: BreadcrumbItem[] }) {
     const loading = usePageComponentLoading();
@@ -54,37 +48,61 @@ function AppLayoutBottomNav({ items }: { items: NavItem[] }) {
             <div className={cn('mx-auto grid max-w-md gap-1', hasMore ? 'grid-cols-5' : 'grid-cols-4')}>
                 {primaryItems.map((item) => renderNavItem(item))}
                 {hasMore && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                    <Sheet>
+                        <SheetTrigger asChild>
                             <button
                                 type="button"
-                                className="flex min-w-0 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[10px] font-bold text-slate-500 transition active:bg-slate-100"
-                                aria-label="Menu lainnya"
+                                className={cn(
+                                    'flex min-w-0 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[10px] font-bold transition active:bg-slate-100',
+                                    activeItem && overflowItems.includes(activeItem) ? 'bg-blue-50 text-blue-700' : 'text-slate-500',
+                                )}
+                                aria-label="Buka pengaturan dan menu aplikasi"
                             >
-                                <MoreHorizontal className="mb-1 size-5" />
-                                <span>Lainnya</span>
+                                <Settings className="mb-1 size-5" />
+                                <span>Pengaturan</span>
                             </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" side="top" className="mb-3 max-h-[60dvh] w-64 overflow-y-auto bg-white">
-                            <DropdownMenuLabel>Menu lainnya</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {overflowItems.map((item) => {
-                                const Icon = item.icon;
-
-                                return (
-                                    <DropdownMenuItem key={item.href ?? item.title} asChild className="cursor-pointer">
-                                        <Link href={item.href ?? '#'}>
-                                            <Icon className="size-4" />
-                                            {item.title}
-                                        </Link>
-                                    </DropdownMenuItem>
-                                );
-                            })}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        </SheetTrigger>
+                        <MobileMenuSheet items={overflowItems} />
+                    </Sheet>
                 )}
             </div>
         </nav>
+    );
+}
+
+function MobileMenuSheet({ items }: { items: NavItem[] }) {
+    return (
+        <SheetContent side="right" className="flex h-full w-[min(88vw,24rem)] flex-col gap-0 overflow-hidden p-0">
+            <SheetHeader className="border-b border-slate-200 p-5 text-left">
+                <div className="mb-3">
+                    <BrandLogo className="h-10" />
+                </div>
+                <SheetTitle>Pengaturan</SheetTitle>
+                <p className="text-sm leading-6 text-slate-500">Akses menu tambahan sesuai role akun Anda.</p>
+            </SheetHeader>
+            <nav className="scrollbar-none min-h-0 flex-1 space-y-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                {items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item) || isSameBase(item);
+
+                    return (
+                        <SheetClose key={item.href ?? item.title} asChild>
+                            <Link
+                                href={item.href ?? '#'}
+                                className={cn(
+                                    'flex min-h-12 items-center gap-3 rounded-2xl px-4 text-sm font-bold transition',
+                                    active ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50',
+                                )}
+                            >
+                                <Icon className="size-5 shrink-0" />
+                                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                                <ChevronRight className="size-4 shrink-0 text-slate-400" />
+                            </Link>
+                        </SheetClose>
+                    );
+                })}
+            </nav>
+        </SheetContent>
     );
 }
 
