@@ -1,6 +1,7 @@
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell } from '@/components/platform';
+import { DesktopTable, MobileActionMenu, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -122,7 +123,7 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
             eyebrow="Manajemen User"
             nav="admin"
             actions={
-                <div className="flex gap-2">
+                <div className="flex w-full gap-2 sm:w-auto">
                     <Button variant="outline" onClick={() => setImportOpen(true)}>
                         <Upload className="size-4" />
                         Import
@@ -152,52 +153,96 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                     </div>
                 }
             >
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                            <tr>
-                                <th className="py-3">Nama</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Sekolah</th>
-                                <th>Pengajuan Sekolah</th>
-                                <th>Status</th>
-                                <th className="text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {visibleUsers.map((user) => (
-                                <tr key={user.id}>
-                                    <td className="py-4 font-bold">{user.name}</td>
-                                    <td>{user.email}</td>
-                                    <td>{user.roleLabel}</td>
-                                    <td>{user.school}</td>
-                                    <td>
-                                        {user.schoolRequest ? (
-                                            <div>
-                                                <p className="font-semibold text-slate-700">{user.schoolRequest}</p>
-                                                <p className="text-xs text-amber-700">{user.schoolRequestStatus ?? 'pending'}</p>
-                                            </div>
-                                        ) : (
-                                            '-'
-                                        )}
-                                    </td>
-                                    <td className="capitalize">{user.status}</td>
-                                    <td>
-                                        <div className="flex justify-end gap-1">
-                                            <Button variant="ghost" size="icon" aria-label="Edit user" onClick={() => showEdit(user)}>
-                                                <Pencil className="size-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" aria-label="Hapus user" onClick={() => remove(user)}>
-                                                <Trash2 className="size-4 text-red-600" />
-                                            </Button>
-                                        </div>
-                                    </td>
+                <div className="space-y-4">
+                    <MobileCardList
+                        empty={
+                            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                Tidak ada pengguna yang cocok.
+                            </p>
+                        }
+                    >
+                        {visibleUsers.map((user) => (
+                            <MobileDataCard
+                                key={user.id}
+                                title={user.name}
+                                subtitle={user.email}
+                                badge={<StatusBadge status={user.status} label={user.status} />}
+                                meta={[
+                                    { label: 'Role', value: user.roleLabel },
+                                    { label: 'Sekolah', value: user.school },
+                                    {
+                                        label: 'Pengajuan',
+                                        value: user.schoolRequest ? `${user.schoolRequest} · ${user.schoolRequestStatus ?? 'pending'}` : '-',
+                                    },
+                                ]}
+                                actions={
+                                    <>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => showEdit(user)}>
+                                            <Pencil className="size-4" />
+                                            Edit
+                                        </Button>
+                                        <MobileActionMenu
+                                            items={[
+                                                {
+                                                    label: 'Hapus user',
+                                                    destructive: true,
+                                                    icon: <Trash2 className="size-4" />,
+                                                    onClick: () => remove(user),
+                                                },
+                                            ]}
+                                        />
+                                    </>
+                                }
+                            />
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Nama</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Sekolah</th>
+                                    <th>Pengajuan Sekolah</th>
+                                    <th>Status</th>
+                                    <th className="text-right">Aksi</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {visibleUsers.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada pengguna yang cocok.</p>}
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {visibleUsers.map((user) => (
+                                    <tr key={user.id}>
+                                        <td className="py-4 font-bold">{user.name}</td>
+                                        <td>{user.email}</td>
+                                        <td>{user.roleLabel}</td>
+                                        <td>{user.school}</td>
+                                        <td>
+                                            {user.schoolRequest ? (
+                                                <div>
+                                                    <p className="font-semibold text-slate-700">{user.schoolRequest}</p>
+                                                    <p className="text-xs text-amber-700">{user.schoolRequestStatus ?? 'pending'}</p>
+                                                </div>
+                                            ) : (
+                                                '-'
+                                            )}
+                                        </td>
+                                        <td className="capitalize">{user.status}</td>
+                                        <td>
+                                            <div className="flex justify-end gap-1">
+                                                <Button variant="ghost" size="icon" aria-label="Edit user" onClick={() => showEdit(user)}>
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" aria-label="Hapus user" onClick={() => remove(user)}>
+                                                    <Trash2 className="size-4 text-red-600" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {visibleUsers.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada pengguna yang cocok.</p>}
+                    </DesktopTable>
                 </div>
                 <InputError message={(form.errors as Record<string, string>).user} className="mt-4" />
             </Panel>

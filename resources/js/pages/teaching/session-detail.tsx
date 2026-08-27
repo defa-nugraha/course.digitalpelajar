@@ -1,4 +1,5 @@
 import { Panel, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileCardList, MobileDataCard } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/react';
 import {
@@ -166,7 +167,7 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
                 </div>
             </Panel>
 
-            <div className="mt-6 grid gap-5 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
+            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 xl:grid-cols-4 2xl:grid-cols-8">
                 <StatCard label="Total Siswa" value={String(session.attendanceSummary.total)} icon={Users} />
                 <StatCard label="Hadir" value={String(session.attendanceSummary.present)} icon={CheckCircle2} tone="purple" />
                 <StatCard label="Sakit" value={String(session.attendanceSummary.sick)} icon={ClipboardCheck} tone="amber" />
@@ -191,58 +192,101 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
                     </Panel>
 
                     <Panel title="Presensi siswa">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                                    <tr>
-                                        <th className="py-3">Siswa</th>
-                                        <th>Status</th>
-                                        <th>Waktu Presensi</th>
-                                        <th>Keterlambatan</th>
-                                        <th>Sumber</th>
-                                        <th>Alasan / bukti</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-200">
-                                    {session.attendances.map((attendance) => (
-                                        <tr key={attendance.studentId}>
-                                            <td className="py-4">
-                                                <p className="font-bold text-slate-950">{attendance.student}</p>
-                                                <p className="text-xs text-slate-500">{attendance.email || '-'}</p>
-                                            </td>
-                                            <td>
-                                                <AttendancePill status={attendance.status} label={attendance.statusLabel} />
-                                            </td>
-                                            <td className="text-slate-600">{attendance.checkedInAt || '-'}</td>
-                                            <td>
-                                                <LatePill
-                                                    status={attendance.status}
-                                                    minutes={attendance.lateMinutes ?? 0}
-                                                    label={attendance.lateLabel}
-                                                />
-                                            </td>
-                                            <td className="text-slate-600">{attendance.sourceLabel}</td>
-                                            <td className="max-w-xs text-slate-600">
-                                                {attendance.reason ? <p>{attendance.reason}</p> : <span>-</span>}
-                                                {attendance.proofUrl && (
-                                                    <a
-                                                        href={attendance.proofUrl}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-blue-700"
-                                                    >
-                                                        <ImageIcon className="size-3.5" />
-                                                        Lihat bukti
+                        <div className="space-y-4">
+                            <MobileCardList
+                                empty={
+                                    <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                        Belum ada data siswa/presensi untuk laporan ini.
+                                    </p>
+                                }
+                            >
+                                {session.attendances.map((attendance) => (
+                                    <MobileDataCard
+                                        key={attendance.studentId}
+                                        title={attendance.student}
+                                        subtitle={attendance.email || '-'}
+                                        badge={<AttendancePill status={attendance.status} label={attendance.statusLabel} />}
+                                        meta={[
+                                            { label: 'Waktu', value: attendance.checkedInAt || '-' },
+                                            {
+                                                label: 'Telat',
+                                                value: (
+                                                    <LatePill
+                                                        status={attendance.status}
+                                                        minutes={attendance.lateMinutes ?? 0}
+                                                        label={attendance.lateLabel}
+                                                    />
+                                                ),
+                                            },
+                                            { label: 'Sumber', value: attendance.sourceLabel },
+                                            { label: 'Alasan', value: attendance.reason || '-' },
+                                        ]}
+                                        actions={
+                                            attendance.proofUrl ? (
+                                                <Button asChild variant="outline" size="sm">
+                                                    <a href={attendance.proofUrl} target="_blank" rel="noreferrer">
+                                                        <ImageIcon className="size-4" />
+                                                        Bukti
                                                     </a>
-                                                )}
-                                            </td>
+                                                </Button>
+                                            ) : null
+                                        }
+                                    />
+                                ))}
+                            </MobileCardList>
+                            <DesktopTable>
+                                <table className="w-full text-left text-sm">
+                                    <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                        <tr>
+                                            <th className="py-3">Siswa</th>
+                                            <th>Status</th>
+                                            <th>Waktu Presensi</th>
+                                            <th>Keterlambatan</th>
+                                            <th>Sumber</th>
+                                            <th>Alasan / bukti</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            {session.attendances.length === 0 && (
-                                <p className="py-8 text-center text-sm text-slate-500">Belum ada data siswa/presensi untuk laporan ini.</p>
-                            )}
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200">
+                                        {session.attendances.map((attendance) => (
+                                            <tr key={attendance.studentId}>
+                                                <td className="py-4">
+                                                    <p className="font-bold text-slate-950">{attendance.student}</p>
+                                                    <p className="text-xs text-slate-500">{attendance.email || '-'}</p>
+                                                </td>
+                                                <td>
+                                                    <AttendancePill status={attendance.status} label={attendance.statusLabel} />
+                                                </td>
+                                                <td className="text-slate-600">{attendance.checkedInAt || '-'}</td>
+                                                <td>
+                                                    <LatePill
+                                                        status={attendance.status}
+                                                        minutes={attendance.lateMinutes ?? 0}
+                                                        label={attendance.lateLabel}
+                                                    />
+                                                </td>
+                                                <td className="text-slate-600">{attendance.sourceLabel}</td>
+                                                <td className="max-w-xs text-slate-600">
+                                                    {attendance.reason ? <p>{attendance.reason}</p> : <span>-</span>}
+                                                    {attendance.proofUrl && (
+                                                        <a
+                                                            href={attendance.proofUrl}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-blue-700"
+                                                        >
+                                                            <ImageIcon className="size-3.5" />
+                                                            Lihat bukti
+                                                        </a>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {session.attendances.length === 0 && (
+                                    <p className="py-8 text-center text-sm text-slate-500">Belum ada data siswa/presensi untuk laporan ini.</p>
+                                )}
+                            </DesktopTable>
                         </div>
                     </Panel>
 

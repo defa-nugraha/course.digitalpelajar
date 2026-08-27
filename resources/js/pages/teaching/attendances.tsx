@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { Panel, Shell } from '@/components/platform';
+import { DesktopTable, MobileCardList, MobileDataCard } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -349,101 +350,195 @@ export default function TeachingAttendances({ session, students, summary, feedba
                 }
             >
                 <form onSubmit={submit} className="space-y-5">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                                <tr>
-                                    <th>Siswa</th>
-                                    <th className="py-3">Presensi</th>
-                                    <th>Waktu Presensi</th>
-                                    <th>Keterlambatan</th>
-                                    <th>Alasan / Bukti</th>
-                                    <th>Sumber</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200">
-                                {visibleRows.map((student) => (
-                                    <tr key={student.id}>
-                                        <td className="min-w-56 py-4 align-top">
-                                            <p className="font-bold text-slate-950">{student.name}</p>
-                                            <p className="mt-1 text-xs text-slate-500">{student.email}</p>
-                                        </td>
-                                        <td className="min-w-60 py-4 align-top">
-                                            <div className="flex flex-wrap gap-2">
+                    <div className="space-y-4">
+                        <MobileCardList
+                            empty={
+                                <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                    Tidak ada siswa yang cocok dengan pencarian.
+                                </p>
+                            }
+                        >
+                            {visibleRows.map((student) => (
+                                <MobileDataCard
+                                    key={student.id}
+                                    title={student.name}
+                                    subtitle={student.email}
+                                    badge={<LateBadge status={student.status} minutes={student.lateMinutes ?? 0} label={student.lateLabel} />}
+                                    meta={[
+                                        { label: 'Waktu', value: student.checkedInAt || '-' },
+                                        {
+                                            label: 'Sumber',
+                                            value:
+                                                student.source === 'student_qr'
+                                                    ? 'Scan QR siswa'
+                                                    : student.source === 'instructor_manual'
+                                                      ? 'Manual pengajar'
+                                                      : '-',
+                                        },
+                                    ]}
+                                >
+                                    <div className="space-y-4">
+                                        <div>
+                                            <p className="mb-2 text-xs font-bold tracking-wide text-slate-500 uppercase">Presensi</p>
+                                            <div className="grid grid-cols-4 gap-2">
                                                 {statusOptions.map((option) => (
                                                     <label
                                                         key={option.value}
-                                                        className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold ${
+                                                        className={`inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold ${
                                                             student.status === option.value ? option.tone : 'border-slate-200 bg-white text-slate-500'
                                                         } ${!canEdit ? 'cursor-not-allowed opacity-70' : ''}`}
                                                     >
                                                         <input
                                                             type="radio"
-                                                            name={`attendance-${student.id}`}
+                                                            name={`attendance-mobile-${student.id}`}
                                                             value={option.value}
                                                             checked={student.status === option.value}
                                                             disabled={!canEdit}
                                                             onChange={() => setStatus(student.id, option.value)}
+                                                            className="sr-only"
                                                         />
                                                         {option.label}
                                                     </label>
                                                 ))}
                                             </div>
                                             <InputError message={errorFor(student.id, 'status')} className="mt-2" />
-                                        </td>
-                                        <td className="min-w-44 py-4 align-top text-slate-600">{student.checkedInAt || '-'}</td>
-                                        <td className="min-w-40 py-4 align-top">
-                                            <LateBadge status={student.status} minutes={student.lateMinutes ?? 0} label={student.lateLabel} />
-                                        </td>
-                                        <td className="min-w-72 align-top">
-                                            {student.status === 'S' || student.status === 'I' ? (
-                                                <div className="space-y-2">
-                                                    <textarea
-                                                        className="min-h-20 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                                                        value={student.reason ?? ''}
-                                                        disabled={!canEdit}
-                                                        onChange={(event) => setReason(student.id, event.target.value)}
-                                                        placeholder={student.status === 'S' ? 'Contoh: Sakit demam.' : 'Contoh: Izin acara keluarga.'}
+                                        </div>
+
+                                        {(student.status === 'S' || student.status === 'I') && (
+                                            <div className="space-y-2">
+                                                <textarea
+                                                    className="min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                                                    value={student.reason ?? ''}
+                                                    disabled={!canEdit}
+                                                    onChange={(event) => setReason(student.id, event.target.value)}
+                                                    placeholder={student.status === 'S' ? 'Contoh: Sakit demam.' : 'Contoh: Izin acara keluarga.'}
+                                                />
+                                                <InputError message={errorFor(student.id, 'reason')} />
+                                                {canEdit && (
+                                                    <Input
+                                                        type="file"
+                                                        accept="image/png,image/jpeg,image/webp,application/pdf"
+                                                        onChange={(event) => setProof(student.id, event.target.files?.[0] ?? null)}
                                                     />
-                                                    <InputError message={errorFor(student.id, 'reason')} />
-                                                    {canEdit && (
-                                                        <Input
-                                                            type="file"
-                                                            accept="image/png,image/jpeg,image/webp,application/pdf"
-                                                            onChange={(event) => setProof(student.id, event.target.files?.[0] ?? null)}
-                                                        />
-                                                    )}
-                                                    <InputError message={errorFor(student.id, 'proof')} />
-                                                    {student.proofUrl && (
-                                                        <a
-                                                            href={student.proofUrl}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="inline-flex items-center gap-2 text-xs font-bold text-blue-700"
-                                                        >
-                                                            <ExternalLink className="size-4" />
-                                                            Lihat bukti
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-slate-500">-</span>
-                                            )}
-                                        </td>
-                                        <td className="py-4 align-top">
-                                            {student.source === 'student_qr'
-                                                ? 'Scan QR siswa'
-                                                : student.source === 'instructor_manual'
-                                                  ? 'Manual pengajar'
-                                                  : '-'}
-                                        </td>
+                                                )}
+                                                <InputError message={errorFor(student.id, 'proof')} />
+                                                {student.proofUrl && (
+                                                    <a
+                                                        href={student.proofUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="inline-flex min-h-11 items-center gap-2 text-xs font-bold text-blue-700"
+                                                    >
+                                                        <ExternalLink className="size-4" />
+                                                        Lihat bukti
+                                                    </a>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </MobileDataCard>
+                            ))}
+                        </MobileCardList>
+                        <DesktopTable>
+                            <table className="w-full text-left text-sm">
+                                <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                    <tr>
+                                        <th>Siswa</th>
+                                        <th className="py-3">Presensi</th>
+                                        <th>Waktu Presensi</th>
+                                        <th>Keterlambatan</th>
+                                        <th>Alasan / Bukti</th>
+                                        <th>Sumber</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {visibleRows.length === 0 && (
-                            <p className="py-8 text-center text-sm text-slate-500">Tidak ada siswa yang cocok dengan pencarian.</p>
-                        )}
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                    {visibleRows.map((student) => (
+                                        <tr key={student.id}>
+                                            <td className="min-w-56 py-4 align-top">
+                                                <p className="font-bold text-slate-950">{student.name}</p>
+                                                <p className="mt-1 text-xs text-slate-500">{student.email}</p>
+                                            </td>
+                                            <td className="min-w-60 py-4 align-top">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {statusOptions.map((option) => (
+                                                        <label
+                                                            key={option.value}
+                                                            className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold ${
+                                                                student.status === option.value
+                                                                    ? option.tone
+                                                                    : 'border-slate-200 bg-white text-slate-500'
+                                                            } ${!canEdit ? 'cursor-not-allowed opacity-70' : ''}`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={`attendance-${student.id}`}
+                                                                value={option.value}
+                                                                checked={student.status === option.value}
+                                                                disabled={!canEdit}
+                                                                onChange={() => setStatus(student.id, option.value)}
+                                                            />
+                                                            {option.label}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <InputError message={errorFor(student.id, 'status')} className="mt-2" />
+                                            </td>
+                                            <td className="min-w-44 py-4 align-top text-slate-600">{student.checkedInAt || '-'}</td>
+                                            <td className="min-w-40 py-4 align-top">
+                                                <LateBadge status={student.status} minutes={student.lateMinutes ?? 0} label={student.lateLabel} />
+                                            </td>
+                                            <td className="min-w-72 align-top">
+                                                {student.status === 'S' || student.status === 'I' ? (
+                                                    <div className="space-y-2">
+                                                        <textarea
+                                                            className="min-h-20 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                                                            value={student.reason ?? ''}
+                                                            disabled={!canEdit}
+                                                            onChange={(event) => setReason(student.id, event.target.value)}
+                                                            placeholder={
+                                                                student.status === 'S' ? 'Contoh: Sakit demam.' : 'Contoh: Izin acara keluarga.'
+                                                            }
+                                                        />
+                                                        <InputError message={errorFor(student.id, 'reason')} />
+                                                        {canEdit && (
+                                                            <Input
+                                                                type="file"
+                                                                accept="image/png,image/jpeg,image/webp,application/pdf"
+                                                                onChange={(event) => setProof(student.id, event.target.files?.[0] ?? null)}
+                                                            />
+                                                        )}
+                                                        <InputError message={errorFor(student.id, 'proof')} />
+                                                        {student.proofUrl && (
+                                                            <a
+                                                                href={student.proofUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="inline-flex items-center gap-2 text-xs font-bold text-blue-700"
+                                                            >
+                                                                <ExternalLink className="size-4" />
+                                                                Lihat bukti
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-slate-500">-</span>
+                                                )}
+                                            </td>
+                                            <td className="py-4 align-top">
+                                                {student.source === 'student_qr'
+                                                    ? 'Scan QR siswa'
+                                                    : student.source === 'instructor_manual'
+                                                      ? 'Manual pengajar'
+                                                      : '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {visibleRows.length === 0 && (
+                                <p className="py-8 text-center text-sm text-slate-500">Tidak ada siswa yang cocok dengan pencarian.</p>
+                            )}
+                        </DesktopTable>
                     </div>
                     {canEdit && (
                         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

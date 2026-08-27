@@ -1,6 +1,7 @@
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileActionMenu, MobileCardList, MobileDataCard } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -326,44 +327,91 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
 
             {permissions.canManage && (
                 <Panel className="mt-6" title="Tarif gaji per pertemuan">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                                <tr>
-                                    <th className="py-3">Pengajar</th>
-                                    <th>Tarif</th>
-                                    <th>Efektif</th>
-                                    <th>Status</th>
-                                    <th>Catatan</th>
-                                    <th className="text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200">
-                                {rates.map((rate) => (
-                                    <tr key={rate.id}>
-                                        <td className="py-4 font-bold">{rate.instructor}</td>
-                                        <td>{rate.amountPerSessionLabel}</td>
-                                        <td>
-                                            {rate.effectiveFrom}
-                                            {rate.effectiveUntil ? ` – ${rate.effectiveUntil}` : ' – sekarang'}
-                                        </td>
-                                        <td>{rate.isActive ? 'Aktif' : 'Nonaktif'}</td>
-                                        <td className="max-w-sm text-xs text-slate-500">{rate.notes || '-'}</td>
-                                        <td>
-                                            <div className="flex justify-end gap-1">
-                                                <Button variant="ghost" size="icon" aria-label="Edit tarif" onClick={() => showRateEdit(rate)}>
-                                                    <Pencil className="size-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" aria-label="Hapus tarif" onClick={() => removeRate(rate)}>
-                                                    <Trash2 className="size-4 text-red-600" />
-                                                </Button>
-                                            </div>
-                                        </td>
+                    <div className="space-y-4">
+                        <MobileCardList
+                            empty={
+                                <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                    Belum ada tarif pengajar.
+                                </p>
+                            }
+                        >
+                            {rates.map((rate) => (
+                                <MobileDataCard
+                                    key={rate.id}
+                                    title={rate.instructor}
+                                    subtitle={rate.notes || 'Tidak ada catatan'}
+                                    badge={
+                                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                                            {rate.isActive ? 'Aktif' : 'Nonaktif'}
+                                        </span>
+                                    }
+                                    meta={[
+                                        { label: 'Tarif', value: rate.amountPerSessionLabel },
+                                        {
+                                            label: 'Efektif',
+                                            value: `${rate.effectiveFrom}${rate.effectiveUntil ? ` – ${rate.effectiveUntil}` : ' – sekarang'}`,
+                                        },
+                                    ]}
+                                    actions={
+                                        <>
+                                            <Button type="button" variant="outline" size="sm" onClick={() => showRateEdit(rate)}>
+                                                <Pencil className="size-4" />
+                                                Edit
+                                            </Button>
+                                            <MobileActionMenu
+                                                items={[
+                                                    {
+                                                        label: 'Hapus tarif',
+                                                        destructive: true,
+                                                        icon: <Trash2 className="size-4" />,
+                                                        onClick: () => removeRate(rate),
+                                                    },
+                                                ]}
+                                            />
+                                        </>
+                                    }
+                                />
+                            ))}
+                        </MobileCardList>
+                        <DesktopTable>
+                            <table className="w-full text-left text-sm">
+                                <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                    <tr>
+                                        <th className="py-3">Pengajar</th>
+                                        <th>Tarif</th>
+                                        <th>Efektif</th>
+                                        <th>Status</th>
+                                        <th>Catatan</th>
+                                        <th className="text-right">Aksi</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {rates.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tarif pengajar.</p>}
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                    {rates.map((rate) => (
+                                        <tr key={rate.id}>
+                                            <td className="py-4 font-bold">{rate.instructor}</td>
+                                            <td>{rate.amountPerSessionLabel}</td>
+                                            <td>
+                                                {rate.effectiveFrom}
+                                                {rate.effectiveUntil ? ` – ${rate.effectiveUntil}` : ' – sekarang'}
+                                            </td>
+                                            <td>{rate.isActive ? 'Aktif' : 'Nonaktif'}</td>
+                                            <td className="max-w-sm text-xs text-slate-500">{rate.notes || '-'}</td>
+                                            <td>
+                                                <div className="flex justify-end gap-1">
+                                                    <Button variant="ghost" size="icon" aria-label="Edit tarif" onClick={() => showRateEdit(rate)}>
+                                                        <Pencil className="size-4" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" aria-label="Hapus tarif" onClick={() => removeRate(rate)}>
+                                                        <Trash2 className="size-4 text-red-600" />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {rates.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tarif pengajar.</p>}
+                        </DesktopTable>
                     </div>
                 </Panel>
             )}
@@ -392,110 +440,191 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                     </div>
                 }
             >
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                            <tr>
-                                <th className="py-3">Payroll</th>
-                                <th>Pertemuan</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Dibayar</th>
-                                <th className="text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {visiblePayrolls.map((payroll) => (
-                                <Fragment key={payroll.id}>
-                                    <tr>
-                                        <td className="py-4">
-                                            <button
-                                                type="button"
-                                                onClick={() => toggleExpanded(payroll.id)}
-                                                className="flex items-center gap-2 text-left font-bold text-slate-950 hover:text-blue-700"
+                <div className="space-y-4">
+                    <MobileCardList
+                        empty={
+                            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                Belum ada payroll yang cocok.
+                            </p>
+                        }
+                    >
+                        {visiblePayrolls.map((payroll) => (
+                            <MobileDataCard
+                                key={payroll.id}
+                                title={payroll.instructor}
+                                subtitle={`Periode ${payroll.periodLabel}`}
+                                badge={<StatusPill status={payroll.status} />}
+                                meta={[
+                                    { label: 'Pertemuan', value: payroll.totalSessions },
+                                    { label: 'Total', value: payroll.totalAmountLabel },
+                                    { label: 'Dibayar', value: payroll.paidAt || '-' },
+                                ]}
+                                actions={
+                                    <>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => toggleExpanded(payroll.id)}>
+                                            {expanded.includes(payroll.id) ? 'Tutup Detail' : 'Detail'}
+                                        </Button>
+                                        {permissions.canManage && (
+                                            <Button type="button" size="sm" variant="outline" onClick={() => showPayrollEdit(payroll)}>
+                                                <Pencil className="size-4" />
+                                                Edit
+                                            </Button>
+                                        )}
+                                        <MobileActionMenu
+                                            items={[
+                                                permissions.canManage && payroll.status !== 'paid'
+                                                    ? {
+                                                          label: 'Hapus payroll',
+                                                          destructive: true,
+                                                          icon: <Trash2 className="size-4" />,
+                                                          onClick: () => removePayroll(payroll),
+                                                      }
+                                                    : { label: '' },
+                                            ]}
+                                        />
+                                    </>
+                                }
+                            >
+                                {payroll.bankAccount?.bankAccountNumber && (
+                                    <p className="text-sm leading-6 text-slate-600">
+                                        Rekening: {payroll.bankAccount.bankName ?? '-'} · {payroll.bankAccount.bankAccountNumber} ·{' '}
+                                        {payroll.bankAccount.bankAccountName ?? payroll.instructor}
+                                    </p>
+                                )}
+                                {expanded.includes(payroll.id) && (
+                                    <div className="mt-3 grid gap-3">
+                                        {payroll.paymentProofUrl && (
+                                            <a
+                                                href={payroll.paymentProofUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700"
                                             >
-                                                {expanded.includes(payroll.id) ? (
-                                                    <ChevronDown className="size-4" />
-                                                ) : (
-                                                    <ChevronRight className="size-4" />
-                                                )}
-                                                {payroll.instructor}
-                                            </button>
-                                            <p className="mt-1 text-xs text-slate-500">Periode {payroll.periodLabel}</p>
-                                            {payroll.bankAccount?.bankAccountNumber && (
+                                                <ExternalLink className="size-4" />
+                                                Lihat bukti pembayaran
+                                            </a>
+                                        )}
+                                        {payroll.items.map((item) => (
+                                            <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                <p className="font-bold text-slate-950">{item.schedule}</p>
                                                 <p className="mt-1 text-xs text-slate-500">
-                                                    Rekening: {payroll.bankAccount.bankName ?? '-'} · {payroll.bankAccount.bankAccountNumber} ·{' '}
-                                                    {payroll.bankAccount.bankAccountName ?? payroll.instructor}
+                                                    {item.school} · {item.course} · {item.actualDate}
                                                 </p>
-                                            )}
-                                            {payroll.notes && <p className="mt-1 text-xs text-slate-500">{payroll.notes}</p>}
-                                        </td>
-                                        <td>{payroll.totalSessions}</td>
-                                        <td className="font-bold">{payroll.totalAmountLabel}</td>
-                                        <td>
-                                            <StatusPill status={payroll.status} />
-                                        </td>
-                                        <td>{payroll.paidAt || '-'}</td>
-                                        <td>
-                                            <div className="flex justify-end gap-1">
-                                                {permissions.canManage && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        aria-label="Edit payroll"
-                                                        onClick={() => showPayrollEdit(payroll)}
-                                                    >
-                                                        <Pencil className="size-4" />
-                                                    </Button>
-                                                )}
-                                                {permissions.canManage && payroll.status !== 'paid' && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        aria-label="Hapus payroll"
-                                                        onClick={() => removePayroll(payroll)}
-                                                    >
-                                                        <Trash2 className="size-4 text-red-600" />
-                                                    </Button>
-                                                )}
+                                                <p className="mt-2 text-sm font-semibold text-blue-700">
+                                                    {item.rateAmountLabel} / pertemuan · Total {item.amountLabel}
+                                                </p>
                                             </div>
-                                        </td>
-                                    </tr>
-                                    {expanded.includes(payroll.id) && (
-                                        <tr key={`${payroll.id}-items`} className="bg-slate-50">
-                                            <td colSpan={6} className="p-4">
-                                                {payroll.paymentProofUrl && (
-                                                    <a
-                                                        href={payroll.paymentProofUrl}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="mb-3 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:border-emerald-300"
-                                                    >
-                                                        <ExternalLink className="size-4" />
-                                                        Lihat bukti pembayaran
-                                                    </a>
+                                        ))}
+                                    </div>
+                                )}
+                            </MobileDataCard>
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Payroll</th>
+                                    <th>Pertemuan</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Dibayar</th>
+                                    <th className="text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {visiblePayrolls.map((payroll) => (
+                                    <Fragment key={payroll.id}>
+                                        <tr>
+                                            <td className="py-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleExpanded(payroll.id)}
+                                                    className="flex items-center gap-2 text-left font-bold text-slate-950 hover:text-blue-700"
+                                                >
+                                                    {expanded.includes(payroll.id) ? (
+                                                        <ChevronDown className="size-4" />
+                                                    ) : (
+                                                        <ChevronRight className="size-4" />
+                                                    )}
+                                                    {payroll.instructor}
+                                                </button>
+                                                <p className="mt-1 text-xs text-slate-500">Periode {payroll.periodLabel}</p>
+                                                {payroll.bankAccount?.bankAccountNumber && (
+                                                    <p className="mt-1 text-xs text-slate-500">
+                                                        Rekening: {payroll.bankAccount.bankName ?? '-'} · {payroll.bankAccount.bankAccountNumber} ·{' '}
+                                                        {payroll.bankAccount.bankAccountName ?? payroll.instructor}
+                                                    </p>
                                                 )}
-                                                <div className="grid gap-3 md:grid-cols-2">
-                                                    {payroll.items.map((item) => (
-                                                        <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4">
-                                                            <p className="font-bold text-slate-950">{item.schedule}</p>
-                                                            <p className="mt-1 text-xs text-slate-500">
-                                                                {item.school} · {item.course} · {item.actualDate}
-                                                            </p>
-                                                            <p className="mt-2 text-sm font-semibold text-blue-700">
-                                                                {item.rateAmountLabel} / pertemuan · Total {item.amountLabel}
-                                                            </p>
-                                                        </div>
-                                                    ))}
+                                                {payroll.notes && <p className="mt-1 text-xs text-slate-500">{payroll.notes}</p>}
+                                            </td>
+                                            <td>{payroll.totalSessions}</td>
+                                            <td className="font-bold">{payroll.totalAmountLabel}</td>
+                                            <td>
+                                                <StatusPill status={payroll.status} />
+                                            </td>
+                                            <td>{payroll.paidAt || '-'}</td>
+                                            <td>
+                                                <div className="flex justify-end gap-1">
+                                                    {permissions.canManage && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            aria-label="Edit payroll"
+                                                            onClick={() => showPayrollEdit(payroll)}
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                        </Button>
+                                                    )}
+                                                    {permissions.canManage && payroll.status !== 'paid' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            aria-label="Hapus payroll"
+                                                            onClick={() => removePayroll(payroll)}
+                                                        >
+                                                            <Trash2 className="size-4 text-red-600" />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
-                                    )}
-                                </Fragment>
-                            ))}
-                        </tbody>
-                    </table>
-                    {visiblePayrolls.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada payroll yang cocok.</p>}
+                                        {expanded.includes(payroll.id) && (
+                                            <tr key={`${payroll.id}-items`} className="bg-slate-50">
+                                                <td colSpan={6} className="p-4">
+                                                    {payroll.paymentProofUrl && (
+                                                        <a
+                                                            href={payroll.paymentProofUrl}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="mb-3 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:border-emerald-300"
+                                                        >
+                                                            <ExternalLink className="size-4" />
+                                                            Lihat bukti pembayaran
+                                                        </a>
+                                                    )}
+                                                    <div className="grid gap-3 md:grid-cols-2">
+                                                        {payroll.items.map((item) => (
+                                                            <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4">
+                                                                <p className="font-bold text-slate-950">{item.schedule}</p>
+                                                                <p className="mt-1 text-xs text-slate-500">
+                                                                    {item.school} · {item.course} · {item.actualDate}
+                                                                </p>
+                                                                <p className="mt-2 text-sm font-semibold text-blue-700">
+                                                                    {item.rateAmountLabel} / pertemuan · Total {item.amountLabel}
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </Fragment>
+                                ))}
+                            </tbody>
+                        </table>
+                        {visiblePayrolls.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada payroll yang cocok.</p>}
+                    </DesktopTable>
                 </div>
             </Panel>
 

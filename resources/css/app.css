@@ -123,6 +123,13 @@
         @apply border-border;
     }
 
+    html,
+    body,
+    #app {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
     body {
         @apply bg-background text-foreground;
     }

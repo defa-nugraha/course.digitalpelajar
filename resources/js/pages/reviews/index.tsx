@@ -1,6 +1,7 @@
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileCardList, MobileDataCard } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -159,7 +160,7 @@ export default function Reviews({ items, summary, scopeLabel }: ReviewsProps) {
     return (
         <Shell title="Review Submission" eyebrow={scopeLabel}>
             <Head title="Review Submission" />
-            <div className="grid gap-5 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
                 <StatCard label="Total Submission" value={String(summary.submissions)} icon={ClipboardCheck} />
                 <StatCard label="Menunggu Review" value={String(summary.pending)} icon={GraduationCap} tone="amber" />
                 <StatCard label="Rata-rata Nilai" value={`${summary.averageScore || 0}`} icon={Award} tone="purple" />
@@ -212,46 +213,69 @@ export default function Reviews({ items, summary, scopeLabel }: ReviewsProps) {
                     </Button>
                 </div>
 
-                <div className="mt-5 overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                            <tr>
-                                <th className="py-3">Siswa</th>
-                                <th>Course</th>
-                                <th>Sekolah</th>
-                                <th>Trainer</th>
-                                <th>Status</th>
-                                <th>Nilai</th>
-                                <th className="text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {visibleItems.map((item) => (
-                                <tr key={item.id}>
-                                    <td className="min-w-56 py-4">
-                                        <p className="font-bold text-slate-950">{item.student}</p>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            {item.lesson || 'Final project'} · {formatDate(item.submittedAt)}
-                                        </p>
-                                    </td>
-                                    <td className="min-w-56">{item.course}</td>
-                                    <td>{item.school}</td>
-                                    <td>{item.trainer}</td>
-                                    <td>
-                                        <StatusPill status={item.status} />
-                                        {item.reviewer && <p className="mt-1 text-xs text-slate-500">Reviewer: {item.reviewer}</p>}
-                                    </td>
-                                    <td className="font-bold">{item.score ?? '-'}</td>
-                                    <td className="text-right">
-                                        <Button type="button" size="sm" onClick={() => openReview(item)}>
-                                            Review
-                                        </Button>
-                                    </td>
+                <div className="mt-5 space-y-4">
+                    <MobileCardList empty={<EmptyState message="Tidak ada submission yang cocok dengan filter." />}>
+                        {visibleItems.map((item) => (
+                            <MobileDataCard
+                                key={item.id}
+                                title={item.student}
+                                subtitle={`${item.lesson || 'Final project'} · ${formatDate(item.submittedAt)}`}
+                                badge={<StatusPill status={item.status} />}
+                                meta={[
+                                    { label: 'Course', value: item.course },
+                                    { label: 'Sekolah', value: item.school },
+                                    { label: 'Trainer', value: item.trainer },
+                                    { label: 'Nilai', value: item.score ?? '-' },
+                                ]}
+                                actions={
+                                    <Button type="button" size="sm" onClick={() => openReview(item)}>
+                                        Review
+                                    </Button>
+                                }
+                            />
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Siswa</th>
+                                    <th>Course</th>
+                                    <th>Sekolah</th>
+                                    <th>Trainer</th>
+                                    <th>Status</th>
+                                    <th>Nilai</th>
+                                    <th className="text-right">Aksi</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {visibleItems.length === 0 && <EmptyState message="Tidak ada submission yang cocok dengan filter." />}
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {visibleItems.map((item) => (
+                                    <tr key={item.id}>
+                                        <td className="min-w-56 py-4">
+                                            <p className="font-bold text-slate-950">{item.student}</p>
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                {item.lesson || 'Final project'} · {formatDate(item.submittedAt)}
+                                            </p>
+                                        </td>
+                                        <td className="min-w-56">{item.course}</td>
+                                        <td>{item.school}</td>
+                                        <td>{item.trainer}</td>
+                                        <td>
+                                            <StatusPill status={item.status} />
+                                            {item.reviewer && <p className="mt-1 text-xs text-slate-500">Reviewer: {item.reviewer}</p>}
+                                        </td>
+                                        <td className="font-bold">{item.score ?? '-'}</td>
+                                        <td className="text-right">
+                                            <Button type="button" size="sm" onClick={() => openReview(item)}>
+                                                Review
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {visibleItems.length === 0 && <EmptyState message="Tidak ada submission yang cocok dengan filter." />}
+                    </DesktopTable>
                 </div>
             </Panel>
 

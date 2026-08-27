@@ -1,6 +1,7 @@
 import { FormField } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileActionMenu, MobileCardList, MobileDataCard, StatusBadge as ResponsiveStatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -175,14 +176,14 @@ export default function AdminStore({
     return (
         <Shell title="Toko Robotik" eyebrow="Admin Pusat" nav="admin">
             <Head title="Toko Robotik" />
-            <div className="grid gap-5 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
                 <StatCard label="Produk" value={String(products.length)} icon={Package} />
                 <StatCard label="Produk Publish" value={String(publishedProducts)} icon={Boxes} tone="purple" />
                 <StatCard label="Order Paid" value={String(paidOrders)} icon={ReceiptText} tone="amber" />
                 <StatCard label="Kode Aktif" value={String(unusedCodes)} icon={KeyRound} tone="slate" />
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="scrollbar-none mt-6 flex gap-2 overflow-x-auto pb-1">
                 {[
                     ['products', 'Produk'],
                     ['categories', 'Kategori'],
@@ -306,64 +307,127 @@ function ProductsPanel({
                 </div>
             }
         >
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                        <tr>
-                            <th className="py-3">Produk</th>
-                            <th>Tipe</th>
-                            <th>Harga</th>
-                            <th>Stok</th>
-                            <th>Akses Materi</th>
-                            <th>Status</th>
-                            <th className="text-right">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {visible.map((product) => (
-                            <tr key={product.id}>
-                                <td className="py-4">
-                                    <div className="flex items-center gap-3">
-                                        <img src={product.imageUrl || '/logo.png'} alt={product.name} className="size-12 rounded-lg object-cover" />
-                                        <div>
-                                            <p className="font-bold">{product.name}</p>
-                                            <p className="text-xs text-slate-500">
-                                                {product.category} · {product.sku || 'Tanpa SKU'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="capitalize">{typeLabel(product.type)}</td>
-                                <td>{product.priceLabel}</td>
-                                <td>{product.type === 'physical' ? product.stock : '-'}</td>
-                                <td>{product.courseAccesses.length}</td>
-                                <td className="capitalize">{product.status}</td>
-                                <td>
-                                    <div className="flex justify-end gap-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setStockProduct(product);
-                                                stockForm.setData({ quantity: '1', notes: '' });
-                                                setStockOpen(true);
-                                            }}
-                                        >
-                                            Stok
-                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => showEdit(product)}>
-                                            <Pencil className="size-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => remove(product)}>
-                                            <Trash2 className="size-4 text-red-600" />
-                                        </Button>
-                                    </div>
-                                </td>
+            <div className="space-y-4">
+                <MobileCardList
+                    empty={
+                        <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Belum ada produk.</p>
+                    }
+                >
+                    {visible.map((product) => (
+                        <MobileDataCard
+                            key={product.id}
+                            title={product.name}
+                            subtitle={`${product.category} · ${product.sku || 'Tanpa SKU'}`}
+                            badge={<ResponsiveStatusBadge status={product.status} label={product.status} />}
+                            meta={[
+                                { label: 'Tipe', value: typeLabel(product.type) },
+                                { label: 'Harga', value: product.priceLabel },
+                                { label: 'Stok', value: product.type === 'physical' ? product.stock : '-' },
+                                { label: 'Akses', value: `${product.courseAccesses.length} materi` },
+                            ]}
+                            actions={
+                                <>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setStockProduct(product);
+                                            stockForm.setData({ quantity: '1', notes: '' });
+                                            setStockOpen(true);
+                                        }}
+                                    >
+                                        Stok
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => showEdit(product)}>
+                                        <Pencil className="size-4" />
+                                        Edit
+                                    </Button>
+                                    <MobileActionMenu
+                                        items={[
+                                            {
+                                                label: 'Hapus produk',
+                                                destructive: true,
+                                                icon: <Trash2 className="size-4" />,
+                                                onClick: () => remove(product),
+                                            },
+                                        ]}
+                                    />
+                                </>
+                            }
+                        >
+                            <div className="flex items-center gap-3">
+                                <img src={product.imageUrl || '/logo.png'} alt={product.name} className="size-14 rounded-xl object-cover" />
+                                <p className="line-clamp-2 text-sm leading-6 text-slate-600">
+                                    {product.summary || product.description || 'Belum ada ringkasan produk.'}
+                                </p>
+                            </div>
+                        </MobileDataCard>
+                    ))}
+                </MobileCardList>
+                <DesktopTable>
+                    <table className="w-full text-left text-sm">
+                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                            <tr>
+                                <th className="py-3">Produk</th>
+                                <th>Tipe</th>
+                                <th>Harga</th>
+                                <th>Stok</th>
+                                <th>Akses Materi</th>
+                                <th>Status</th>
+                                <th className="text-right">Aksi</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {visible.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada produk.</p>}
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {visible.map((product) => (
+                                <tr key={product.id}>
+                                    <td className="py-4">
+                                        <div className="flex items-center gap-3">
+                                            <img
+                                                src={product.imageUrl || '/logo.png'}
+                                                alt={product.name}
+                                                className="size-12 rounded-lg object-cover"
+                                            />
+                                            <div>
+                                                <p className="font-bold">{product.name}</p>
+                                                <p className="text-xs text-slate-500">
+                                                    {product.category} · {product.sku || 'Tanpa SKU'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="capitalize">{typeLabel(product.type)}</td>
+                                    <td>{product.priceLabel}</td>
+                                    <td>{product.type === 'physical' ? product.stock : '-'}</td>
+                                    <td>{product.courseAccesses.length}</td>
+                                    <td className="capitalize">{product.status}</td>
+                                    <td>
+                                        <div className="flex justify-end gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setStockProduct(product);
+                                                    stockForm.setData({ quantity: '1', notes: '' });
+                                                    setStockOpen(true);
+                                                }}
+                                            >
+                                                Stok
+                                            </Button>
+                                            <Button variant="ghost" size="icon" onClick={() => showEdit(product)}>
+                                                <Pencil className="size-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" onClick={() => remove(product)}>
+                                                <Trash2 className="size-4 text-red-600" />
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {visible.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada produk.</p>}
+                </DesktopTable>
             </div>
 
             <Dialog open={open} onOpenChange={setOpen}>
@@ -808,40 +872,67 @@ function OrdersPanel({ orders }: { orders: OrderRow[] }) {
 
     return (
         <Panel className="mt-6" title="Order Produk">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="text-xs text-slate-500 uppercase">
-                        <tr>
-                            <th className="py-3">Order</th>
-                            <th>Pelanggan</th>
-                            <th>Item</th>
-                            <th>Total</th>
-                            <th>Status</th>
-                            <th className="text-right">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {orders.map((order) => (
-                            <tr key={order.id}>
-                                <td className="py-4 font-mono text-xs">{order.orderNumber}</td>
-                                <td>
-                                    <p className="font-semibold">{order.customer}</p>
-                                    <p className="text-xs text-slate-500">{order.email}</p>
-                                </td>
-                                <td>{order.items.map((item) => `${item.name} x${item.quantity}`).join(', ')}</td>
-                                <td>{order.totalLabel}</td>
-                                <td>
-                                    <StatusBadge value={order.paymentStatus} /> <StatusBadge value={order.fulfillmentStatus} />
-                                </td>
-                                <td className="text-right">
-                                    <Button size="sm" variant="outline" onClick={() => openEdit(order)}>
-                                        Update
-                                    </Button>
-                                </td>
+            <div className="space-y-4">
+                <MobileCardList
+                    empty={
+                        <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Belum ada order.</p>
+                    }
+                >
+                    {orders.map((order) => (
+                        <MobileDataCard
+                            key={order.id}
+                            title={order.customer}
+                            subtitle={order.email}
+                            badge={<ResponsiveStatusBadge status={order.paymentStatus} label={statusLabel(order.paymentStatus)} />}
+                            meta={[
+                                { label: 'Order', value: <span className="font-mono text-xs">{order.orderNumber}</span> },
+                                { label: 'Item', value: order.items.map((item) => `${item.name} x${item.quantity}`).join(', ') },
+                                { label: 'Total', value: order.totalLabel },
+                                { label: 'Fulfillment', value: statusLabel(order.fulfillmentStatus) },
+                            ]}
+                            actions={
+                                <Button type="button" size="sm" variant="outline" onClick={() => openEdit(order)}>
+                                    Update
+                                </Button>
+                            }
+                        />
+                    ))}
+                </MobileCardList>
+                <DesktopTable>
+                    <table className="w-full text-left text-sm">
+                        <thead className="text-xs text-slate-500 uppercase">
+                            <tr>
+                                <th className="py-3">Order</th>
+                                <th>Pelanggan</th>
+                                <th>Item</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th className="text-right">Aksi</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {orders.map((order) => (
+                                <tr key={order.id}>
+                                    <td className="py-4 font-mono text-xs">{order.orderNumber}</td>
+                                    <td>
+                                        <p className="font-semibold">{order.customer}</p>
+                                        <p className="text-xs text-slate-500">{order.email}</p>
+                                    </td>
+                                    <td>{order.items.map((item) => `${item.name} x${item.quantity}`).join(', ')}</td>
+                                    <td>{order.totalLabel}</td>
+                                    <td>
+                                        <StatusBadge value={order.paymentStatus} /> <StatusBadge value={order.fulfillmentStatus} />
+                                    </td>
+                                    <td className="text-right">
+                                        <Button size="sm" variant="outline" onClick={() => openEdit(order)}>
+                                            Update
+                                        </Button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </DesktopTable>
             </div>
             <Dialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)}>
                 <DialogContent>
@@ -910,33 +1001,56 @@ function CodesPanel({
                 </Button>
             }
         >
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="text-xs text-slate-500 uppercase">
-                        <tr>
-                            <th className="py-3">Kode</th>
-                            <th>Produk</th>
-                            <th>Target</th>
-                            <th>User</th>
-                            <th>Status</th>
-                            <th>Kedaluwarsa</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {codes.map((code) => (
-                            <tr key={code.id}>
-                                <td className="py-4 font-mono font-bold">{code.code}</td>
-                                <td>{code.product}</td>
-                                <td>{code.target}</td>
-                                <td>{code.redeemedBy ? `Dipakai ${code.redeemedBy}` : code.assignedUser}</td>
-                                <td>
-                                    <StatusBadge value={code.status} />
-                                </td>
-                                <td>{code.expiresAt || '-'}</td>
+            <div className="space-y-4">
+                <MobileCardList
+                    empty={
+                        <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                            Belum ada kode aktivasi.
+                        </p>
+                    }
+                >
+                    {codes.map((code) => (
+                        <MobileDataCard
+                            key={code.id}
+                            title={<span className="font-mono">{code.code}</span>}
+                            subtitle={code.product}
+                            badge={<ResponsiveStatusBadge status={code.status} label={statusLabel(code.status)} />}
+                            meta={[
+                                { label: 'Target', value: code.target },
+                                { label: 'User', value: code.redeemedBy ? `Dipakai ${code.redeemedBy}` : code.assignedUser },
+                                { label: 'Kedaluwarsa', value: code.expiresAt || '-' },
+                            ]}
+                        />
+                    ))}
+                </MobileCardList>
+                <DesktopTable>
+                    <table className="w-full text-left text-sm">
+                        <thead className="text-xs text-slate-500 uppercase">
+                            <tr>
+                                <th className="py-3">Kode</th>
+                                <th>Produk</th>
+                                <th>Target</th>
+                                <th>User</th>
+                                <th>Status</th>
+                                <th>Kedaluwarsa</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {codes.map((code) => (
+                                <tr key={code.id}>
+                                    <td className="py-4 font-mono font-bold">{code.code}</td>
+                                    <td>{code.product}</td>
+                                    <td>{code.target}</td>
+                                    <td>{code.redeemedBy ? `Dipakai ${code.redeemedBy}` : code.assignedUser}</td>
+                                    <td>
+                                        <StatusBadge value={code.status} />
+                                    </td>
+                                    <td>{code.expiresAt || '-'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </DesktopTable>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>

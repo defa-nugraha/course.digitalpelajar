@@ -1,6 +1,7 @@
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileActionMenu, MobileCardList, MobileDataCard } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -240,7 +241,7 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
             }
         >
             <Head title={title} />
-            <div className="grid gap-5 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-5">
                 <StatCard label="Total Laporan" value={String(stats.total)} icon={ClipboardCheck} />
                 <StatCard label="Menunggu Review" value={String(stats.submitted)} icon={TriangleAlert} tone="amber" />
                 <StatCard label="Disetujui" value={String(stats.approved)} icon={CheckCircle2} tone="purple" />
@@ -266,133 +267,239 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
                     </div>
                 }
             >
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                            <tr>
-                                <th className="py-3">Pertemuan</th>
-                                <th>Sekolah</th>
-                                <th>Pengajar</th>
-                                <th>Course</th>
-                                <th>Bukti</th>
-                                <th>Status</th>
-                                {showPayrollColumn && <th>Payroll</th>}
-                                <th className="text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {visibleSessions.map((session) => (
-                                <tr key={session.id}>
-                                    <td className="min-w-80 py-4 align-top">
-                                        <p className="font-bold text-slate-950">{session.topic}</p>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            {session.actualDateLabel} · {session.startedAt}–{session.endedAt} · {session.studentAttendanceCount} hadir
-                                        </p>
-                                        <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-500">{session.report}</p>
-                                        {session.reviewNotes && (
-                                            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                                Catatan: {session.reviewNotes}
-                                            </p>
+                <div className="space-y-4">
+                    <MobileCardList
+                        empty={
+                            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                Belum ada laporan pertemuan yang cocok dengan filter.
+                            </p>
+                        }
+                    >
+                        {visibleSessions.map((session) => (
+                            <MobileDataCard
+                                key={session.id}
+                                title={session.topic}
+                                subtitle={`${session.actualDateLabel} · ${session.startedAt}–${session.endedAt}`}
+                                badge={<StatusPill status={session.status} />}
+                                meta={[
+                                    { label: 'Sekolah', value: session.school },
+                                    { label: 'Pengajar', value: session.instructor },
+                                    { label: 'Course', value: session.course },
+                                    { label: 'Hadir', value: `${session.studentAttendanceCount} siswa` },
+                                    {
+                                        label: 'Payroll',
+                                        value: showPayrollColumn
+                                            ? session.payrollStatus
+                                                ? `${session.payrollStatus} · ${session.payrollPeriod}`
+                                                : 'Belum masuk payroll'
+                                            : '-',
+                                    },
+                                ].filter((item) => showPayrollColumn || item.label !== 'Payroll')}
+                                actions={
+                                    <>
+                                        {scope === 'admin' && (
+                                            <Button asChild variant="outline" size="sm">
+                                                <Link href={`/admin/teaching-sessions/${session.id}`}>
+                                                    <FileText className="size-4" />
+                                                    Detail
+                                                </Link>
+                                            </Button>
                                         )}
                                         {scope === 'instructor' && (
-                                            <Button asChild type="button" size="sm" variant="outline" className="mt-3 mr-2">
+                                            <Button asChild type="button" size="sm" variant="outline">
                                                 <Link href={`/instructor/teaching-sessions/${session.id}/attendances`}>
                                                     <Users className="size-4" />
-                                                    Presensi siswa
+                                                    Presensi
                                                 </Link>
                                             </Button>
                                         )}
                                         {session.canComplete && (
-                                            <Button type="button" size="sm" className="mt-3" onClick={() => showComplete(session)}>
-                                                Lengkapi laporan
+                                            <Button type="button" size="sm" onClick={() => showComplete(session)}>
+                                                Lengkapi
                                             </Button>
                                         )}
-                                    </td>
-                                    <td className="align-top">{session.school}</td>
-                                    <td className="align-top">{session.instructor}</td>
-                                    <td className="align-top">{session.course}</td>
-                                    <td className="align-top">
-                                        {session.evidencePhotoUrl ? (
-                                            <a
-                                                href={session.evidencePhotoUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:border-blue-300"
-                                            >
-                                                <ImageIcon className="size-4" />
-                                                Lihat foto
-                                            </a>
-                                        ) : (
-                                            <span className="text-xs text-red-600">Tidak ada bukti</span>
-                                        )}
-                                    </td>
-                                    <td className="align-top">
-                                        <StatusPill status={session.status} />
-                                        {session.reviewer && (
+                                        <MobileActionMenu
+                                            items={[
+                                                session.canEdit
+                                                    ? {
+                                                          label: 'Edit laporan',
+                                                          icon: <Pencil className="size-4" />,
+                                                          onClick: () => showEdit(session),
+                                                      }
+                                                    : { label: '' },
+                                                permissions.canReview && session.status === 'submitted'
+                                                    ? {
+                                                          label: 'Setujui laporan',
+                                                          icon: <CheckCircle2 className="size-4" />,
+                                                          onClick: () => showReview(session, 'approved'),
+                                                      }
+                                                    : { label: '' },
+                                                permissions.canReview && session.status === 'submitted'
+                                                    ? {
+                                                          label: 'Tolak laporan',
+                                                          icon: <TriangleAlert className="size-4" />,
+                                                          onClick: () => showReview(session, 'rejected'),
+                                                      }
+                                                    : { label: '' },
+                                                session.canDelete
+                                                    ? {
+                                                          label: 'Hapus laporan',
+                                                          destructive: true,
+                                                          icon: <Trash2 className="size-4" />,
+                                                          onClick: () => remove(session),
+                                                      }
+                                                    : { label: '' },
+                                            ]}
+                                        />
+                                    </>
+                                }
+                            >
+                                <p className="line-clamp-3 text-sm leading-6 text-slate-600">{session.report}</p>
+                                {session.evidencePhotoUrl ? (
+                                    <a
+                                        href={session.evidencePhotoUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700"
+                                    >
+                                        <ImageIcon className="size-4" />
+                                        Lihat bukti foto
+                                    </a>
+                                ) : (
+                                    <p className="mt-3 text-xs font-semibold text-red-600">Bukti foto belum tersedia</p>
+                                )}
+                            </MobileDataCard>
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Pertemuan</th>
+                                    <th>Sekolah</th>
+                                    <th>Pengajar</th>
+                                    <th>Course</th>
+                                    <th>Bukti</th>
+                                    <th>Status</th>
+                                    {showPayrollColumn && <th>Payroll</th>}
+                                    <th className="text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {visibleSessions.map((session) => (
+                                    <tr key={session.id}>
+                                        <td className="min-w-80 py-4 align-top">
+                                            <p className="font-bold text-slate-950">{session.topic}</p>
                                             <p className="mt-1 text-xs text-slate-500">
-                                                {session.reviewer} · {session.reviewedAt}
+                                                {session.actualDateLabel} · {session.startedAt}–{session.endedAt} · {session.studentAttendanceCount}{' '}
+                                                hadir
                                             </p>
-                                        )}
-                                    </td>
-                                    {showPayrollColumn && (
-                                        <td className="align-top">
-                                            {session.payrollStatus ? (
-                                                <span className="rounded-full bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700">
-                                                    {session.payrollStatus} · {session.payrollPeriod}
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-slate-500">Belum masuk payroll</span>
+                                            <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-500">{session.report}</p>
+                                            {session.reviewNotes && (
+                                                <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                                    Catatan: {session.reviewNotes}
+                                                </p>
                                             )}
-                                        </td>
-                                    )}
-                                    <td className="align-top">
-                                        <div className="flex justify-end gap-1">
-                                            {scope === 'admin' && (
-                                                <Button asChild variant="ghost" size="icon" aria-label="Detail laporan">
-                                                    <Link href={`/admin/teaching-sessions/${session.id}`}>
-                                                        <FileText className="size-4 text-blue-700" />
+                                            {scope === 'instructor' && (
+                                                <Button asChild type="button" size="sm" variant="outline" className="mt-3 mr-2">
+                                                    <Link href={`/instructor/teaching-sessions/${session.id}/attendances`}>
+                                                        <Users className="size-4" />
+                                                        Presensi siswa
                                                     </Link>
                                                 </Button>
                                             )}
-                                            {session.canEdit && (
-                                                <Button variant="ghost" size="icon" aria-label="Edit laporan" onClick={() => showEdit(session)}>
-                                                    <Pencil className="size-4" />
+                                            {session.canComplete && (
+                                                <Button type="button" size="sm" className="mt-3" onClick={() => showComplete(session)}>
+                                                    Lengkapi laporan
                                                 </Button>
                                             )}
-                                            {permissions.canReview && session.status === 'submitted' && (
-                                                <>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        aria-label="Setujui laporan"
-                                                        onClick={() => showReview(session, 'approved')}
-                                                    >
-                                                        <CheckCircle2 className="size-4 text-emerald-600" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        aria-label="Tolak laporan"
-                                                        onClick={() => showReview(session, 'rejected')}
-                                                    >
-                                                        <TriangleAlert className="size-4 text-amber-600" />
-                                                    </Button>
-                                                </>
+                                        </td>
+                                        <td className="align-top">{session.school}</td>
+                                        <td className="align-top">{session.instructor}</td>
+                                        <td className="align-top">{session.course}</td>
+                                        <td className="align-top">
+                                            {session.evidencePhotoUrl ? (
+                                                <a
+                                                    href={session.evidencePhotoUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:border-blue-300"
+                                                >
+                                                    <ImageIcon className="size-4" />
+                                                    Lihat foto
+                                                </a>
+                                            ) : (
+                                                <span className="text-xs text-red-600">Tidak ada bukti</span>
                                             )}
-                                            {session.canDelete && (
-                                                <Button variant="ghost" size="icon" aria-label="Hapus laporan" onClick={() => remove(session)}>
-                                                    <Trash2 className="size-4 text-red-600" />
-                                                </Button>
+                                        </td>
+                                        <td className="align-top">
+                                            <StatusPill status={session.status} />
+                                            {session.reviewer && (
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    {session.reviewer} · {session.reviewedAt}
+                                                </p>
                                             )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {visibleSessions.length === 0 && (
-                        <p className="py-8 text-center text-sm text-slate-500">Belum ada laporan pertemuan yang cocok dengan filter.</p>
-                    )}
+                                        </td>
+                                        {showPayrollColumn && (
+                                            <td className="align-top">
+                                                {session.payrollStatus ? (
+                                                    <span className="rounded-full bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700">
+                                                        {session.payrollStatus} · {session.payrollPeriod}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-slate-500">Belum masuk payroll</span>
+                                                )}
+                                            </td>
+                                        )}
+                                        <td className="align-top">
+                                            <div className="flex justify-end gap-1">
+                                                {scope === 'admin' && (
+                                                    <Button asChild variant="ghost" size="icon" aria-label="Detail laporan">
+                                                        <Link href={`/admin/teaching-sessions/${session.id}`}>
+                                                            <FileText className="size-4 text-blue-700" />
+                                                        </Link>
+                                                    </Button>
+                                                )}
+                                                {session.canEdit && (
+                                                    <Button variant="ghost" size="icon" aria-label="Edit laporan" onClick={() => showEdit(session)}>
+                                                        <Pencil className="size-4" />
+                                                    </Button>
+                                                )}
+                                                {permissions.canReview && session.status === 'submitted' && (
+                                                    <>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            aria-label="Setujui laporan"
+                                                            onClick={() => showReview(session, 'approved')}
+                                                        >
+                                                            <CheckCircle2 className="size-4 text-emerald-600" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            aria-label="Tolak laporan"
+                                                            onClick={() => showReview(session, 'rejected')}
+                                                        >
+                                                            <TriangleAlert className="size-4 text-amber-600" />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                {session.canDelete && (
+                                                    <Button variant="ghost" size="icon" aria-label="Hapus laporan" onClick={() => remove(session)}>
+                                                        <Trash2 className="size-4 text-red-600" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {visibleSessions.length === 0 && (
+                            <p className="py-8 text-center text-sm text-slate-500">Belum ada laporan pertemuan yang cocok dengan filter.</p>
+                        )}
+                    </DesktopTable>
                 </div>
             </Panel>
 

@@ -22,6 +22,7 @@ import {
     Mail,
     MapPin,
     Menu,
+    MoreHorizontal,
     PanelLeftClose,
     PanelLeftOpen,
     Phone,
@@ -214,13 +215,14 @@ export function Shell({
                     </nav>
                 </aside>
             )}
-            <main className={cn('pb-24 lg:pb-0', !sidebarHidden && 'lg:pl-64')}>
-                <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur md:px-8">
+            <main className={cn('pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0', !sidebarHidden && 'lg:pl-64')}>
+                <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-3 backdrop-blur sm:px-4 md:px-8">
                     <div className="flex min-w-0 items-center gap-3">
                         <Button
                             type="button"
                             variant="outline"
                             size="icon"
+                            className="hidden lg:inline-flex"
                             onClick={() => setSidebarHidden((hidden) => !hidden)}
                             aria-label={sidebarHidden ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
                         >
@@ -228,19 +230,20 @@ export function Shell({
                         </Button>
                         <div className="min-w-0">
                             {eyebrow && <p className="text-xs font-bold tracking-wider text-blue-700 uppercase">{eyebrow}</p>}
-                            <h1 className="truncate text-xl font-bold tracking-tight text-slate-950 md:text-2xl">{title}</h1>
+                            <h1 className="truncate text-lg font-bold tracking-tight text-slate-950 sm:text-xl md:text-2xl">{title}</h1>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button asChild variant="outline" size="icon">
+                    <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+                        <Button asChild variant="outline" size="icon" className="hidden sm:inline-flex">
                             <Link href="/courses" aria-label="Cari kursus">
                                 <Search className="size-4" />
                             </Link>
                         </Button>
-                        {actions}
+                        {actions && <div className="hidden items-center gap-2 sm:flex">{actions}</div>}
                         <ProfileDropdown user={auth?.user} />
                     </div>
                 </header>
+                {actions && <div className="border-b border-slate-200 bg-white px-3 py-2 sm:hidden">{actions}</div>}
                 {!sidebarHidden && (
                     <nav className="hidden gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 lg:hidden">
                         {mobileNavItems.map((item: NavItem) => {
@@ -259,7 +262,7 @@ export function Shell({
                         })}
                     </nav>
                 )}
-                <div className="p-4 md:p-8">{loading ? <ShellPageSkeleton /> : children}</div>
+                <div className="max-w-full overflow-hidden p-3 sm:p-4 md:p-8">{loading ? <ShellPageSkeleton /> : children}</div>
             </main>
             <MobileBottomNav items={mobileNavItems} />
         </div>
@@ -403,12 +406,13 @@ function isNavItemActive(item: NavItem) {
 
     const currentPath = window.location.pathname;
     const currentFull = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const itemPath = item.href.split(/[?#]/)[0];
 
     if (item.href.includes('#') || item.href.includes('?')) {
         return currentFull === item.href;
     }
 
-    return currentPath === item.href;
+    return currentPath === itemPath || (itemPath !== '/' && currentPath.startsWith(`${itemPath}/`));
 }
 
 function isSameBasePath(item: NavItem) {
@@ -416,7 +420,9 @@ function isSameBasePath(item: NavItem) {
         return false;
     }
 
-    return window.location.pathname === item.href.split(/[?#]/)[0];
+    const target = item.href.split(/[?#]/)[0];
+
+    return window.location.pathname === target || (target !== '/' && window.location.pathname.startsWith(`${target}/`));
 }
 
 function flattenNavItems(items: NavItem[]): NavItem[] {
@@ -426,63 +432,116 @@ function flattenNavItems(items: NavItem[]): NavItem[] {
 function MobileBottomNav({ items }: { items: NavItem[] }) {
     const itemsWithHref = items.filter((item) => item.href);
     const activeItem = itemsWithHref.find((item) => isNavItemActive(item) || isSameBasePath(item));
-    const baseItems = itemsWithHref.slice(0, activeItem && !itemsWithHref.slice(0, 5).includes(activeItem) ? 4 : 5);
-    const primaryItems = activeItem && !baseItems.includes(activeItem) ? [...baseItems, activeItem] : baseItems;
+    const primaryItems = selectMobilePrimaryItems(itemsWithHref, activeItem);
+    const overflowItems = itemsWithHref.filter((item) => !primaryItems.includes(item));
+    const hasMore = overflowItems.length > 0;
 
     return (
         <nav className="fixed right-0 bottom-0 left-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-            <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
-                {primaryItems.map((item) => {
-                    const Icon = item.icon;
-                    const active = isNavItemActive(item) || isSameBasePath(item);
-                    const isScan = item.title === 'Scan Presensi' || item.href === '/student/attendance/scan';
-
-                    if (isScan) {
-                        return (
-                            <Link
-                                key={item.href ?? item.title}
-                                href={item.href ?? '#'}
-                                className="group relative -mt-6 flex flex-col items-center justify-center"
+            <div className={cn('mx-auto grid max-w-md gap-1', hasMore ? 'grid-cols-5' : 'grid-cols-4')}>
+                {primaryItems.map((item) => renderMobileNavItem(item))}
+                {hasMore && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                className="flex min-w-0 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[10px] font-bold text-slate-500 transition active:bg-slate-100"
+                                aria-label="Menu lainnya"
                             >
-                                <div
-                                    className={cn(
-                                        'flex size-12 items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-95',
-                                        active
-                                            ? 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white ring-4 shadow-blue-500/40 ring-white'
-                                            : 'bg-blue-600 text-white ring-4 shadow-blue-600/30 ring-white hover:bg-blue-700',
-                                    )}
-                                >
-                                    <Icon className="size-6" />
-                                </div>
-                                <span
-                                    className={cn(
-                                        'mt-0.5 max-w-full truncate text-[10px] font-bold tracking-tight',
-                                        active ? 'font-extrabold text-blue-700' : 'text-slate-600',
-                                    )}
-                                >
-                                    {shortMobileLabel(item.title)}
-                                </span>
-                            </Link>
-                        );
-                    }
+                                <MoreHorizontal className="mb-1 size-5" />
+                                <span>Lainnya</span>
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" side="top" className="mb-3 max-h-[60dvh] w-64 overflow-y-auto bg-white">
+                            <DropdownMenuLabel>Menu lainnya</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {overflowItems.map((item) => {
+                                const Icon = item.icon;
 
-                    return (
-                        <Link
-                            key={item.href ?? item.title}
-                            href={item.href ?? '#'}
-                            className={cn(
-                                'flex min-w-0 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[10px] font-bold transition',
-                                active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 active:bg-slate-100',
-                            )}
-                        >
-                            <Icon className="mb-1 size-5" />
-                            <span className="max-w-full truncate">{shortMobileLabel(item.title)}</span>
-                        </Link>
-                    );
-                })}
+                                return (
+                                    <DropdownMenuItem key={item.href ?? item.title} asChild className="cursor-pointer">
+                                        <Link href={item.href ?? '#'}>
+                                            <Icon className="size-4" />
+                                            {item.title}
+                                        </Link>
+                                    </DropdownMenuItem>
+                                );
+                            })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </div>
         </nav>
     );
+}
+
+function renderMobileNavItem(item: NavItem) {
+    const Icon = item.icon;
+    const active = isNavItemActive(item) || isSameBasePath(item);
+    const isScan = item.title === 'Scan Presensi' || item.href === '/student/attendance/scan';
+
+    if (isScan) {
+        return (
+            <Link key={item.href ?? item.title} href={item.href ?? '#'} className="group relative -mt-6 flex flex-col items-center justify-center">
+                <div
+                    className={cn(
+                        'flex size-12 items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-95',
+                        active
+                            ? 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white ring-4 shadow-blue-500/40 ring-white'
+                            : 'bg-blue-600 text-white ring-4 shadow-blue-600/30 ring-white hover:bg-blue-700',
+                    )}
+                >
+                    <Icon className="size-6" />
+                </div>
+                <span className={cn('mt-0.5 max-w-full truncate text-[10px] font-bold tracking-tight', active ? 'text-blue-700' : 'text-slate-600')}>
+                    {shortMobileLabel(item.title)}
+                </span>
+            </Link>
+        );
+    }
+
+    return (
+        <Link
+            key={item.href ?? item.title}
+            href={item.href ?? '#'}
+            className={cn(
+                'flex min-w-0 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[10px] font-bold transition',
+                active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 active:bg-slate-100',
+            )}
+        >
+            <Icon className="mb-1 size-5" />
+            <span className="max-w-full truncate">{shortMobileLabel(item.title)}</span>
+        </Link>
+    );
+}
+
+function selectMobilePrimaryItems(items: NavItem[], activeItem?: NavItem) {
+    const preferred = [
+        'Dashboard',
+        'Belajar',
+        'Scan Presensi',
+        'Siswa',
+        'Course Builder',
+        'Jadwal Saya',
+        'Jadwal Mengajar',
+        'Laporan Saya',
+        'Laporan Pertemuan',
+        'Toko Robotik',
+        'Pengaturan SEO',
+    ];
+    const scored = [...items].sort((a, b) => {
+        const aScore = preferred.indexOf(a.title);
+        const bScore = preferred.indexOf(b.title);
+
+        return (aScore === -1 ? 999 : aScore) - (bScore === -1 ? 999 : bScore);
+    });
+    const primary = scored.slice(0, 4);
+
+    if (activeItem && !primary.includes(activeItem)) {
+        return [...primary.slice(0, 3), activeItem];
+    }
+
+    return primary;
 }
 
 function shortMobileLabel(label: string) {

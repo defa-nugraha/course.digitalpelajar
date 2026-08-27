@@ -1,4 +1,5 @@
 import { Panel, ProgressBar, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/react';
 import { Award, BookOpen, Building2, ClipboardCheck, GraduationCap, Users, Wallet } from 'lucide-react';
@@ -58,7 +59,7 @@ export default function AdminDashboard({ stats, coursePerformance, recentSubmiss
             }
         >
             <Head title="Dashboard Admin" />
-            <div className="grid gap-5 md:grid-cols-3 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 xl:grid-cols-6">
                 <StatCard label="User" value={String(stats.users)} icon={Users} />
                 <StatCard label="Sekolah Aktif" value={String(stats.schools)} icon={Building2} tone="purple" />
                 <StatCard label="Course Publish" value={String(stats.courses)} icon={BookOpen} tone="amber" />
@@ -144,32 +145,55 @@ export default function AdminDashboard({ stats, coursePerformance, recentSubmiss
             </div>
 
             <Panel className="mt-6" title="Pembayaran Terbaru">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="text-xs tracking-wide text-slate-500 uppercase">
-                            <tr>
-                                <th className="py-3">Order</th>
-                                <th>Siswa</th>
-                                <th>Course</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Tanggal</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {recentPayments.map((payment) => (
-                                <tr key={payment.id}>
-                                    <td className="py-4 font-mono text-xs">{payment.orderId}</td>
-                                    <td className="font-semibold">{payment.student}</td>
-                                    <td>{payment.course}</td>
-                                    <td>{payment.amountLabel}</td>
-                                    <td className="capitalize">{payment.status}</td>
-                                    <td>{formatDate(payment.createdAt)}</td>
+                <div className="space-y-4">
+                    <MobileCardList
+                        empty={
+                            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                Belum ada pembayaran.
+                            </p>
+                        }
+                    >
+                        {recentPayments.map((payment) => (
+                            <MobileDataCard
+                                key={payment.id}
+                                title={payment.student}
+                                subtitle={payment.course}
+                                badge={<StatusBadge status={payment.status} label={payment.status} />}
+                                meta={[
+                                    { label: 'Order', value: <span className="font-mono text-xs">{payment.orderId}</span> },
+                                    { label: 'Total', value: payment.amountLabel },
+                                    { label: 'Tanggal', value: formatDate(payment.createdAt) },
+                                ]}
+                            />
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wide text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Order</th>
+                                    <th>Siswa</th>
+                                    <th>Course</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Tanggal</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {recentPayments.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada pembayaran.</p>}
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {recentPayments.map((payment) => (
+                                    <tr key={payment.id}>
+                                        <td className="py-4 font-mono text-xs">{payment.orderId}</td>
+                                        <td className="font-semibold">{payment.student}</td>
+                                        <td>{payment.course}</td>
+                                        <td>{payment.amountLabel}</td>
+                                        <td className="capitalize">{payment.status}</td>
+                                        <td>{formatDate(payment.createdAt)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {recentPayments.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada pembayaran.</p>}
+                    </DesktopTable>
                 </div>
             </Panel>
         </Shell>

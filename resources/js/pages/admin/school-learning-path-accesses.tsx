@@ -1,6 +1,7 @@
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileActionMenu, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -154,7 +155,7 @@ export default function SchoolLearningPathAccesses({ accesses, schools, learning
             }
         >
             <Head title="Akses Learning Path Sekolah" />
-            <div className="grid gap-5 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
                 <StatCard label="Total Akses" value={String(stats.total)} icon={Route} />
                 <StatCard label="Aktif Saat Ini" value={String(stats.active)} icon={CheckCircle2} tone="purple" />
                 <StatCard label="Sekolah Terakses" value={String(stats.schools)} icon={Building2} tone="amber" />
@@ -179,65 +180,120 @@ export default function SchoolLearningPathAccesses({ accesses, schools, learning
                     </div>
                 }
             >
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                            <tr>
-                                <th className="py-3">Sekolah</th>
-                                <th>Learning Path</th>
-                                <th>Periode</th>
-                                <th>Impact</th>
-                                <th>Status</th>
-                                <th className="text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {visibleAccesses.map((access) => (
-                                <tr key={access.id}>
-                                    <td className="py-4">
-                                        <p className="font-bold text-slate-950">{access.school}</p>
-                                        <p className="mt-1 text-xs text-slate-500">{access.studentCount} siswa aktif</p>
-                                    </td>
-                                    <td>
-                                        <p className="font-semibold text-slate-900">{access.learningPath}</p>
-                                        <p className="mt-1 text-xs text-slate-500">{access.courseCount} course otomatis bisa diakses</p>
-                                    </td>
-                                    <td>
-                                        <p>{access.startsAt ? dateLabel(access.startsAt) : 'Mulai sekarang'}</p>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            s/d {access.expiresAt ? dateLabel(access.expiresAt) : 'tanpa batas'}
-                                        </p>
-                                    </td>
-                                    <td>
-                                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                                            <Users className="size-4 text-blue-700" />
-                                            {access.enrollmentCount} enrollment
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span
-                                            className={`rounded-full px-2 py-1 text-xs font-bold ${
-                                                access.isCurrentlyActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                                            }`}
-                                        >
-                                            {access.isCurrentlyActive ? 'Aktif' : access.status === 'active' ? 'Terjadwal/Kedaluwarsa' : 'Nonaktif'}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div className="flex justify-end gap-1">
-                                            <Button variant="ghost" size="icon" aria-label="Edit akses" onClick={() => showEdit(access)}>
-                                                <Pencil className="size-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" aria-label="Hapus akses" onClick={() => remove(access)}>
-                                                <Trash2 className="size-4 text-red-600" />
-                                            </Button>
-                                        </div>
-                                    </td>
+                <div className="space-y-4">
+                    <MobileCardList
+                        empty={
+                            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                Belum ada akses yang cocok.
+                            </p>
+                        }
+                    >
+                        {visibleAccesses.map((access) => (
+                            <MobileDataCard
+                                key={access.id}
+                                title={access.school}
+                                subtitle={`${access.studentCount} siswa aktif`}
+                                badge={
+                                    <StatusBadge
+                                        status={access.isCurrentlyActive ? 'active' : access.status}
+                                        label={access.isCurrentlyActive ? 'Aktif' : access.status === 'active' ? 'Terjadwal/Kedaluwarsa' : 'Nonaktif'}
+                                    />
+                                }
+                                meta={[
+                                    { label: 'Path', value: access.learningPath },
+                                    {
+                                        label: 'Periode',
+                                        value: `${access.startsAt ? dateLabel(access.startsAt) : 'Mulai sekarang'} s/d ${
+                                            access.expiresAt ? dateLabel(access.expiresAt) : 'tanpa batas'
+                                        }`,
+                                    },
+                                    { label: 'Impact', value: `${access.courseCount} course · ${access.enrollmentCount} enrollment` },
+                                ]}
+                                actions={
+                                    <>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => showEdit(access)}>
+                                            <Pencil className="size-4" />
+                                            Edit
+                                        </Button>
+                                        <MobileActionMenu
+                                            items={[
+                                                {
+                                                    label: 'Hapus akses',
+                                                    destructive: true,
+                                                    icon: <Trash2 className="size-4" />,
+                                                    onClick: () => remove(access),
+                                                },
+                                            ]}
+                                        />
+                                    </>
+                                }
+                            />
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Sekolah</th>
+                                    <th>Learning Path</th>
+                                    <th>Periode</th>
+                                    <th>Impact</th>
+                                    <th>Status</th>
+                                    <th className="text-right">Aksi</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {visibleAccesses.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada akses yang cocok.</p>}
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {visibleAccesses.map((access) => (
+                                    <tr key={access.id}>
+                                        <td className="py-4">
+                                            <p className="font-bold text-slate-950">{access.school}</p>
+                                            <p className="mt-1 text-xs text-slate-500">{access.studentCount} siswa aktif</p>
+                                        </td>
+                                        <td>
+                                            <p className="font-semibold text-slate-900">{access.learningPath}</p>
+                                            <p className="mt-1 text-xs text-slate-500">{access.courseCount} course otomatis bisa diakses</p>
+                                        </td>
+                                        <td>
+                                            <p>{access.startsAt ? dateLabel(access.startsAt) : 'Mulai sekarang'}</p>
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                s/d {access.expiresAt ? dateLabel(access.expiresAt) : 'tanpa batas'}
+                                            </p>
+                                        </td>
+                                        <td>
+                                            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                                <Users className="size-4 text-blue-700" />
+                                                {access.enrollmentCount} enrollment
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span
+                                                className={`rounded-full px-2 py-1 text-xs font-bold ${
+                                                    access.isCurrentlyActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                                                }`}
+                                            >
+                                                {access.isCurrentlyActive
+                                                    ? 'Aktif'
+                                                    : access.status === 'active'
+                                                      ? 'Terjadwal/Kedaluwarsa'
+                                                      : 'Nonaktif'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="flex justify-end gap-1">
+                                                <Button variant="ghost" size="icon" aria-label="Edit akses" onClick={() => showEdit(access)}>
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" aria-label="Hapus akses" onClick={() => remove(access)}>
+                                                    <Trash2 className="size-4 text-red-600" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {visibleAccesses.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada akses yang cocok.</p>}
+                    </DesktopTable>
                 </div>
             </Panel>
 

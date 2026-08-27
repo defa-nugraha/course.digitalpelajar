@@ -1,6 +1,7 @@
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileActionMenu, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -128,7 +129,7 @@ export default function Schools({ stats, schools }: SchoolsProps) {
             }
         >
             <Head title="Manajemen Sekolah" />
-            <div className="grid gap-5 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
                 <StatCard label="Total Schools" value={String(stats.totalSchools)} icon={Building2} />
                 <StatCard label="Active Partners" value={String(stats.activePartners)} icon={Handshake} tone="purple" />
                 <StatCard label="Total Students" value={String(stats.totalStudents)} icon={School} tone="amber" />
@@ -149,64 +150,112 @@ export default function Schools({ stats, schools }: SchoolsProps) {
                     </label>
                 }
             >
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                            <tr>
-                                <th className="py-3">Sekolah</th>
-                                <th>Logo</th>
-                                <th>PIC</th>
-                                <th>Siswa</th>
-                                <th>Guru</th>
-                                <th>Status</th>
-                                <th className="text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {visibleSchools.map((school) => (
-                                <tr key={school.id}>
-                                    <td className="py-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setDetail(school)}
-                                            className="text-left font-bold text-slate-950 hover:text-blue-700"
-                                        >
-                                            {school.name}
-                                        </button>
-                                        <p className="mt-1 text-xs text-slate-500">{school.address || 'Alamat belum diisi'}</p>
-                                    </td>
-                                    <td>
-                                        {school.logoUrl ? (
-                                            <img src={school.logoUrl} alt={`Logo ${school.name}`} className="h-8 w-24 object-contain" />
-                                        ) : (
-                                            <span className="inline-flex size-9 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-700">
-                                                {initials(school.name)}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td>{school.pic || '-'}</td>
-                                    <td>{school.students}</td>
-                                    <td>{school.teachers}</td>
-                                    <td>
-                                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
-                                            {school.status}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div className="flex justify-end gap-1">
-                                            <Button variant="ghost" size="icon" aria-label="Edit sekolah" onClick={() => showEdit(school)}>
-                                                <Pencil className="size-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" aria-label="Hapus sekolah" onClick={() => remove(school)}>
-                                                <Trash2 className="size-4 text-red-600" />
-                                            </Button>
-                                        </div>
-                                    </td>
+                <div className="space-y-4">
+                    <MobileCardList
+                        empty={
+                            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                Tidak ada sekolah yang cocok.
+                            </p>
+                        }
+                    >
+                        {visibleSchools.map((school) => (
+                            <MobileDataCard
+                                key={school.id}
+                                title={
+                                    <button type="button" onClick={() => setDetail(school)} className="text-left hover:text-blue-700">
+                                        {school.name}
+                                    </button>
+                                }
+                                subtitle={school.address || 'Alamat belum diisi'}
+                                badge={<StatusBadge status={school.statusValue} label={school.status} />}
+                                meta={[
+                                    { label: 'PIC', value: school.pic || '-' },
+                                    { label: 'Siswa', value: school.students },
+                                    { label: 'Guru', value: school.teachers },
+                                ]}
+                                actions={
+                                    <>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => setDetail(school)}>
+                                            Detail
+                                        </Button>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => showEdit(school)}>
+                                            <Pencil className="size-4" />
+                                            Edit
+                                        </Button>
+                                        <MobileActionMenu
+                                            items={[
+                                                {
+                                                    label: 'Hapus sekolah',
+                                                    destructive: true,
+                                                    icon: <Trash2 className="size-4" />,
+                                                    onClick: () => remove(school),
+                                                },
+                                            ]}
+                                        />
+                                    </>
+                                }
+                            />
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Sekolah</th>
+                                    <th>Logo</th>
+                                    <th>PIC</th>
+                                    <th>Siswa</th>
+                                    <th>Guru</th>
+                                    <th>Status</th>
+                                    <th className="text-right">Aksi</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {visibleSchools.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada sekolah yang cocok.</p>}
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {visibleSchools.map((school) => (
+                                    <tr key={school.id}>
+                                        <td className="py-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setDetail(school)}
+                                                className="text-left font-bold text-slate-950 hover:text-blue-700"
+                                            >
+                                                {school.name}
+                                            </button>
+                                            <p className="mt-1 text-xs text-slate-500">{school.address || 'Alamat belum diisi'}</p>
+                                        </td>
+                                        <td>
+                                            {school.logoUrl ? (
+                                                <img src={school.logoUrl} alt={`Logo ${school.name}`} className="h-8 w-24 object-contain" />
+                                            ) : (
+                                                <span className="inline-flex size-9 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-700">
+                                                    {initials(school.name)}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td>{school.pic || '-'}</td>
+                                        <td>{school.students}</td>
+                                        <td>{school.teachers}</td>
+                                        <td>
+                                            <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                                                {school.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="flex justify-end gap-1">
+                                                <Button variant="ghost" size="icon" aria-label="Edit sekolah" onClick={() => showEdit(school)}>
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" aria-label="Hapus sekolah" onClick={() => remove(school)}>
+                                                    <Trash2 className="size-4 text-red-600" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {visibleSchools.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada sekolah yang cocok.</p>}
+                    </DesktopTable>
                 </div>
                 <InputError message={(form.errors as Record<string, string>).school} className="mt-4" />
             </Panel>
@@ -335,30 +384,44 @@ function PeopleTable({ title, people, empty }: { title: string; people: SchoolPe
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{people.length} user</span>
             </div>
             <div className="max-h-80 overflow-y-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="text-xs tracking-wide text-slate-500 uppercase">
-                        <tr>
-                            <th className="py-2">Nama</th>
-                            <th>Email</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {people.map((person) => (
-                            <tr key={person.id}>
-                                <td className="py-3">
-                                    <p className="font-semibold text-slate-950">{person.name}</p>
-                                    <p className="text-xs text-slate-500">{person.roleLabel}</p>
-                                </td>
-                                <td className="max-w-48 truncate">{person.email}</td>
-                                <td>
-                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{person.status}</span>
-                                </td>
+                <MobileCardList empty={<p className="py-8 text-center text-sm text-slate-500">{empty}</p>}>
+                    {people.map((person) => (
+                        <MobileDataCard
+                            key={person.id}
+                            title={person.name}
+                            subtitle={person.email}
+                            badge={<StatusBadge status={person.status} label={person.status} />}
+                            meta={[{ label: 'Role', value: person.roleLabel }]}
+                            className="shadow-none"
+                        />
+                    ))}
+                </MobileCardList>
+                <DesktopTable className="max-h-80">
+                    <table className="w-full text-left text-sm">
+                        <thead className="text-xs tracking-wide text-slate-500 uppercase">
+                            <tr>
+                                <th className="py-2">Nama</th>
+                                <th>Email</th>
+                                <th>Status</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {people.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{empty}</p>}
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {people.map((person) => (
+                                <tr key={person.id}>
+                                    <td className="py-3">
+                                        <p className="font-semibold text-slate-950">{person.name}</p>
+                                        <p className="text-xs text-slate-500">{person.roleLabel}</p>
+                                    </td>
+                                    <td className="max-w-48 truncate">{person.email}</td>
+                                    <td>
+                                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{person.status}</span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {people.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{empty}</p>}
+                </DesktopTable>
             </div>
         </div>
     );

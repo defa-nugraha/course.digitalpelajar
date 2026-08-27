@@ -1,6 +1,7 @@
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileActionMenu, MobileCardList, MobileDataCard } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -671,84 +672,142 @@ function ScheduleTable({
     onDelete: (schedule: ScheduleRow) => void;
 }) {
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-                <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                    <tr>
-                        <th className="py-3">Jadwal</th>
-                        <th>Course</th>
-                        <th>Mode</th>
-                        <th>Status</th>
-                        <th>Laporan</th>
-                        <th className="text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                    {schedules.map((schedule) => (
-                        <tr key={schedule.id}>
-                            <td className="min-w-72 py-4">
-                                <p className="font-bold text-slate-950">{schedule.title}</p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                    {schedule.startsAtLabel} – {schedule.endsAtLabel}
-                                </p>
-                                {schedule.notes && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{schedule.notes}</p>}
-                            </td>
-                            <td>{schedule.course}</td>
-                            <td>
-                                <div className="flex items-start gap-2">
-                                    {schedule.mode === 'offline' ? (
-                                        <MapPin className="mt-0.5 size-4 text-blue-700" />
-                                    ) : (
-                                        <Laptop className="mt-0.5 size-4 text-blue-700" />
-                                    )}
-                                    <span>
-                                        <span className="block font-semibold capitalize">{schedule.mode}</span>
-                                        {schedule.mode === 'offline' ? (
-                                            <span className="text-xs text-slate-500">{schedule.location || '-'}</span>
-                                        ) : (
-                                            <a
-                                                href={schedule.meetingUrl ?? '#'}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-xs text-blue-700 hover:underline"
-                                            >
-                                                Link meeting
-                                            </a>
-                                        )}
-                                    </span>
-                                </div>
-                            </td>
-                            <td>
-                                <StatusPill status={schedule.status} />
-                            </td>
-                            <td>
-                                {schedule.sessionId ? (
-                                    <Link href={sessionHref(scope)} className="font-semibold text-blue-700 hover:underline">
-                                        {statusLabel(schedule.sessionStatus ?? 'submitted')}
-                                    </Link>
-                                ) : (
-                                    <span className="text-xs text-slate-500">Belum ada</span>
+        <div className="space-y-4">
+            <MobileCardList
+                empty={
+                    <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                        Tidak ada jadwal untuk pengajar ini.
+                    </p>
+                }
+            >
+                {schedules.map((schedule) => (
+                    <MobileDataCard
+                        key={schedule.id}
+                        title={schedule.title}
+                        subtitle={`${schedule.startsAtLabel} – ${schedule.endsAtLabel}`}
+                        badge={<StatusPill status={schedule.status} />}
+                        meta={[
+                            { label: 'Course', value: schedule.course },
+                            {
+                                label: 'Mode',
+                                value:
+                                    schedule.mode === 'offline'
+                                        ? `Offline · ${schedule.location || '-'}`
+                                        : `Online · ${schedule.meetingUrl ? 'Ada link meeting' : 'Belum ada link'}`,
+                            },
+                            { label: 'Laporan', value: schedule.sessionId ? statusLabel(schedule.sessionStatus ?? 'submitted') : 'Belum ada' },
+                        ]}
+                        actions={
+                            <>
+                                {schedule.sessionId && (
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href={sessionHref(scope)}>Laporan</Link>
+                                    </Button>
                                 )}
-                            </td>
-                            <td>
-                                <div className="flex justify-end gap-1">
-                                    {schedule.canEdit && (
-                                        <Button variant="ghost" size="icon" aria-label="Edit jadwal" onClick={() => onEdit(schedule)}>
-                                            <Pencil className="size-4" />
-                                        </Button>
-                                    )}
-                                    {schedule.canDelete && (
-                                        <Button variant="ghost" size="icon" aria-label="Hapus jadwal" onClick={() => onDelete(schedule)}>
-                                            <Trash2 className="size-4 text-red-600" />
-                                        </Button>
-                                    )}
-                                </div>
-                            </td>
+                                {schedule.canEdit && (
+                                    <Button type="button" size="sm" variant="outline" onClick={() => onEdit(schedule)}>
+                                        <Pencil className="size-4" />
+                                        Edit
+                                    </Button>
+                                )}
+                                <MobileActionMenu
+                                    items={[
+                                        schedule.canDelete
+                                            ? {
+                                                  label: 'Hapus jadwal',
+                                                  destructive: true,
+                                                  icon: <Trash2 className="size-4" />,
+                                                  onClick: () => onDelete(schedule),
+                                              }
+                                            : { label: '' },
+                                    ]}
+                                />
+                            </>
+                        }
+                    >
+                        {schedule.notes && <p className="line-clamp-3 text-sm leading-6 text-slate-600">{schedule.notes}</p>}
+                    </MobileDataCard>
+                ))}
+            </MobileCardList>
+            <DesktopTable>
+                <table className="w-full text-left text-sm">
+                    <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                        <tr>
+                            <th className="py-3">Jadwal</th>
+                            <th>Course</th>
+                            <th>Mode</th>
+                            <th>Status</th>
+                            <th>Laporan</th>
+                            <th className="text-right">Aksi</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-            {schedules.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada jadwal untuk pengajar ini.</p>}
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                        {schedules.map((schedule) => (
+                            <tr key={schedule.id}>
+                                <td className="min-w-72 py-4">
+                                    <p className="font-bold text-slate-950">{schedule.title}</p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        {schedule.startsAtLabel} – {schedule.endsAtLabel}
+                                    </p>
+                                    {schedule.notes && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{schedule.notes}</p>}
+                                </td>
+                                <td>{schedule.course}</td>
+                                <td>
+                                    <div className="flex items-start gap-2">
+                                        {schedule.mode === 'offline' ? (
+                                            <MapPin className="mt-0.5 size-4 text-blue-700" />
+                                        ) : (
+                                            <Laptop className="mt-0.5 size-4 text-blue-700" />
+                                        )}
+                                        <span>
+                                            <span className="block font-semibold capitalize">{schedule.mode}</span>
+                                            {schedule.mode === 'offline' ? (
+                                                <span className="text-xs text-slate-500">{schedule.location || '-'}</span>
+                                            ) : (
+                                                <a
+                                                    href={schedule.meetingUrl ?? '#'}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-xs text-blue-700 hover:underline"
+                                                >
+                                                    Link meeting
+                                                </a>
+                                            )}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <StatusPill status={schedule.status} />
+                                </td>
+                                <td>
+                                    {schedule.sessionId ? (
+                                        <Link href={sessionHref(scope)} className="font-semibold text-blue-700 hover:underline">
+                                            {statusLabel(schedule.sessionStatus ?? 'submitted')}
+                                        </Link>
+                                    ) : (
+                                        <span className="text-xs text-slate-500">Belum ada</span>
+                                    )}
+                                </td>
+                                <td>
+                                    <div className="flex justify-end gap-1">
+                                        {schedule.canEdit && (
+                                            <Button variant="ghost" size="icon" aria-label="Edit jadwal" onClick={() => onEdit(schedule)}>
+                                                <Pencil className="size-4" />
+                                            </Button>
+                                        )}
+                                        {schedule.canDelete && (
+                                            <Button variant="ghost" size="icon" aria-label="Hapus jadwal" onClick={() => onDelete(schedule)}>
+                                                <Trash2 className="size-4 text-red-600" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {schedules.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada jadwal untuk pengajar ini.</p>}
+            </DesktopTable>
         </div>
     );
 }

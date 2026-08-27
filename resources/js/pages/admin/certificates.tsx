@@ -2,6 +2,7 @@ import BrandLogo from '@/components/brand-logo';
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell } from '@/components/platform';
+import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -354,59 +355,99 @@ export default function AdminCertificates({
                         />
                     </div>
 
-                    <div className="mt-5 overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="text-xs tracking-wide text-slate-500 uppercase">
-                                <tr>
-                                    <th className="py-3">Siswa</th>
-                                    <th>Sekolah</th>
-                                    <th>Course</th>
-                                    <th>No. Sertifikat</th>
-                                    <th>Status</th>
-                                    <th>Tanggal</th>
-                                    <th className="text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200">
-                                {visibleCertificateUsers.map((item) => (
-                                    <tr key={item.id}>
-                                        <td className="py-4">
-                                            <p className="font-bold text-slate-950">{item.student}</p>
-                                            <p className="text-xs text-slate-500">{item.email}</p>
-                                        </td>
-                                        <td>{item.school}</td>
-                                        <td>
-                                            <p className="font-semibold">{item.course}</p>
-                                            <p className="text-xs text-slate-500">Progress {item.progress}%</p>
-                                        </td>
-                                        <td className="font-mono text-xs">{item.no}</td>
-                                        <td>
-                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-                                                {item.status}
-                                            </span>
-                                        </td>
-                                        <td>{item.issueDate}</td>
-                                        <td>
-                                            <div className="flex justify-end gap-1">
-                                                <Button asChild variant="ghost" size="icon">
-                                                    <Link href={`/certificates/${item.id}`} aria-label="Lihat sertifikat">
-                                                        <Award className="size-4" />
-                                                    </Link>
-                                                </Button>
-                                                <Button asChild variant="ghost" size="icon">
-                                                    <a href={`/certificates/${item.id}/download`} aria-label="Unduh PDF">
-                                                        <Download className="size-4" />
-                                                    </a>
-                                                </Button>
-                                            </div>
-                                        </td>
+                    <div className="mt-5 space-y-4">
+                        <MobileCardList
+                            empty={
+                                <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                    Tidak ada pemilik sertifikat yang cocok dengan filter.
+                                </p>
+                            }
+                        >
+                            {visibleCertificateUsers.map((item) => (
+                                <MobileDataCard
+                                    key={item.id}
+                                    title={item.student}
+                                    subtitle={item.email}
+                                    badge={<StatusBadge status={item.statusValue} label={item.status} />}
+                                    meta={[
+                                        { label: 'Sekolah', value: item.school },
+                                        { label: 'Course', value: `${item.course} · Progress ${item.progress}%` },
+                                        { label: 'No.', value: <span className="font-mono text-xs">{item.no}</span> },
+                                        { label: 'Tanggal', value: item.issueDate },
+                                    ]}
+                                    actions={
+                                        <>
+                                            <Button asChild variant="outline" size="sm">
+                                                <Link href={`/certificates/${item.id}`}>
+                                                    <Award className="size-4" />
+                                                    Lihat
+                                                </Link>
+                                            </Button>
+                                            <Button asChild variant="outline" size="sm">
+                                                <a href={`/certificates/${item.id}/download`}>
+                                                    <Download className="size-4" />
+                                                    PDF
+                                                </a>
+                                            </Button>
+                                        </>
+                                    }
+                                />
+                            ))}
+                        </MobileCardList>
+                        <DesktopTable>
+                            <table className="w-full text-left text-sm">
+                                <thead className="text-xs tracking-wide text-slate-500 uppercase">
+                                    <tr>
+                                        <th className="py-3">Siswa</th>
+                                        <th>Sekolah</th>
+                                        <th>Course</th>
+                                        <th>No. Sertifikat</th>
+                                        <th>Status</th>
+                                        <th>Tanggal</th>
+                                        <th className="text-right">Aksi</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {visibleCertificateUsers.length === 0 && (
-                            <p className="py-8 text-center text-sm text-slate-500">Tidak ada pemilik sertifikat yang cocok dengan filter.</p>
-                        )}
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                    {visibleCertificateUsers.map((item) => (
+                                        <tr key={item.id}>
+                                            <td className="py-4">
+                                                <p className="font-bold text-slate-950">{item.student}</p>
+                                                <p className="text-xs text-slate-500">{item.email}</p>
+                                            </td>
+                                            <td>{item.school}</td>
+                                            <td>
+                                                <p className="font-semibold">{item.course}</p>
+                                                <p className="text-xs text-slate-500">Progress {item.progress}%</p>
+                                            </td>
+                                            <td className="font-mono text-xs">{item.no}</td>
+                                            <td>
+                                                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                                                    {item.status}
+                                                </span>
+                                            </td>
+                                            <td>{item.issueDate}</td>
+                                            <td>
+                                                <div className="flex justify-end gap-1">
+                                                    <Button asChild variant="ghost" size="icon">
+                                                        <Link href={`/certificates/${item.id}`} aria-label="Lihat sertifikat">
+                                                            <Award className="size-4" />
+                                                        </Link>
+                                                    </Button>
+                                                    <Button asChild variant="ghost" size="icon">
+                                                        <a href={`/certificates/${item.id}/download`} aria-label="Unduh PDF">
+                                                            <Download className="size-4" />
+                                                        </a>
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {visibleCertificateUsers.length === 0 && (
+                                <p className="py-8 text-center text-sm text-slate-500">Tidak ada pemilik sertifikat yang cocok dengan filter.</p>
+                            )}
+                        </DesktopTable>
                     </div>
                 </Panel>
             </div>

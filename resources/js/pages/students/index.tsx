@@ -1,4 +1,5 @@
 import { Panel, ProgressBar, Shell, StatCard } from '@/components/platform';
+import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,7 +71,7 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
     return (
         <Shell title="Siswa" eyebrow={scopeLabel}>
             <Head title="Siswa" />
-            <div className="grid gap-5 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-5">
                 <StatCard label="Total Siswa" value={String(summary.students)} icon={Users} />
                 <StatCard label="Siswa Aktif" value={String(summary.active)} icon={CheckCircle2} tone="slate" />
                 <StatCard label="Rata-rata Progress" value={`${summary.averageProgress}%`} icon={TrendingUp} tone="purple" />
@@ -130,75 +131,117 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                     </Button>
                 </div>
 
-                <div className="mt-5 overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
-                            <tr>
-                                <th className="py-3">Siswa</th>
-                                <th>Sekolah</th>
-                                <th>Course</th>
-                                <th>Progress</th>
-                                <th>Submission</th>
-                                <th>Sertifikat</th>
-                                <th>Aktivitas</th>
-                                <th className="text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {visibleStudents.map((student) => (
-                                <tr key={student.id}>
-                                    <td className="min-w-64 py-4">
-                                        <div className="flex items-start gap-3">
-                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-                                                <GraduationCap className="size-5" />
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-slate-950">{student.name}</p>
-                                                <p className="mt-1 text-xs text-slate-500">{student.email}</p>
-                                                <p className="mt-1 text-xs font-semibold text-slate-500">{student.status}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="min-w-44">{student.school}</td>
-                                    <td>
-                                        <p className="font-bold">{student.courses}</p>
-                                        <p className="text-xs text-slate-500">{student.enrollments} enrollment</p>
-                                    </td>
-                                    <td className="min-w-40">
-                                        <div className="flex items-center gap-3">
-                                            <ProgressBar value={student.progress} />
-                                            <span className="w-10 text-right text-xs font-bold text-blue-700">{student.progress}%</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span
-                                            className={`rounded-full px-2 py-1 text-xs font-bold ${
-                                                student.pendingSubmissions > 0 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
-                                            }`}
-                                        >
-                                            {student.pendingSubmissions} pending
-                                        </span>
-                                    </td>
-                                    <td>{student.certificates}</td>
-                                    <td className="min-w-36 text-xs text-slate-500">{formatDate(student.lastActivityAt)}</td>
-                                    <td className="text-right">
-                                        {student.reviewUrl ? (
-                                            <Button asChild size="sm">
-                                                <Link href={student.reviewUrl}>Review</Link>
-                                            </Button>
-                                        ) : (
-                                            <span className="text-xs text-slate-400">Tidak ada review</span>
-                                        )}
-                                    </td>
+                <div className="mt-5 space-y-4">
+                    <MobileCardList
+                        empty={
+                            <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                Tidak ada siswa yang cocok dengan filter.
+                            </div>
+                        }
+                    >
+                        {visibleStudents.map((student) => (
+                            <MobileDataCard
+                                key={student.id}
+                                title={student.name}
+                                subtitle={student.email}
+                                badge={<StatusBadge status={student.status} label={student.status} />}
+                                meta={[
+                                    { label: 'Sekolah', value: student.school },
+                                    { label: 'Course', value: `${student.courses} course · ${student.enrollments} enrollment` },
+                                    { label: 'Submission', value: `${student.pendingSubmissions} pending` },
+                                    { label: 'Sertifikat', value: student.certificates },
+                                    { label: 'Aktivitas', value: formatDate(student.lastActivityAt) },
+                                ]}
+                                actions={
+                                    student.reviewUrl ? (
+                                        <Button asChild size="sm">
+                                            <Link href={student.reviewUrl}>Buka Review</Link>
+                                        </Button>
+                                    ) : (
+                                        <span className="text-xs font-semibold text-slate-400">Tidak ada review</span>
+                                    )
+                                }
+                            >
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-xs font-bold text-blue-700">
+                                        <span>Progress belajar</span>
+                                        <span>{student.progress}%</span>
+                                    </div>
+                                    <ProgressBar value={student.progress} />
+                                </div>
+                            </MobileDataCard>
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Siswa</th>
+                                    <th>Sekolah</th>
+                                    <th>Course</th>
+                                    <th>Progress</th>
+                                    <th>Submission</th>
+                                    <th>Sertifikat</th>
+                                    <th>Aktivitas</th>
+                                    <th className="text-right">Aksi</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {visibleStudents.length === 0 && (
-                        <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
-                            Tidak ada siswa yang cocok dengan filter.
-                        </div>
-                    )}
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {visibleStudents.map((student) => (
+                                    <tr key={student.id}>
+                                        <td className="min-w-64 py-4">
+                                            <div className="flex items-start gap-3">
+                                                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                                                    <GraduationCap className="size-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-slate-950">{student.name}</p>
+                                                    <p className="mt-1 text-xs text-slate-500">{student.email}</p>
+                                                    <p className="mt-1 text-xs font-semibold text-slate-500">{student.status}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="min-w-44">{student.school}</td>
+                                        <td>
+                                            <p className="font-bold">{student.courses}</p>
+                                            <p className="text-xs text-slate-500">{student.enrollments} enrollment</p>
+                                        </td>
+                                        <td className="min-w-40">
+                                            <div className="flex items-center gap-3">
+                                                <ProgressBar value={student.progress} />
+                                                <span className="w-10 text-right text-xs font-bold text-blue-700">{student.progress}%</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span
+                                                className={`rounded-full px-2 py-1 text-xs font-bold ${
+                                                    student.pendingSubmissions > 0 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
+                                                }`}
+                                            >
+                                                {student.pendingSubmissions} pending
+                                            </span>
+                                        </td>
+                                        <td>{student.certificates}</td>
+                                        <td className="min-w-36 text-xs text-slate-500">{formatDate(student.lastActivityAt)}</td>
+                                        <td className="text-right">
+                                            {student.reviewUrl ? (
+                                                <Button asChild size="sm">
+                                                    <Link href={student.reviewUrl}>Review</Link>
+                                                </Button>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">Tidak ada review</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {visibleStudents.length === 0 && (
+                            <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                                Tidak ada siswa yang cocok dengan filter.
+                            </div>
+                        )}
+                    </DesktopTable>
                 </div>
             </Panel>
         </Shell>
