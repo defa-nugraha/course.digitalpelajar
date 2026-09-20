@@ -2,7 +2,7 @@ import { Panel, ProgressBar, Shell, StatCard } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowRight, Award, BookOpen, CalendarDays, QrCode, TrendingUp, UserRound } from 'lucide-react';
+import { ArrowRight, Award, BookOpen, CalendarDays, MessageSquareText, QrCode, TrendingUp, UserRound } from 'lucide-react';
 
 interface DashboardCourse {
     id: number;
@@ -37,6 +37,15 @@ interface OfflineAttendance {
     lateLabel?: string | null;
 }
 
+interface TeacherNote {
+    id: number;
+    note: string;
+    teacher: string;
+    meeting: string;
+    course?: string | null;
+    dateLabel: string;
+}
+
 interface DashboardProps {
     stats: {
         classes: number;
@@ -48,9 +57,10 @@ interface DashboardProps {
     courses: DashboardCourse[];
     tasks: Task[];
     offlineAttendances: OfflineAttendance[];
+    teacherNotes: TeacherNote[];
 }
 
-export default function Dashboard({ stats, currentCourse, courses, tasks, offlineAttendances }: DashboardProps) {
+export default function Dashboard({ stats, currentCourse, courses, tasks, offlineAttendances, teacherNotes }: DashboardProps) {
     const { auth } = usePage<SharedData>().props;
     const profileComplete = Boolean(auth.user.profile_completed_at);
 
@@ -193,6 +203,38 @@ export default function Dashboard({ stats, currentCourse, courses, tasks, offlin
                     <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
                         Belum ada jadwal offline aktif di dashboard. Tetap gunakan tombol scan saat pengajar menampilkan QR presensi.
                     </p>
+                )}
+            </Panel>
+
+            <Panel className="mt-6" title="Catatan Guru">
+                <p className="mb-4 text-sm leading-6 text-slate-600">
+                    Catatan perkembangan yang diberikan guru pada setiap pertemuan akan tampil di sini.
+                </p>
+                {teacherNotes.length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {teacherNotes.map((note) => (
+                            <article key={note.id} className="rounded-xl border border-violet-100 bg-violet-50/50 p-4">
+                                <div className="flex items-start gap-3">
+                                    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-violet-700 shadow-sm">
+                                        <MessageSquareText className="size-5" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="font-extrabold text-slate-950">{note.meeting}</p>
+                                        <p className="mt-1 text-xs font-semibold text-violet-700">
+                                            {note.course || 'Program sekolah'} · {note.dateLabel}
+                                        </p>
+                                    </div>
+                                </div>
+                                <p className="mt-4 text-sm leading-6 break-words whitespace-pre-wrap text-slate-700">{note.note}</p>
+                                <p className="mt-3 text-xs font-bold text-slate-500">Oleh {note.teacher}</p>
+                            </article>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="rounded-xl border border-dashed border-slate-300 p-5 text-center">
+                        <MessageSquareText className="mx-auto size-6 text-slate-400" />
+                        <p className="mt-2 text-sm text-slate-500">Belum ada catatan perkembangan dari guru.</p>
+                    </div>
                 )}
             </Panel>
 

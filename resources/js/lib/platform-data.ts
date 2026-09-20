@@ -18,6 +18,7 @@ import {
     Search,
     Settings,
     ShieldCheck,
+    TrendingUp,
     Upload,
     Users,
     Wallet,
@@ -117,11 +118,19 @@ export const studentNav = [
 
 export const teacherNav = [
     { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { title: 'Pertemuan Sekolah', href: '/teacher/teaching-sessions', icon: ClipboardList },
     { title: 'Belajar', href: '/teacher/learning', icon: GraduationCap },
     { title: 'Katalog', href: '/teacher/catalog', icon: BookOpen },
     { title: 'Toko Robotik', href: '/store/orders', icon: Package },
     { title: 'Redeem Kode', href: '/activation-codes/redeem', icon: QrCode },
-    { title: 'Siswa', href: '/teacher/students', icon: Users },
+    {
+        title: 'Siswa',
+        icon: Users,
+        children: [
+            { title: 'Progres per Pertemuan', href: '/teacher/students', icon: TrendingUp, exact: true },
+            { title: 'Rekap Kehadiran Siswa', href: '/teacher/students/attendance', icon: ClipboardCheck },
+        ],
+    },
 ];
 
 export const instructorNav = [
@@ -132,6 +141,7 @@ export const instructorNav = [
     { title: 'Jadwal Saya', href: '/instructor/schedules', icon: CalendarDays },
     { title: 'Laporan Saya', href: '/instructor/teaching-sessions', icon: ClipboardList },
     { title: 'Feedback Siswa', href: '/instructor/teaching-feedbacks', icon: MessageSquare },
+    { title: 'Gaji Saya', href: '/instructor/payrolls', icon: Wallet },
     { title: 'Review', href: '/reviews', icon: ClipboardCheck },
     { title: 'Pengaturan', href: '/settings/profile', icon: Settings },
 ];
@@ -141,4 +151,5 @@ export interface NavItem {
     href?: string;
     icon: LucideIcon;
     children?: NavItem[];
+    exact?: boolean;
 }

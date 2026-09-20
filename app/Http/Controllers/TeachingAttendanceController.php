@@ -21,37 +21,43 @@ class TeachingAttendanceController extends Controller
 {
     public function index(Request $request, TeachingSession $teachingSession): Response
     {
-        $this->authorizeInstructor($request, $teachingSession);
+        $this->authorizeEditor($request, $teachingSession);
         $teachingSession->load(['schedule:id,title,starts_at,ends_at,mode,location,status', 'school:id,name', 'course:id,title']);
+        $scope = $request->user()->isAdmin() ? 'admin' : 'instructor';
 
         return Inertia::render('teaching/attendances', [
+            'scope' => $scope,
             'session' => $this->sessionPayload($teachingSession),
             'students' => $this->studentRows($teachingSession),
             'summary' => $this->summary($teachingSession),
             'feedbackSummary' => $this->feedbackSummary($teachingSession),
-            ...$this->qrPayload($teachingSession),
-            'canEdit' => $this->canEdit($teachingSession),
-            'backUrl' => route('instructor.teaching-sessions'),
+            ...$this->qrPayload($teachingSession, $scope),
+            'canEdit' => $this->canEdit($teachingSession, $scope),
+            'backUrl' => $scope === 'admin'
+                ? route('admin.teaching-sessions.show', $teachingSession)
+                : route('instructor.teaching-sessions'),
         ]);
     }
 
     public function data(Request $request, TeachingSession $teachingSession): JsonResponse
     {
-        $this->authorizeInstructor($request, $teachingSession);
+        $this->authorizeEditor($request, $teachingSession);
+        $scope = $request->user()->isAdmin() ? 'admin' : 'instructor';
 
         return response()->json([
             'students' => $this->studentRows($teachingSession),
             'summary' => $this->summary($teachingSession),
             'feedbackSummary' => $this->feedbackSummary($teachingSession),
-            ...$this->qrPayload($teachingSession),
-            'canEdit' => $this->canEdit($teachingSession),
+            ...$this->qrPayload($teachingSession, $scope),
+            'canEdit' => $this->canEdit($teachingSession, $scope),
         ]);
     }
 
     public function update(Request $request, TeachingSession $teachingSession): RedirectResponse
     {
-        $this->authorizeInstructor($request, $teachingSession);
-        abort_unless($this->canEdit($teachingSession), 403);
+        $this->authorizeEditor($request, $teachingSession);
+        $scope = $request->user()->isAdmin() ? 'admin' : 'instructor';
+        abort_unless($this->canEdit($teachingSession, $scope), 403);
         $teachingSession->loadMissing('schedule:id,starts_at');
 
         $data = $request->validate([
@@ -64,6 +70,7 @@ class TeachingAttendanceController extends Controller
                     ->where('school_id', $teachingSession->school_id)),
             ],
             'attendances.*.status' => ['required', Rule::in(['H', 'S', 'I', 'A'])],
+            'attendances.*.late_minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
             'attendances.*.reason' => ['nullable', 'string', 'max:1000'],
             'attendances.*.proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
         ]);
@@ -121,7 +128,9 @@ class TeachingAttendanceController extends Controller
                     [
                         'status' => $status,
                         'checked_in_at' => $checkedInAt,
-                        'late_minutes' => $status === 'H' ? $this->lateMinutes($teachingSession, $checkedInAt) : 0,
+                        'late_minutes' => $status === 'H'
+                            ? (int) ($payload['late_minutes'] ?? $this->lateMinutes($teachingSession, $checkedInAt))
+                            : 0,
                         'source' => $source,
                         'reason' => in_array($status, ['S', 'I'], true) ? ($payload['reason'] ?? null) : null,
                         'proof_path' => $proofPath,
@@ -140,18 +149,21 @@ class TeachingAttendanceController extends Controller
         return back()->with('success', 'Presensi siswa berhasil disimpan.');
     }
 
-    private function authorizeInstructor(Request $request, TeachingSession $teachingSession): void
+    private function authorizeEditor(Request $request, TeachingSession $teachingSession): void
     {
+        $user = $request->user();
+
         abort_unless(
-            $request->user()?->role === 'internal_instructor'
-            && $teachingSession->instructor_id === $request->user()->id,
+            $user?->isAdmin()
+            || ($user?->role === 'internal_instructor' && $teachingSession->instructor_id === $user->id),
             403,
         );
     }
 
-    private function canEdit(TeachingSession $teachingSession): bool
+    private function canEdit(TeachingSession $teachingSession, string $scope): bool
     {
-        return $teachingSession->status === 'draft' && ! $teachingSession->payrollItems()->exists();
+        return in_array($scope, ['admin', 'instructor'], true)
+            && ! $teachingSession->payrollItems()->exists();
     }
 
     private function sessionPayload(TeachingSession $teachingSession): array
@@ -290,9 +302,9 @@ class TeachingAttendanceController extends Controller
         };
     }
 
-    private function qrPayload(TeachingSession $teachingSession): array
+    private function qrPayload(TeachingSession $teachingSession, string $scope): array
     {
-        if (! $this->canEdit($teachingSession)) {
+        if ($scope !== 'instructor' || $teachingSession->status !== 'draft' || ! $this->canEdit($teachingSession, $scope)) {
             return [
                 'qrUrl' => null,
                 'qrExpiresAt' => null,
@@ -309,6 +321,7 @@ class TeachingAttendanceController extends Controller
                     'teachingSchedule' => $teachingSession->teaching_schedule_id,
                     'nonce' => Str::random(16),
                 ],
+                absolute: false,
             ),
             'qrExpiresAt' => $qrExpiresAt->toIso8601String(),
         ];

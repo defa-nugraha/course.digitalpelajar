@@ -438,6 +438,10 @@ function isNavItemActive(item: NavItem) {
         return currentFull === item.href;
     }
 
+    if (item.exact) {
+        return currentPath === itemPath;
+    }
+
     return currentPath === itemPath || (itemPath !== '/' && currentPath.startsWith(`${itemPath}/`));
 }
 
@@ -447,6 +451,10 @@ function isSameBasePath(item: NavItem) {
     }
 
     const target = item.href.split(/[?#]/)[0];
+
+    if (item.exact) {
+        return window.location.pathname === target;
+    }
 
     return window.location.pathname === target || (target !== '/' && window.location.pathname.startsWith(`${target}/`));
 }

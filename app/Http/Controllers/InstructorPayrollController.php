@@ -6,16 +6,19 @@ use App\Models\InstructorPayRate;
 use App\Models\InstructorPayroll;
 use App\Models\TeachingSession;
 use App\Services\AuditLogger;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class InstructorPayrollController extends Controller
 {
@@ -27,6 +30,28 @@ class InstructorPayrollController extends Controller
     public function instructorIndex(Request $request): Response
     {
         return $this->renderIndex($request, 'instructor');
+    }
+
+    public function downloadSlip(Request $request, InstructorPayroll $instructorPayroll): SymfonyResponse
+    {
+        $user = $request->user();
+        abort_unless($user->isAdmin() || $instructorPayroll->instructor_id === $user->id, 403);
+
+        $instructorPayroll->load([
+            'instructor:id,name,email,bank_name,bank_account_name,bank_account_number',
+            'items.teachingSession.school:id,name',
+            'items.teachingSession.course:id,title',
+            'items.teachingSession.schedule:id,title',
+        ]);
+
+        AuditLogger::log('instructor_payroll.slip_downloaded', $user, $instructorPayroll);
+
+        $filename = 'slip-gaji-'.Str::slug($instructorPayroll->instructor?->name ?? 'pengajar').'-'
+            .optional($instructorPayroll->period_month)->format('Y-m').'.pdf';
+
+        return Pdf::loadView('payrolls.slip', [
+            'payroll' => $instructorPayroll,
+        ])->setPaper('a4')->download($filename);
     }
 
     public function storeRate(Request $request): RedirectResponse

@@ -192,7 +192,7 @@ class TeachingSessionController extends Controller
 
     public function review(Request $request, TeachingSession $teachingSession): RedirectResponse
     {
-        $this->authorizeReview($request, $teachingSession);
+        $this->authorizeReview($request);
 
         $data = $request->validate([
             'status' => ['required', Rule::in(['approved', 'rejected'])],
@@ -232,8 +232,37 @@ class TeachingSessionController extends Controller
 
         return Inertia::render('teaching/session-detail', [
             'title' => 'Detail Laporan Pertemuan',
-            'session' => $this->sessionDetailPayload($teachingSession),
+            'scope' => 'admin',
+            'session' => $this->sessionDetailPayload($teachingSession, 'admin'),
             'backUrl' => route('admin.teaching-sessions'),
+        ]);
+    }
+
+    public function teacherShow(Request $request, TeachingSession $teachingSession): Response
+    {
+        $user = $request->user();
+        abort_unless(
+            $user->school_id
+            && $teachingSession->school_id === $user->school_id
+            && in_array($teachingSession->status, ['approved', 'rejected'], true)
+            && $teachingSession->reviewed_at
+            && $teachingSession->reviewer()->where('role', 'admin')->exists(),
+            403,
+        );
+
+        $teachingSession->load([
+            'schedule:id,title,starts_at,ends_at,mode,location,meeting_url,status,notes',
+            'school:id,name,address',
+            'instructor:id,name,email,phone',
+            'course:id,title',
+            'reviewer:id,name,email',
+        ]);
+
+        return Inertia::render('teaching/session-detail', [
+            'title' => 'Detail Pertemuan Sekolah',
+            'scope' => 'teacher',
+            'session' => $this->sessionDetailPayload($teachingSession, 'teacher'),
+            'backUrl' => route('teacher.teaching-sessions'),
         ]);
     }
 
@@ -254,17 +283,25 @@ class TeachingSessionController extends Controller
 
     private function renderIndex(Request $request, string $scope): Response
     {
+        $relations = [
+            'schedule:id,title,starts_at,ends_at,mode,location,meeting_url',
+            'school:id,name',
+            'instructor:id,name,email',
+            'course:id,title',
+            'reviewer:id,name',
+        ];
+        if ($scope !== 'teacher') {
+            $relations[] = 'payrollItems.payroll:id,status,period_month';
+        }
+
         $query = TeachingSession::query()
-            ->with([
-                'schedule:id,title,starts_at,ends_at,mode,location,meeting_url',
-                'school:id,name',
-                'instructor:id,name,email',
-                'course:id,title',
-                'reviewer:id,name',
-                'payrollItems.payroll:id,status,period_month',
-            ])
+            ->with($relations)
             ->when($scope === 'instructor', fn (Builder $query) => $query->where('instructor_id', $request->user()->id))
-            ->when($scope === 'teacher', fn (Builder $query) => $query->where('school_id', $request->user()->school_id))
+            ->when($scope === 'teacher', fn (Builder $query) => $query
+                ->where('school_id', $request->user()->school_id)
+                ->whereIn('status', ['approved', 'rejected'])
+                ->whereNotNull('reviewed_at')
+                ->whereHas('reviewer', fn (Builder $query) => $query->where('role', 'admin')))
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')))
             ->when($request->integer('school'), fn (Builder $query, int $schoolId) => $query->where('school_id', $schoolId))
             ->when($request->integer('instructor'), fn (Builder $query, int $instructorId) => $query->where('instructor_id', $instructorId))
@@ -292,17 +329,23 @@ class TeachingSessionController extends Controller
                 'averageAttendance' => round($sessions->avg('student_attendance_count') ?: 0),
             ],
             'options' => [
-                'schools' => DB::table('schools')->where('status', 'active')->select('id', 'name')->orderBy('name')->get(),
-                'instructors' => DB::table('users')
-                    ->where('role', 'internal_instructor')
-                    ->select('id', 'name')
-                    ->orderBy('name')
-                    ->get(),
-                'courses' => DB::table('courses')->select('id', 'title')->orderBy('title')->get(),
+                'schools' => $scope === 'teacher'
+                    ? collect()
+                    : DB::table('schools')->where('status', 'active')->select('id', 'name')->orderBy('name')->get(),
+                'instructors' => $scope === 'teacher'
+                    ? collect()
+                    : DB::table('users')
+                        ->where('role', 'internal_instructor')
+                        ->select('id', 'name')
+                        ->orderBy('name')
+                        ->get(),
+                'courses' => $scope === 'teacher'
+                    ? collect()
+                    : DB::table('courses')->select('id', 'title')->orderBy('title')->get(),
             ],
             'permissions' => [
                 'canCreateReport' => $scope === 'instructor',
-                'canReview' => in_array($scope, ['admin', 'teacher'], true),
+                'canReview' => $scope === 'admin',
                 'canDelete' => $scope === 'admin',
             ],
         ]);
@@ -310,7 +353,7 @@ class TeachingSessionController extends Controller
 
     private function sessionPayload(TeachingSession $session, string $scope): array
     {
-        $payrollItem = $session->payrollItems->first();
+        $payrollItem = $scope === 'teacher' ? null : $session->payrollItems->first();
         $studentAttendanceCount = $session->status === 'draft'
             ? DB::table('teaching_attendances')
                 ->where('teaching_schedule_id', $session->teaching_schedule_id)
@@ -349,21 +392,23 @@ class TeachingSessionController extends Controller
         ];
     }
 
-    private function sessionDetailPayload(TeachingSession $session): array
+    private function sessionDetailPayload(TeachingSession $session, string $scope): array
     {
-        $base = $this->sessionPayload($session, 'admin');
+        $base = $this->sessionPayload($session, $scope);
         $attendanceRows = $this->attendanceRows($session);
         $feedbackRows = $this->feedbackRows($session);
-        $payrollRows = $session->payrollItems->map(fn ($item) => [
-            'id' => $item->id,
-            'status' => $item->payroll?->status ?? 'Payroll tidak tersedia',
-            'period' => $item->payroll?->period_month?->format('Y-m'),
-            'rateAmount' => $item->rate_amount,
-            'amount' => $item->amount,
-            'paidAt' => optional($item->payroll?->paid_at)->format('d M Y H:i'),
-            'proofUrl' => $this->evidenceUrl($item->payroll?->payment_proof_path),
-            'notes' => $item->payroll?->notes,
-        ])->values();
+        $payrollRows = $scope === 'admin'
+            ? $session->payrollItems->map(fn ($item) => [
+                'id' => $item->id,
+                'status' => $item->payroll?->status ?? 'Payroll tidak tersedia',
+                'period' => $item->payroll?->period_month?->format('Y-m'),
+                'rateAmount' => $item->rate_amount,
+                'amount' => $item->amount,
+                'paidAt' => optional($item->payroll?->paid_at)->format('d M Y H:i'),
+                'proofUrl' => $this->evidenceUrl($item->payroll?->payment_proof_path),
+                'notes' => $item->payroll?->notes,
+            ])->values()
+            : collect();
 
         return [
             ...$base,
@@ -538,15 +583,9 @@ class TeachingSessionController extends Controller
         ]);
     }
 
-    private function authorizeReview(Request $request, TeachingSession $session): void
+    private function authorizeReview(Request $request): void
     {
-        $user = $request->user();
-
-        abort_unless(
-            $user->isAdmin()
-            || ($user->role === 'school_teacher' && $user->school_id === $session->school_id),
-            403,
-        );
+        abort_unless($request->user()->isAdmin(), 403);
     }
 
     private function storeEvidence(Request $request): string

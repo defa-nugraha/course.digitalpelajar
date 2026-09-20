@@ -126,6 +126,16 @@ class User extends Authenticatable
         return $this->hasMany(InstructorPayroll::class, 'instructor_id');
     }
 
+    public function receivedProgressNotes(): HasMany
+    {
+        return $this->hasMany(StudentProgressNote::class, 'student_id');
+    }
+
+    public function writtenProgressNotes(): HasMany
+    {
+        return $this->hasMany(StudentProgressNote::class, 'teacher_id');
+    }
+
     public function hasRole(string|array $roles): bool
     {
         return in_array($this->role, (array) $roles, true);

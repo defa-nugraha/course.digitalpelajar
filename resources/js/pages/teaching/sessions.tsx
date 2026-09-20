@@ -117,6 +117,7 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
     });
     const nav = scope === 'admin' ? 'admin' : scope === 'teacher' ? 'teacher' : 'instructor';
     const showPayrollColumn = scope === 'admin';
+    const isTeacherReadOnly = scope === 'teacher';
     const visibleSessions = useMemo(
         () =>
             sessions.filter((session) => {
@@ -126,13 +127,16 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
             }),
         [sessions, status, term],
     );
-    const statusOptions = [
+    const allStatusOptions = [
         { value: 'all', label: 'Semua status' },
         { value: 'draft', label: 'Draft laporan' },
         { value: 'submitted', label: 'Menunggu review' },
         { value: 'approved', label: 'Disetujui' },
         { value: 'rejected', label: 'Ditolak' },
     ];
+    const statusOptions = isTeacherReadOnly
+        ? allStatusOptions.filter((option) => ['all', 'approved', 'rejected'].includes(option.value))
+        : allStatusOptions;
     const reviewStatusOptions = statusOptions.filter((option) => option.value === 'approved' || option.value === 'rejected');
 
     const showEdit = (session: SessionRow) => {
@@ -241,9 +245,18 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
             }
         >
             <Head title={title} />
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-5">
+            {isTeacherReadOnly && (
+                <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+                    <p className="font-extrabold">Laporan pertemuan sekolah yang sudah selesai direview admin.</p>
+                    <p className="mt-1 text-blue-800">
+                        Buka detail untuk melihat foto kegiatan, catatan pengajar, presensi, dan feedback siswa. Data pada halaman ini hanya dapat
+                        dilihat.
+                    </p>
+                </div>
+            )}
+            <div className={`grid grid-cols-2 gap-3 md:gap-5 ${isTeacherReadOnly ? 'md:grid-cols-4' : 'md:grid-cols-5'}`}>
                 <StatCard label="Total Laporan" value={String(stats.total)} icon={ClipboardCheck} />
-                <StatCard label="Menunggu Review" value={String(stats.submitted)} icon={TriangleAlert} tone="amber" />
+                {!isTeacherReadOnly && <StatCard label="Menunggu Review" value={String(stats.submitted)} icon={TriangleAlert} tone="amber" />}
                 <StatCard label="Disetujui" value={String(stats.approved)} icon={CheckCircle2} tone="purple" />
                 <StatCard label="Ditolak" value={String(stats.rejected)} icon={Trash2} tone="slate" />
                 <StatCard label="Rata-rata Hadir" value={String(stats.averageAttendance)} icon={Users} tone="slate" />
@@ -297,9 +310,9 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
                                 ].filter((item) => showPayrollColumn || item.label !== 'Payroll')}
                                 actions={
                                     <>
-                                        {scope === 'admin' && (
+                                        {(scope === 'admin' || scope === 'teacher') && (
                                             <Button asChild variant="outline" size="sm">
-                                                <Link href={`/admin/teaching-sessions/${session.id}`}>
+                                                <Link href={`/${scope}/teaching-sessions/${session.id}`}>
                                                     <FileText className="size-4" />
                                                     Detail
                                                 </Link>
@@ -318,39 +331,41 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
                                                 Lengkapi
                                             </Button>
                                         )}
-                                        <MobileActionMenu
-                                            items={[
-                                                session.canEdit
-                                                    ? {
-                                                          label: 'Edit laporan',
-                                                          icon: <Pencil className="size-4" />,
-                                                          onClick: () => showEdit(session),
-                                                      }
-                                                    : { label: '' },
-                                                permissions.canReview && session.status === 'submitted'
-                                                    ? {
-                                                          label: 'Setujui laporan',
-                                                          icon: <CheckCircle2 className="size-4" />,
-                                                          onClick: () => showReview(session, 'approved'),
-                                                      }
-                                                    : { label: '' },
-                                                permissions.canReview && session.status === 'submitted'
-                                                    ? {
-                                                          label: 'Tolak laporan',
-                                                          icon: <TriangleAlert className="size-4" />,
-                                                          onClick: () => showReview(session, 'rejected'),
-                                                      }
-                                                    : { label: '' },
-                                                session.canDelete
-                                                    ? {
-                                                          label: 'Hapus laporan',
-                                                          destructive: true,
-                                                          icon: <Trash2 className="size-4" />,
-                                                          onClick: () => remove(session),
-                                                      }
-                                                    : { label: '' },
-                                            ]}
-                                        />
+                                        {(session.canEdit || (permissions.canReview && session.status === 'submitted') || session.canDelete) && (
+                                            <MobileActionMenu
+                                                items={[
+                                                    session.canEdit
+                                                        ? {
+                                                              label: 'Edit laporan',
+                                                              icon: <Pencil className="size-4" />,
+                                                              onClick: () => showEdit(session),
+                                                          }
+                                                        : { label: '' },
+                                                    permissions.canReview && session.status === 'submitted'
+                                                        ? {
+                                                              label: 'Setujui laporan',
+                                                              icon: <CheckCircle2 className="size-4" />,
+                                                              onClick: () => showReview(session, 'approved'),
+                                                          }
+                                                        : { label: '' },
+                                                    permissions.canReview && session.status === 'submitted'
+                                                        ? {
+                                                              label: 'Tolak laporan',
+                                                              icon: <TriangleAlert className="size-4" />,
+                                                              onClick: () => showReview(session, 'rejected'),
+                                                          }
+                                                        : { label: '' },
+                                                    session.canDelete
+                                                        ? {
+                                                              label: 'Hapus laporan',
+                                                              destructive: true,
+                                                              icon: <Trash2 className="size-4" />,
+                                                              onClick: () => remove(session),
+                                                          }
+                                                        : { label: '' },
+                                                ]}
+                                            />
+                                        )}
                                     </>
                                 }
                             >
@@ -453,9 +468,9 @@ export default function TeachingSessions({ scope, title, sessions, availableSche
                                         )}
                                         <td className="align-top">
                                             <div className="flex justify-end gap-1">
-                                                {scope === 'admin' && (
+                                                {(scope === 'admin' || scope === 'teacher') && (
                                                     <Button asChild variant="ghost" size="icon" aria-label="Detail laporan">
-                                                        <Link href={`/admin/teaching-sessions/${session.id}`}>
+                                                        <Link href={`/${scope}/teaching-sessions/${session.id}`}>
                                                             <FileText className="size-4 text-blue-700" />
                                                         </Link>
                                                     </Button>

@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class TeachingSchedule extends Model
 {
@@ -59,6 +59,11 @@ class TeachingSchedule extends Model
     public function feedbacks(): HasMany
     {
         return $this->hasMany(TeachingFeedback::class);
+    }
+
+    public function studentProgressNotes(): HasMany
+    {
+        return $this->hasMany(StudentProgressNote::class);
     }
 
     public function isOffline(): bool

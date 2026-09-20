@@ -16,17 +16,6 @@ export default function AttendanceScanner() {
     const [message, setMessage] = useState('Klik tombol mulai scan, lalu arahkan kamera ke QR code dari pengajar.');
 
     useEffect(() => {
-        Html5Qrcode.getCameras()
-            .then((devices) => {
-                setCameras(devices);
-                const backCamera = devices.find((device) => /back|rear|environment|belakang/i.test(device.label));
-                setSelectedCameraId((backCamera ?? devices[0])?.id ?? '');
-            })
-            .catch(() => {
-                setStatus('unsupported');
-                setMessage('Browser belum memberi daftar kamera. Pastikan halaman dibuka dari HTTPS atau localhost dan izin kamera diberikan.');
-            });
-
         return () => {
             void stopScanner();
         };
@@ -100,6 +89,17 @@ export default function AttendanceScanner() {
                     // Decode errors happen continuously while no QR is visible; no UI update needed.
                 },
             );
+
+            void Html5Qrcode.getCameras()
+                .then((devices) => {
+                    setCameras(devices);
+                    const activeCamera = devices.find((device) => device.id === selectedCameraId);
+                    const backCamera = devices.find((device) => /back|rear|environment|belakang/i.test(device.label));
+                    setSelectedCameraId((activeCamera ?? backCamera ?? devices[0])?.id ?? '');
+                })
+                .catch(() => {
+                    // Scanner is already active; camera enumeration is only used for the optional camera switcher.
+                });
 
             setStatus('scanning');
             setMessage('Scanner aktif. Arahkan kamera ke QR code presensi yang ditampilkan pengajar.');
@@ -176,7 +176,7 @@ export default function AttendanceScanner() {
 
 function isAllowedAttendanceUrl(value: string) {
     try {
-        const url = new URL(value);
+        const url = new URL(value, window.location.origin);
 
         return (
             url.origin === window.location.origin &&
@@ -189,9 +189,10 @@ function isAllowedAttendanceUrl(value: string) {
 }
 
 function cameraErrorMessage(error: unknown) {
-    const name = error instanceof DOMException ? error.name : '';
+    const name = error instanceof DOMException ? error.name : typeof error === 'object' && error && 'name' in error ? String(error.name) : '';
+    const detail = error instanceof Error ? error.message : String(error ?? '');
 
-    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || /notallowed|permission denied|permission dismissed/i.test(detail)) {
         return 'Izin kamera ditolak. Buka pengaturan izin browser, izinkan kamera untuk situs ini, lalu coba lagi.';
     }
 

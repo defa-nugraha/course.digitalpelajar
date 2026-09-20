@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class EnrollmentController extends Controller
 {
@@ -22,22 +23,23 @@ class EnrollmentController extends Controller
      * Free course -> immediate enrollment + redirect to learning.
      * Paid course -> create payment + redirect to Midtrans checkout.
      */
-    public function store(Request $request, Course $course): RedirectResponse
+    public function store(Request $request, Course $course): SymfonyResponse
     {
         $course->load('lessons');
 
         $result = $this->enrollments->enroll($request->user(), $course);
 
         if ($result['checkout_url']) {
-            return redirect()->to($result['checkout_url'])
-                ->with('status', 'Silakan selesaikan pembayaran untuk membuka kelas.');
+            $request->session()->flash('status', 'Silakan selesaikan pembayaran untuk membuka kelas.');
+
+            return Inertia::location($result['checkout_url']);
         }
 
         return redirect()->route('learning.show', ['course' => $course->id])
             ->with('status', "Berhasil terdaftar di \"{$course->title}\".");
     }
 
-    public function checkout(Request $request): RedirectResponse
+    public function checkout(Request $request): SymfonyResponse
     {
         $data = $request->validate([
             'course_id' => ['required', 'integer', 'exists:courses,id'],
@@ -47,8 +49,9 @@ class EnrollmentController extends Controller
         $result = $this->enrollments->enroll($request->user(), $course);
 
         if ($result['checkout_url']) {
-            return redirect()->to($result['checkout_url'])
-                ->with('status', 'Silakan selesaikan pembayaran untuk membuka kelas.');
+            $request->session()->flash('status', 'Silakan selesaikan pembayaran untuk membuka kelas.');
+
+            return Inertia::location($result['checkout_url']);
         }
 
         return redirect()->route('learning.show', ['course' => $course->id])

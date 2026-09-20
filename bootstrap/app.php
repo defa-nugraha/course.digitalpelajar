@@ -14,6 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // The production app runs behind a reverse proxy / TLS terminator.
+        // Trust forwarded headers so Laravel generates HTTPS assets, routes,
+        // redirects, and signed URLs for the original client request.
+        $middleware->trustProxies(at: '*');
+
         $middleware->validateCsrfTokens(except: [
             'payments/midtrans/notification',
         ]);

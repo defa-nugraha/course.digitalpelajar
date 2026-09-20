@@ -196,6 +196,24 @@ test('paid course activates only after mock payment is settled', function () {
         ->and(Enrollment::whereBelongsTo($student)->whereBelongsTo($course)->where('status', 'active')->exists())->toBeTrue();
 });
 
+test('inertia checkout uses a location response for the payment gateway', function () {
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+
+    $response = $this->actingAs($student)
+        ->withHeader('X-Inertia', 'true')
+        ->post('/checkout', ['course_id' => $course->id]);
+
+    $payment = Payment::query()
+        ->whereBelongsTo($student)
+        ->whereBelongsTo($course)
+        ->firstOrFail();
+
+    $response
+        ->assertStatus(409)
+        ->assertHeader('X-Inertia-Location', $payment->checkout_url);
+});
+
 test('role middleware prevents students from accessing admin crud', function () {
     $student = User::factory()->student()->create();
 

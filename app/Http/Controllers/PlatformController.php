@@ -434,6 +434,34 @@ class PlatformController extends Controller
             'courses' => $enrollments->values(),
             'tasks' => $this->studentTasks($userId),
             'offlineAttendances' => $this->studentOfflineAttendanceOptions($request),
+            'teacherNotes' => DB::table('student_progress_notes')
+                ->leftJoin('users as teachers', 'student_progress_notes.teacher_id', '=', 'teachers.id')
+                ->leftJoin('teaching_schedules', 'student_progress_notes.teaching_schedule_id', '=', 'teaching_schedules.id')
+                ->leftJoin('courses', 'teaching_schedules.course_id', '=', 'courses.id')
+                ->where('student_progress_notes.student_id', $userId)
+                ->orderByDesc('teaching_schedules.starts_at')
+                ->orderByDesc('student_progress_notes.updated_at')
+                ->select(
+                    'student_progress_notes.id',
+                    'student_progress_notes.note',
+                    'student_progress_notes.updated_at',
+                    'teachers.name as teacher_name',
+                    'teaching_schedules.title as meeting_title',
+                    'teaching_schedules.starts_at',
+                    'courses.title as course_title',
+                )
+                ->limit(10)
+                ->get()
+                ->map(fn ($note) => [
+                    'id' => $note->id,
+                    'note' => $note->note,
+                    'teacher' => $note->teacher_name ?: 'Guru sekolah',
+                    'meeting' => $note->meeting_title ?: 'Pertemuan tidak tersedia',
+                    'course' => $note->course_title,
+                    'dateLabel' => $note->starts_at
+                        ? date('d M Y, H:i', strtotime($note->starts_at)).' WIB'
+                        : date('d M Y, H:i', strtotime($note->updated_at)).' WIB',
+                ]),
         ]);
     }
 
@@ -876,45 +904,240 @@ class PlatformController extends Controller
     {
         abort_if(! $request->user()->school_id, 403);
 
-        return Inertia::render('teacher/students', [
-            'school' => DB::table('schools')->where('id', $request->user()->school_id)->value('name'),
-            'students' => DB::table('users')
-                ->leftJoin('enrollments', 'users.id', '=', 'enrollments.user_id')
-                ->where('users.school_id', $request->user()->school_id)
-                ->where('users.role', 'student')
-                ->select(
-                    'users.id',
-                    'users.name',
-                    'users.email',
-                    'users.status',
-                    DB::raw('COUNT(enrollments.id) as enrollments'),
-                    DB::raw('COALESCE(ROUND(AVG(enrollments.progress_percent)), 0) as progress'),
-                )
-                ->groupBy('users.id', 'users.name', 'users.email', 'users.status')
-                ->orderBy('users.name')
-                ->get()
-                ->map(function ($student) use ($request) {
-                    $attendanceQuery = DB::table('teaching_attendances')
-                        ->join('teaching_schedules', 'teaching_attendances.teaching_schedule_id', '=', 'teaching_schedules.id')
-                        ->where('teaching_schedules.school_id', $request->user()->school_id)
-                        ->where('teaching_attendances.student_id', $student->id);
-                    $total = $attendanceQuery->clone()->count();
-                    $present = $attendanceQuery->clone()->where('teaching_attendances.status', 'H')->count();
+        $schoolId = $request->user()->school_id;
+        $students = DB::table('users')
+            ->leftJoin('enrollments', 'users.id', '=', 'enrollments.user_id')
+            ->where('users.school_id', $schoolId)
+            ->where('users.role', 'student')
+            ->select(
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.status',
+                DB::raw('COUNT(enrollments.id) as enrollments'),
+                DB::raw('COALESCE(ROUND(AVG(enrollments.progress_percent)), 0) as progress'),
+            )
+            ->groupBy('users.id', 'users.name', 'users.email', 'users.status')
+            ->orderBy('users.name')
+            ->get();
 
-                    return [
-                        ...((array) $student),
-                        'enrollments' => (int) $student->enrollments,
-                        'progress' => (int) $student->progress,
-                        'attendance' => [
-                            'total' => $total,
-                            'present' => $present,
-                            'sick' => $attendanceQuery->clone()->where('teaching_attendances.status', 'S')->count(),
-                            'permission' => $attendanceQuery->clone()->where('teaching_attendances.status', 'I')->count(),
-                            'absent' => $attendanceQuery->clone()->where('teaching_attendances.status', 'A')->count(),
-                            'rate' => $total > 0 ? round(($present / $total) * 100) : 0,
-                        ],
-                    ];
-                }),
+        $studentIds = $students->pluck('id');
+        $schedules = DB::table('teaching_schedules')
+            ->join('teaching_sessions', 'teaching_schedules.id', '=', 'teaching_sessions.teaching_schedule_id')
+            ->join('users as reviewers', 'teaching_sessions.reviewed_by', '=', 'reviewers.id')
+            ->leftJoin('courses', 'teaching_schedules.course_id', '=', 'courses.id')
+            ->leftJoin('users as instructors', 'teaching_schedules.instructor_id', '=', 'instructors.id')
+            ->where('teaching_schedules.school_id', $schoolId)
+            ->whereIn('teaching_sessions.status', ['approved', 'rejected'])
+            ->whereNotNull('teaching_sessions.reviewed_at')
+            ->where('reviewers.role', 'admin')
+            ->orderByDesc('teaching_schedules.starts_at')
+            ->select(
+                'teaching_schedules.id',
+                'teaching_schedules.course_id',
+                'teaching_schedules.title',
+                'teaching_schedules.starts_at',
+                'teaching_schedules.status',
+                'courses.title as course_title',
+                'instructors.name as instructor_name',
+                'teaching_sessions.id as teaching_session_id',
+                'teaching_sessions.topic',
+                'teaching_sessions.report',
+                'teaching_sessions.evidence_photo_path',
+                'teaching_sessions.status as review_status',
+                'teaching_sessions.review_notes',
+            )
+            ->get();
+        $scheduleIds = $schedules->pluck('id');
+
+        $attendances = DB::table('teaching_attendances')
+            ->whereIn('teaching_schedule_id', $scheduleIds)
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->keyBy(fn ($attendance) => $attendance->teaching_schedule_id.':'.$attendance->student_id);
+        $notes = DB::table('student_progress_notes')
+            ->where('teacher_id', $request->user()->id)
+            ->whereIn('teaching_schedule_id', $scheduleIds)
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->keyBy(fn ($note) => $note->teaching_schedule_id.':'.$note->student_id);
+        $courseProgress = DB::table('enrollments')
+            ->whereIn('user_id', $studentIds)
+            ->whereIn('course_id', $schedules->pluck('course_id')->filter()->unique())
+            ->get(['user_id', 'course_id', 'progress_percent'])
+            ->keyBy(fn ($enrollment) => $enrollment->user_id.':'.$enrollment->course_id);
+
+        $studentRows = $students->map(fn ($student) => [
+            ...((array) $student),
+            'enrollments' => (int) $student->enrollments,
+            'progress' => (int) $student->progress,
+        ])->values();
+
+        $meetingRows = $schedules->map(function ($schedule) use ($students, $attendances, $notes, $courseProgress) {
+            $progressRows = $students->map(function ($student) use ($schedule, $attendances, $notes, $courseProgress) {
+                $key = $schedule->id.':'.$student->id;
+                $attendance = $attendances->get($key);
+                $note = $notes->get($key);
+                $progress = $schedule->course_id
+                    ? (int) ($courseProgress->get($student->id.':'.$schedule->course_id)?->progress_percent ?? 0)
+                    : (int) $student->progress;
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'email' => $student->email,
+                    'progress' => $progress,
+                    'attendanceStatus' => $attendance?->status,
+                    'attendanceLabel' => match ($attendance?->status) {
+                        'H' => 'Hadir',
+                        'S' => 'Sakit',
+                        'I' => 'Izin',
+                        'A' => 'Tidak hadir',
+                        default => 'Belum tercatat',
+                    },
+                    'checkedInAt' => $attendance?->checked_in_at
+                        ? date('H:i', strtotime($attendance->checked_in_at)).' WIB'
+                        : null,
+                    'lateMinutes' => (int) ($attendance?->late_minutes ?? 0),
+                    'note' => $note?->note,
+                ];
+            })->values();
+
+            return [
+                'id' => $schedule->id,
+                'title' => $schedule->title,
+                'course' => $schedule->course_title ?: 'Program sekolah',
+                'instructor' => $schedule->instructor_name ?: 'Pengajar tidak tersedia',
+                'status' => $schedule->status,
+                'reviewStatus' => $schedule->review_status,
+                'topic' => $schedule->topic,
+                'report' => $schedule->report,
+                'reviewNotes' => $schedule->review_notes,
+                'evidencePhotoUrl' => filled($schedule->evidence_photo_path)
+                    ? url('/storage/'.ltrim($schedule->evidence_photo_path, '/'))
+                    : null,
+                'detailUrl' => route('teacher.teaching-sessions.show', $schedule->teaching_session_id),
+                'dateLabel' => date('d M Y, H:i', strtotime($schedule->starts_at)).' WIB',
+                'averageProgress' => (int) round($progressRows->avg('progress') ?: 0),
+                'presentCount' => $progressRows->where('attendanceStatus', 'H')->count(),
+                'noteCount' => $progressRows->whereNotNull('note')->count(),
+                'students' => $progressRows,
+            ];
+        })->values();
+
+        return Inertia::render('teacher/students', [
+            'school' => DB::table('schools')->where('id', $schoolId)->value('name'),
+            'students' => $studentRows,
+            'meetings' => $meetingRows,
+        ]);
+    }
+
+    public function teacherAttendanceRecap(Request $request): Response
+    {
+        abort_if(! $request->user()->school_id, 403);
+
+        $filters = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+        $schoolId = $request->user()->school_id;
+        $students = DB::table('users')
+            ->where('school_id', $schoolId)
+            ->where('role', 'student')
+            ->select('id', 'name', 'email', 'status')
+            ->orderBy('name')
+            ->get();
+        $schedules = DB::table('teaching_schedules')
+            ->join('teaching_sessions', 'teaching_schedules.id', '=', 'teaching_sessions.teaching_schedule_id')
+            ->join('users as reviewers', 'teaching_sessions.reviewed_by', '=', 'reviewers.id')
+            ->leftJoin('courses', 'teaching_schedules.course_id', '=', 'courses.id')
+            ->where('teaching_schedules.school_id', $schoolId)
+            ->whereIn('teaching_sessions.status', ['approved', 'rejected'])
+            ->whereNotNull('teaching_sessions.reviewed_at')
+            ->where('reviewers.role', 'admin')
+            ->when(filled($filters['from'] ?? null), fn ($query) => $query->whereDate('teaching_schedules.starts_at', '>=', $filters['from']))
+            ->when(filled($filters['to'] ?? null), fn ($query) => $query->whereDate('teaching_schedules.starts_at', '<=', $filters['to']))
+            ->orderByDesc('teaching_schedules.starts_at')
+            ->select(
+                'teaching_schedules.id',
+                'teaching_schedules.title',
+                'teaching_schedules.starts_at',
+                'teaching_sessions.topic',
+                'courses.title as course_title',
+            )
+            ->get();
+        $attendances = DB::table('teaching_attendances')
+            ->whereIn('teaching_schedule_id', $schedules->pluck('id'))
+            ->whereIn('student_id', $students->pluck('id'))
+            ->get()
+            ->keyBy(fn ($attendance) => $attendance->student_id.':'.$attendance->teaching_schedule_id);
+        $meetingCount = $schedules->count();
+
+        $rows = $students->map(function ($student) use ($schedules, $attendances, $meetingCount) {
+            $details = $schedules->map(function ($schedule) use ($student, $attendances) {
+                $attendance = $attendances->get($student->id.':'.$schedule->id);
+                $status = $attendance?->status;
+                $lateMinutes = (int) ($attendance?->late_minutes ?? 0);
+
+                return [
+                    'meetingId' => $schedule->id,
+                    'meeting' => $schedule->topic ?: $schedule->title,
+                    'course' => $schedule->course_title ?: 'Program sekolah',
+                    'dateLabel' => date('d M Y, H:i', strtotime($schedule->starts_at)).' WIB',
+                    'status' => $status,
+                    'statusLabel' => match ($status) {
+                        'H' => 'Hadir',
+                        'S' => 'Sakit',
+                        'I' => 'Izin',
+                        'A' => 'Tanpa keterangan',
+                        default => 'Belum dicatat',
+                    },
+                    'checkedInAt' => $attendance?->checked_in_at
+                        ? date('H:i', strtotime($attendance->checked_in_at)).' WIB'
+                        : null,
+                    'lateMinutes' => $lateMinutes,
+                ];
+            })->values();
+            $present = $details->where('status', 'H')->count();
+            $sick = $details->where('status', 'S')->count();
+            $permission = $details->where('status', 'I')->count();
+            $absent = $details->where('status', 'A')->count();
+            $missing = $details->whereNull('status')->count();
+            $late = $details->where('status', 'H')->where('lateMinutes', '>', 0);
+            $attendanceRate = $meetingCount > 0 ? (int) round(($present / $meetingCount) * 100) : 0;
+
+            return [
+                'id' => $student->id,
+                'name' => $student->name,
+                'email' => $student->email,
+                'accountStatus' => $student->status,
+                'totalMeetings' => $meetingCount,
+                'present' => $present,
+                'sick' => $sick,
+                'permission' => $permission,
+                'absent' => $absent,
+                'missing' => $missing,
+                'attendanceRate' => $attendanceRate,
+                'lateCount' => $late->count(),
+                'totalLateMinutes' => (int) $late->sum('lateMinutes'),
+                'needsAttention' => $meetingCount > 0 && ($attendanceRate < 75 || $absent >= 3 || $missing >= 3),
+                'meetings' => $details,
+            ];
+        })->values();
+
+        return Inertia::render('teacher/attendance-recap', [
+            'school' => DB::table('schools')->where('id', $schoolId)->value('name'),
+            'filters' => [
+                'from' => $filters['from'] ?? '',
+                'to' => $filters['to'] ?? '',
+            ],
+            'students' => $rows,
+            'summary' => [
+                'students' => $students->count(),
+                'meetings' => $meetingCount,
+                'averageAttendance' => (int) round($rows->avg('attendanceRate') ?: 0),
+                'needsAttention' => $rows->where('needsAttention', true)->count(),
+            ],
         ]);
     }
 

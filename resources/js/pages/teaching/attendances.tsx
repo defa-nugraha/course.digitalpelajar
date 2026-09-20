@@ -13,7 +13,9 @@ import {
     ExternalLink,
     LucideIcon,
     MessageSquare,
+    Minus,
     QrCode,
+    RotateCcw,
     Save,
     Search,
     Star,
@@ -60,6 +62,7 @@ interface AttendanceState extends StudentRow {
 }
 
 interface Props {
+    scope: 'admin' | 'instructor';
     session: AttendanceSession;
     students: StudentRow[];
     summary: {
@@ -116,12 +119,13 @@ interface AttendanceFormData {
         [key: string]: FormDataConvertible;
         student_id: string;
         status: string;
+        late_minutes: number;
         reason: string;
         proof: File | null;
     }>;
 }
 
-export default function TeachingAttendances({ session, students, summary, feedbackSummary, qrUrl, canEdit, backUrl }: Props) {
+export default function TeachingAttendances({ scope, session, students, summary, feedbackSummary, qrUrl, canEdit, backUrl }: Props) {
     const [term, setTerm] = useState('');
     const [qrOpen, setQrOpen] = useState(false);
     const [qrImage, setQrImage] = useState<string | null>(null);
@@ -134,7 +138,7 @@ export default function TeachingAttendances({ session, students, summary, feedba
 
     const fetchAttendanceData = useCallback(
         async ({ updateQr = false, forceRows = false }: { updateQr?: boolean; forceRows?: boolean } = {}) => {
-            const response = await fetch(`/instructor/teaching-sessions/${session.id}/attendances/data`, {
+            const response = await fetch(`/${scope}/teaching-sessions/${session.id}/attendances/data`, {
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -155,7 +159,7 @@ export default function TeachingAttendances({ session, students, summary, feedba
                 setQrUrlState(payload.qrUrl ?? null);
             }
         },
-        [hasManualChanges, session.id],
+        [hasManualChanges, scope, session.id],
     );
 
     useEffect(() => {
@@ -232,6 +236,31 @@ export default function TeachingAttendances({ session, students, summary, feedba
         setAttendanceRows((rows) => rows.map((row) => (row.id === studentId ? { ...row, proof } : row)));
     };
 
+    const setLateMinutes = (studentId: number, value: string) => {
+        const lateMinutes = Math.min(1440, Math.max(0, Number.parseInt(value || '0', 10) || 0));
+
+        setHasManualChanges(true);
+        setAttendanceRows((rows) =>
+            rows.map((row) =>
+                row.id === studentId ? { ...row, lateMinutes, lateLabel: lateMinutes > 0 ? formatLateDuration(lateMinutes) : 'Tepat waktu' } : row,
+            ),
+        );
+    };
+
+    const reduceLateMinutes = (studentId: number, minutes: number) => {
+        const student = attendanceRows.find((row) => row.id === studentId);
+
+        if (!student || scope !== 'admin' || !canEdit) return;
+
+        setLateMinutes(studentId, String(Math.max(0, (student.lateMinutes ?? 0) - minutes)));
+    };
+
+    const resetLateMinutes = (studentId: number) => {
+        if (scope !== 'admin' || !canEdit) return;
+
+        setLateMinutes(studentId, '0');
+    };
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
         form.transform(() => ({
@@ -239,11 +268,12 @@ export default function TeachingAttendances({ session, students, summary, feedba
             attendances: attendanceRows.map((row) => ({
                 student_id: String(row.id),
                 status: row.status,
+                late_minutes: row.status === 'H' ? (row.lateMinutes ?? 0) : 0,
                 reason: row.reason ?? '',
                 proof: row.proof,
             })),
         }));
-        form.post(`/instructor/teaching-sessions/${session.id}/attendances`, {
+        form.post(`/${scope}/teaching-sessions/${session.id}/attendances`, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
@@ -262,8 +292,8 @@ export default function TeachingAttendances({ session, students, summary, feedba
     return (
         <Shell
             title="Presensi Siswa"
-            eyebrow="Pengajar / Trainer"
-            nav="instructor"
+            eyebrow={scope === 'admin' ? 'Admin Operasional' : 'Pengajar / Trainer'}
+            nav={scope}
             actions={
                 <div className="flex flex-col gap-2 sm:flex-row">
                     <Button asChild variant="outline">
@@ -329,7 +359,13 @@ export default function TeachingAttendances({ session, students, summary, feedba
                 </div>
                 {!canEdit && (
                     <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-                        Presensi terkunci karena laporan sudah dilengkapi/submitted atau sudah masuk proses payroll.
+                        Presensi terkunci karena laporan sudah masuk proses payroll.
+                    </p>
+                )}
+                {scope === 'admin' && canEdit && (
+                    <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800">
+                        <strong>Koreksi keterlambatan:</strong> admin dapat mengubah nilai akhir, mengurangi 1 atau 5 menit, maupun meresetnya menjadi
+                        tepat waktu. Perubahan diterapkan setelah menekan <strong>Simpan Presensi</strong>.
                     </p>
                 )}
             </Panel>
@@ -403,6 +439,18 @@ export default function TeachingAttendances({ session, students, summary, feedba
                                             </div>
                                             <InputError message={errorFor(student.id, 'status')} className="mt-2" />
                                         </div>
+
+                                        {student.status === 'H' && (
+                                            <LateMinutesEditor
+                                                student={student}
+                                                canEdit={canEdit}
+                                                isAdmin={scope === 'admin'}
+                                                onChange={(value) => setLateMinutes(student.id, value)}
+                                                onReduce={(minutes) => reduceLateMinutes(student.id, minutes)}
+                                                onReset={() => resetLateMinutes(student.id)}
+                                                error={errorFor(student.id, 'late_minutes')}
+                                            />
+                                        )}
 
                                         {(student.status === 'S' || student.status === 'I') && (
                                             <div className="space-y-2">
@@ -486,6 +534,18 @@ export default function TeachingAttendances({ session, students, summary, feedba
                                             <td className="min-w-44 py-4 align-top text-slate-600">{student.checkedInAt || '-'}</td>
                                             <td className="min-w-40 py-4 align-top">
                                                 <LateBadge status={student.status} minutes={student.lateMinutes ?? 0} label={student.lateLabel} />
+                                                {student.status === 'H' && (
+                                                    <LateMinutesEditor
+                                                        compact
+                                                        student={student}
+                                                        canEdit={canEdit}
+                                                        isAdmin={scope === 'admin'}
+                                                        onChange={(value) => setLateMinutes(student.id, value)}
+                                                        onReduce={(minutes) => reduceLateMinutes(student.id, minutes)}
+                                                        onReset={() => resetLateMinutes(student.id)}
+                                                        error={errorFor(student.id, 'late_minutes')}
+                                                    />
+                                                )}
                                             </td>
                                             <td className="min-w-72 align-top">
                                                 {student.status === 'S' || student.status === 'I' ? (
@@ -660,6 +720,79 @@ function LateBadge({ status, minutes, label }: { status: AttendanceValue; minute
 
     return (
         <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Terlambat {label || formatLateDuration(minutes)}</span>
+    );
+}
+
+function LateMinutesEditor({
+    student,
+    canEdit,
+    isAdmin,
+    compact = false,
+    onChange,
+    onReduce,
+    onReset,
+    error,
+}: {
+    student: AttendanceState;
+    canEdit: boolean;
+    isAdmin: boolean;
+    compact?: boolean;
+    onChange: (value: string) => void;
+    onReduce: (minutes: number) => void;
+    onReset: () => void;
+    error?: string;
+}) {
+    const lateMinutes = student.lateMinutes ?? 0;
+
+    return (
+        <div className={compact ? 'mt-2 w-48' : ''}>
+            {!compact && <label className="mb-2 block text-xs font-bold tracking-wide text-slate-500 uppercase">Keterlambatan (menit)</label>}
+            <Input
+                aria-label={`Keterlambatan ${student.name} dalam menit`}
+                type="number"
+                min={0}
+                max={1440}
+                inputMode="numeric"
+                value={lateMinutes}
+                disabled={!canEdit}
+                onChange={(event) => onChange(event.target.value)}
+            />
+            {isAdmin && canEdit && (
+                <div className="mt-2 grid grid-cols-3 gap-1.5" aria-label={`Koreksi keterlambatan ${student.name}`}>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={lateMinutes <= 0}
+                        onClick={() => onReduce(1)}
+                        aria-label={`Kurangi keterlambatan ${student.name} satu menit`}
+                    >
+                        <Minus className="size-3.5" />1
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={lateMinutes <= 0}
+                        onClick={() => onReduce(5)}
+                        aria-label={`Kurangi keterlambatan ${student.name} lima menit`}
+                    >
+                        <Minus className="size-3.5" />5
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={lateMinutes <= 0}
+                        onClick={onReset}
+                        aria-label={`Reset keterlambatan ${student.name}`}
+                    >
+                        <RotateCcw className="size-3.5" /> Reset
+                    </Button>
+                </div>
+            )}
+            <InputError message={error} className="mt-1" />
+        </div>
     );
 }
 

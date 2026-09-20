@@ -24,6 +24,7 @@ use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StudentTeachingAttendanceController;
 use App\Http\Controllers\SubmissionFileController;
+use App\Http\Controllers\Teacher\StudentProgressNoteController;
 use App\Http\Controllers\TeachingAttendanceController;
 use App\Http\Controllers\TeachingFeedbackController;
 use App\Http\Controllers\TeachingScheduleController;
@@ -62,6 +63,8 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('forum/posts/{post}', [ForumController::class, 'destroyPost'])->name('forum.posts.destroy');
     Route::get('submissions/{submission}/files/{field}', [SubmissionFileController::class, 'show'])->name('submissions.files.show');
     Route::get('payments/{payment}/invoice', [PaymentController::class, 'invoice'])->name('payments.invoice');
+    Route::get('instructor-payrolls/{instructorPayroll}/slip', [InstructorPayrollController::class, 'downloadSlip'])
+        ->name('instructor-payrolls.slip');
     Route::get('payments/mock-checkout', [EnrollmentController::class, 'mockCheckout'])->name('payments.mock-checkout');
     Route::post('payments/{payment}/mock-settle', [PaymentController::class, 'mockSettle'])->name('payments.mock-settle');
     Route::get('store/checkout', [StorefrontController::class, 'checkout'])->name('store.checkout');
@@ -101,7 +104,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('student/teaching-schedules/{teachingSchedule}/feedback', [StudentTeachingAttendanceController::class, 'storeFeedback'])
             ->name('student.teaching-attendances.feedback.store');
         Route::get('student/teaching-schedules/{teachingSchedule}/attendance/scan', [StudentTeachingAttendanceController::class, 'storeFromQr'])
-            ->middleware('signed')
+            ->middleware('signed:relative')
             ->name('student.teaching-attendances.scan.store');
 
         Route::get('certificates', [PlatformController::class, 'certificates'])->name('certificates.index');
@@ -118,6 +121,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('teacher/learning', [PlatformController::class, 'learningIndex'])->name('teacher.learning.index');
         Route::get('teacher/catalog', [PlatformController::class, 'internalCatalog'])->name('teacher.catalog');
         Route::get('teacher/students', [PlatformController::class, 'teacherStudents'])->name('teacher.students');
+        Route::get('teacher/students/attendance', [PlatformController::class, 'teacherAttendanceRecap'])
+            ->name('teacher.students.attendance');
+        Route::get('teacher/teaching-sessions', [TeachingSessionController::class, 'teacherIndex'])->name('teacher.teaching-sessions');
+        Route::get('teacher/teaching-sessions/{teachingSession}', [TeachingSessionController::class, 'teacherShow'])
+            ->name('teacher.teaching-sessions.show');
+        Route::put('teacher/teaching-schedules/{teachingSchedule}/students/{student}/progress-note', [StudentProgressNoteController::class, 'update'])
+            ->name('teacher.student-progress-notes.update');
     });
 
     Route::middleware('role:admin')->group(function () {
@@ -265,6 +275,12 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('admin/teaching-sessions', [TeachingSessionController::class, 'adminIndex'])->name('admin.teaching-sessions');
         Route::get('admin/teaching-sessions/{teachingSession}', [TeachingSessionController::class, 'show'])->name('admin.teaching-sessions.show');
+        Route::get('admin/teaching-sessions/{teachingSession}/attendances', [TeachingAttendanceController::class, 'index'])
+            ->name('admin.teaching-sessions.attendances');
+        Route::get('admin/teaching-sessions/{teachingSession}/attendances/data', [TeachingAttendanceController::class, 'data'])
+            ->name('admin.teaching-sessions.attendances.data');
+        Route::patch('admin/teaching-sessions/{teachingSession}/attendances', [TeachingAttendanceController::class, 'update'])
+            ->name('admin.teaching-sessions.attendances.update');
         Route::get('admin/teaching-feedbacks', [TeachingFeedbackController::class, 'adminIndex'])->name('admin.teaching-feedbacks');
         Route::patch('admin/teaching-sessions/{teachingSession}/review', [TeachingSessionController::class, 'review'])->name('admin.teaching-sessions.review');
         Route::delete('admin/teaching-sessions/{teachingSession}', [TeachingSessionController::class, 'destroy'])->name('admin.teaching-sessions.destroy');

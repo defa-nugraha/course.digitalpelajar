@@ -196,6 +196,44 @@ test('midtrans callback checks amount and activates enrollment only after valid 
     ]);
 });
 
+test('midtrans notification endpoint acknowledges dashboard probes safely', function () {
+    config(['midtrans.is_enabled' => true]);
+
+    $this->postJson('/payments/midtrans/notification')
+        ->assertOk()
+        ->assertJson([
+            'received' => true,
+            'probe' => true,
+        ]);
+});
+
+test('midtrans notification acknowledges signed synthetic orders without changing payments', function () {
+    config([
+        'midtrans.is_enabled' => true,
+        'midtrans.server_key' => 'SB-Mid-server-test-key',
+    ]);
+
+    $payload = [
+        'order_id' => 'midtrans-dashboard-test',
+        'gross_amount' => '10000.00',
+        'transaction_status' => 'pending',
+        'status_code' => '201',
+    ];
+    $payload['signature_key'] = hash(
+        'sha512',
+        $payload['order_id'].$payload['status_code'].$payload['gross_amount'].config('midtrans.server_key'),
+    );
+
+    $this->postJson('/payments/midtrans/notification', $payload)
+        ->assertOk()
+        ->assertJson([
+            'received' => true,
+            'ignored' => 'unknown_order',
+        ]);
+
+    expect(Payment::query()->count())->toBe(0);
+});
+
 test('certificate eligibility requires all quizzes average final exam and submissions', function () {
     $student = User::factory()->student()->create();
     $course = Course::factory()->create();
@@ -263,7 +301,7 @@ test('new role scoped pages render without leaking access', function () {
         $this->actingAs($instructor)->get($url)->assertOk();
     }
 
-    foreach (['/teacher/dashboard', '/teacher/students'] as $url) {
+    foreach (['/teacher/dashboard', '/teacher/students', '/teacher/students/attendance'] as $url) {
         $this->actingAs($teacher)->get($url)->assertOk();
     }
 
@@ -277,10 +315,10 @@ test('new role scoped pages render without leaking access', function () {
 
     $this->actingAs($teacher)->get('/learning')->assertRedirect('/teacher/learning');
 
-    foreach (['/teacher/schedules', '/teacher/teaching-sessions'] as $url) {
-        $this->actingAs($teacher)->get($url)->assertNotFound();
-    }
+    $this->actingAs($teacher)->get('/teacher/schedules')->assertNotFound();
+    $this->actingAs($teacher)->get('/teacher/teaching-sessions')->assertOk();
 
     $this->actingAs($student)->get('/admin/payments')->assertForbidden();
     $this->actingAs($student)->get('/teacher/students')->assertForbidden();
+    $this->actingAs($student)->get('/teacher/students/attendance')->assertForbidden();
 });

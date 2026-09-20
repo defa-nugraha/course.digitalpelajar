@@ -166,6 +166,10 @@ function isActive(item: NavItem) {
 
     const target = item.href.split(/[?#]/)[0];
 
+    if (item.exact) {
+        return window.location.pathname === target;
+    }
+
     return window.location.pathname === target || (target !== '/' && window.location.pathname.startsWith(`${target}/`));
 }
 

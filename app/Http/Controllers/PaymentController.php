@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -63,6 +64,19 @@ class PaymentController extends Controller
         StoreOrderService $storeOrders,
     ): JsonResponse {
         $payload = $request->all();
+
+        // Midtrans sends an empty probe when the notification URL is tested
+        // from the dashboard. Acknowledge the connectivity check without
+        // treating it as a payment notification or changing any data.
+        if ($payload === []) {
+            Log::info('Midtrans notification endpoint probe acknowledged', [
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            return response()->json(['received' => true, 'probe' => true]);
+        }
+
         $request->validate([
             'order_id' => ['required', 'string', 'max:255'],
             'gross_amount' => ['required', 'numeric', 'min:0'],
@@ -76,7 +90,20 @@ class PaymentController extends Controller
             'Signature Midtrans tidak valid.',
         );
 
-        $payment = Payment::where('order_id', $payload['order_id'] ?? null)->firstOrFail();
+        $payment = Payment::where('order_id', $payload['order_id'] ?? null)->first();
+        if (! $payment) {
+            // Dashboard tests can use a synthetic order ID. Only acknowledge
+            // it after its Midtrans signature has been verified successfully.
+            Log::warning('Valid Midtrans notification ignored for unknown order', [
+                'order_id' => $payload['order_id'],
+                'transaction_id' => $payload['transaction_id'] ?? null,
+            ]);
+
+            return response()->json([
+                'received' => true,
+                'ignored' => 'unknown_order',
+            ]);
+        }
         if ((int) round((float) $payload['gross_amount']) !== $payment->amount) {
             throw ValidationException::withMessages([
                 'gross_amount' => 'Nominal callback tidak cocok dengan order.',

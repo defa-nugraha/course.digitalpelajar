@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { confirmDelete } from '@/lib/confirm-delete';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Banknote, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, Pencil, Plus, Search, Trash2, Users, Wallet } from 'lucide-react';
+import { Banknote, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, Pencil, Plus, Printer, Search, Trash2, Users, Wallet } from 'lucide-react';
 import { FormEvent, Fragment, ReactNode, useMemo, useState } from 'react';
 
 interface Option {
@@ -325,6 +325,40 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                 </Panel>
             )}
 
+            {scope === 'instructor' && (
+                <Panel className="mt-6" title="Informasi Tarif Gaji">
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {rates.map((rate) => (
+                            <article key={rate.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Tarif per pertemuan</p>
+                                        <p className="mt-2 text-xl font-extrabold text-slate-950">{rate.amountPerSessionLabel}</p>
+                                    </div>
+                                    <span
+                                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                                            rate.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                                        }`}
+                                    >
+                                        {rate.isActive ? 'Aktif' : 'Nonaktif'}
+                                    </span>
+                                </div>
+                                <p className="mt-3 text-sm text-slate-600">
+                                    Berlaku {rate.effectiveFrom}
+                                    {rate.effectiveUntil ? ` sampai ${rate.effectiveUntil}` : ' sampai sekarang'}.
+                                </p>
+                                {rate.notes && <p className="mt-2 text-sm leading-6 text-slate-500">{rate.notes}</p>}
+                            </article>
+                        ))}
+                        {rates.length === 0 && (
+                            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+                                Tarif gaji belum ditetapkan oleh admin.
+                            </p>
+                        )}
+                    </div>
+                </Panel>
+            )}
+
             {permissions.canManage && (
                 <Panel className="mt-6" title="Tarif gaji per pertemuan">
                     <div className="space-y-4">
@@ -464,6 +498,12 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                                         <Button type="button" size="sm" variant="outline" onClick={() => toggleExpanded(payroll.id)}>
                                             {expanded.includes(payroll.id) ? 'Tutup Detail' : 'Detail'}
                                         </Button>
+                                        <Button asChild type="button" size="sm" variant="outline">
+                                            <a href={`/instructor-payrolls/${payroll.id}/slip`}>
+                                                <Printer className="size-4" />
+                                                Cetak Slip
+                                            </a>
+                                        </Button>
                                         {permissions.canManage && (
                                             <Button type="button" size="sm" variant="outline" onClick={() => showPayrollEdit(payroll)}>
                                                 <Pencil className="size-4" />
@@ -566,6 +606,14 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                                             <td>{payroll.paidAt || '-'}</td>
                                             <td>
                                                 <div className="flex justify-end gap-1">
+                                                    <Button asChild variant="ghost" size="icon">
+                                                        <a
+                                                            href={`/instructor-payrolls/${payroll.id}/slip`}
+                                                            aria-label={`Cetak slip gaji ${payroll.periodLabel}`}
+                                                        >
+                                                            <Printer className="size-4" />
+                                                        </a>
+                                                    </Button>
                                                     {permissions.canManage && (
                                                         <Button
                                                             variant="ghost"

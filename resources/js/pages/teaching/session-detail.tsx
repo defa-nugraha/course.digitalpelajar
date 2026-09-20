@@ -8,6 +8,7 @@ import {
     CalendarClock,
     CheckCircle2,
     ClipboardCheck,
+    ClipboardEdit,
     FileText,
     GraduationCap,
     ImageIcon,
@@ -121,19 +122,41 @@ interface SessionDetail {
     payrolls: PayrollRow[];
 }
 
-export default function TeachingSessionDetail({ title, session, backUrl }: { title: string; session: SessionDetail; backUrl: string }) {
+export default function TeachingSessionDetail({
+    title,
+    scope = 'admin',
+    session,
+    backUrl,
+}: {
+    title: string;
+    scope?: 'admin' | 'teacher';
+    session: SessionDetail;
+    backUrl: string;
+}) {
+    const isTeacherReadOnly = scope === 'teacher';
+
     return (
         <Shell
             title={title}
-            eyebrow="Admin Operasional"
-            nav="admin"
+            eyebrow={isTeacherReadOnly ? 'Guru Sekolah · Mode Lihat' : 'Admin Operasional'}
+            nav={isTeacherReadOnly ? 'teacher' : 'admin'}
             actions={
-                <Button asChild variant="outline">
-                    <Link href={backUrl}>
-                        <ArrowLeft className="size-4" />
-                        Kembali
-                    </Link>
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button asChild variant="outline">
+                        <Link href={backUrl}>
+                            <ArrowLeft className="size-4" />
+                            Kembali
+                        </Link>
+                    </Button>
+                    {!isTeacherReadOnly && (
+                        <Button asChild>
+                            <Link href={`/admin/teaching-sessions/${session.id}/attendances`}>
+                                <ClipboardEdit className="size-4" />
+                                Kelola Presensi
+                            </Link>
+                        </Button>
+                    )}
+                </div>
             }
         >
             <Head title={`${title} - ${session.topic}`} />
@@ -143,7 +166,7 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             <StatusPill status={session.status} />
-                            {session.payrollStatus && (
+                            {!isTeacherReadOnly && session.payrollStatus && (
                                 <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
                                     Payroll {session.payrollStatus} · {session.payrollPeriod}
                                 </span>
@@ -185,10 +208,35 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
 
             <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
                 <div className="space-y-6">
-                    <Panel title="Laporan kegiatan">
+                    <Panel title={isTeacherReadOnly ? 'Catatan pengajar' : 'Laporan kegiatan'}>
                         <div className="rounded-2xl bg-slate-50 p-5 text-sm leading-7 whitespace-pre-line text-slate-700">
                             {session.report || 'Laporan kegiatan belum diisi.'}
                         </div>
+                    </Panel>
+
+                    <Panel title="Foto kegiatan">
+                        {session.evidencePhotoUrl ? (
+                            <a
+                                href={session.evidencePhotoUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="group block overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                            >
+                                <img
+                                    src={session.evidencePhotoUrl}
+                                    alt={`Foto kegiatan ${session.topic}`}
+                                    className="max-h-[32rem] w-full object-contain transition duration-200 group-hover:scale-[1.01]"
+                                    loading="lazy"
+                                />
+                                <span className="block border-t border-slate-200 bg-white px-4 py-3 text-center text-xs font-bold text-blue-700">
+                                    Buka foto ukuran penuh
+                                </span>
+                            </a>
+                        ) : (
+                            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                Foto kegiatan tidak tersedia.
+                            </p>
+                        )}
                     </Panel>
 
                     <Panel title="Presensi siswa">
@@ -345,7 +393,7 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
                         />
                     </Panel>
 
-                    <Panel title="Review admin/guru">
+                    <Panel title="Review admin">
                         <InfoList
                             items={[
                                 { icon: UserRound, label: 'Reviewer', value: session.review.reviewer || '-' },
@@ -355,38 +403,40 @@ export default function TeachingSessionDetail({ title, session, backUrl }: { tit
                         />
                     </Panel>
 
-                    <Panel title="Payroll terkait">
-                        <div className="grid gap-3">
-                            {session.payrolls.map((payroll) => (
-                                <div key={payroll.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
-                                            {payroll.status}
-                                        </span>
-                                        <span className="font-black text-slate-950">{formatCurrency(payroll.amount)}</span>
+                    {!isTeacherReadOnly && (
+                        <Panel title="Payroll terkait">
+                            <div className="grid gap-3">
+                                {session.payrolls.map((payroll) => (
+                                    <div key={payroll.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                                                {payroll.status}
+                                            </span>
+                                            <span className="font-black text-slate-950">{formatCurrency(payroll.amount)}</span>
+                                        </div>
+                                        <p className="mt-3 text-slate-600">Periode: {payroll.period || '-'}</p>
+                                        <p className="text-slate-600">Tarif: {formatCurrency(payroll.rateAmount)}</p>
+                                        <p className="text-slate-600">Dibayar: {payroll.paidAt || '-'}</p>
+                                        {payroll.proofUrl && (
+                                            <a
+                                                href={payroll.proofUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-700"
+                                            >
+                                                <Banknote className="size-3.5" />
+                                                Lihat bukti bayar
+                                            </a>
+                                        )}
+                                        {payroll.notes && <p className="mt-2 rounded-xl bg-white px-3 py-2 text-slate-600">{payroll.notes}</p>}
                                     </div>
-                                    <p className="mt-3 text-slate-600">Periode: {payroll.period || '-'}</p>
-                                    <p className="text-slate-600">Tarif: {formatCurrency(payroll.rateAmount)}</p>
-                                    <p className="text-slate-600">Dibayar: {payroll.paidAt || '-'}</p>
-                                    {payroll.proofUrl && (
-                                        <a
-                                            href={payroll.proofUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-700"
-                                        >
-                                            <Banknote className="size-3.5" />
-                                            Lihat bukti bayar
-                                        </a>
-                                    )}
-                                    {payroll.notes && <p className="mt-2 rounded-xl bg-white px-3 py-2 text-slate-600">{payroll.notes}</p>}
-                                </div>
-                            ))}
-                            {session.payrolls.length === 0 && (
-                                <p className="py-4 text-center text-sm text-slate-500">Laporan ini belum masuk payroll.</p>
-                            )}
-                        </div>
-                    </Panel>
+                                ))}
+                                {session.payrolls.length === 0 && (
+                                    <p className="py-4 text-center text-sm text-slate-500">Laporan ini belum masuk payroll.</p>
+                                )}
+                            </div>
+                        </Panel>
+                    )}
                 </div>
             </div>
         </Shell>

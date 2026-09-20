@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class StorefrontController extends Controller
 {
@@ -71,7 +72,7 @@ class StorefrontController extends Controller
         ]);
     }
 
-    public function storeCheckout(Request $request, StoreOrderService $orders): RedirectResponse
+    public function storeCheckout(Request $request, StoreOrderService $orders): SymfonyResponse
     {
         $data = $request->validate([
             'product_id' => ['required', 'exists:products,id'],
@@ -89,8 +90,9 @@ class StorefrontController extends Controller
 
         $result = $orders->createOrder($request->user(), $product, (int) $data['quantity'], $data);
 
-        return redirect()->to($result['checkout_url'])
-            ->with('success', 'Order berhasil dibuat. Silakan lanjutkan pembayaran.');
+        $request->session()->flash('success', 'Order berhasil dibuat. Silakan lanjutkan pembayaran.');
+
+        return Inertia::location($result['checkout_url']);
     }
 
     public function orders(Request $request): Response

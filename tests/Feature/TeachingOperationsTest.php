@@ -314,6 +314,25 @@ test('admin generates payroll from approved teaching sessions only once', functi
         ->and($payroll->fresh()->payment_proof_path)->toStartWith('payroll-proofs/');
     Storage::disk('public')->assertExists($payroll->fresh()->payment_proof_path);
 
+    $this->actingAs($instructor)
+        ->get('/instructor/payrolls')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teaching/payrolls', false)
+            ->where('scope', 'instructor')
+            ->where('rates.0.amountPerSession', 275000)
+            ->where('payrolls.0.totalAmount', 275000));
+
+    $this->actingAs($instructor)
+        ->get("/instructor-payrolls/{$payroll->id}/slip")
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    $otherInstructor = User::factory()->instructor()->create();
+    $this->actingAs($otherInstructor)
+        ->get("/instructor-payrolls/{$payroll->id}/slip")
+        ->assertForbidden();
+
     $this->actingAs($admin)->delete("/admin/instructor-payrolls/{$payroll->id}")
         ->assertSessionHas('error');
 });
@@ -391,10 +410,16 @@ test('student can check in by qr and instructor can edit attendance before submi
         ->and($session->report)->toBe('')
         ->and($session->evidence_photo_path)->toBe('');
 
+    $this->actingAs($student)
+        ->get('/student/attendance/scan')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('student/attendance-scanner', false));
+
     $signedQrUrl = URL::temporarySignedRoute(
         'student.teaching-attendances.scan.store',
         now()->addHour(),
         ['teachingSchedule' => $schedule->id],
+        absolute: false,
     );
 
     $this->actingAs($student)
@@ -506,11 +531,50 @@ test('student can check in by qr and instructor can edit attendance before submi
                 [
                     'student_id' => $student->id,
                     'status' => 'H',
+                    'late_minutes' => 8,
                     'reason' => '',
                 ],
             ],
         ])
-        ->assertForbidden();
+        ->assertSessionHas('success');
+
+    expect(TeachingAttendance::where('student_id', $student->id)->firstOrFail()->late_minutes)->toBe(8);
+
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)
+        ->get("/admin/teaching-sessions/{$session->id}/attendances")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teaching/attendances', false)
+            ->where('scope', 'admin')
+            ->where('canEdit', true));
+
+    $this->actingAs($admin)
+        ->patch("/admin/teaching-sessions/{$session->id}/attendances", [
+            'attendances' => [[
+                'student_id' => $student->id,
+                'status' => 'H',
+                'late_minutes' => 5,
+                'reason' => '',
+            ]],
+        ])
+        ->assertSessionHas('success');
+
+    expect(TeachingAttendance::where('student_id', $student->id)->firstOrFail()->late_minutes)->toBe(5);
+
+    $this->actingAs($admin)
+        ->patch("/admin/teaching-sessions/{$session->id}/attendances", [
+            'attendances' => [[
+                'student_id' => $student->id,
+                'status' => 'H',
+                'late_minutes' => 0,
+                'reason' => '',
+            ]],
+        ])
+        ->assertSessionHas('success');
+
+    expect(TeachingAttendance::where('student_id', $student->id)->firstOrFail()->late_minutes)->toBe(0);
 });
 
 test('qr attendance stores checked time and accumulated lateness', function () {
@@ -550,6 +614,7 @@ test('qr attendance stores checked time and accumulated lateness', function () {
         'student.teaching-attendances.scan.store',
         now()->addHour(),
         ['teachingSchedule' => $schedule->id],
+        absolute: false,
     );
 
     $this->actingAs($student)
@@ -580,6 +645,72 @@ test('qr attendance stores checked time and accumulated lateness', function () {
             'lateMinutes' => 12,
             'lateLabel' => '12 menit',
         ]);
+});
+
+test('admin can reduce and reset student lateness', function () {
+    $school = School::factory()->create();
+    $admin = User::factory()->admin()->create();
+    $student = User::factory()->student()->create(['school_id' => $school->id]);
+    $instructor = User::factory()->instructor()->create();
+    $schedule = TeachingSchedule::create([
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => null,
+        'title' => 'Koreksi Keterlambatan',
+        'starts_at' => now()->subHour(),
+        'ends_at' => now()->addHour(),
+        'mode' => 'offline',
+        'location' => 'Lab Robotik',
+        'status' => 'scheduled',
+    ]);
+    $session = TeachingSession::create([
+        'teaching_schedule_id' => $schedule->id,
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => null,
+        'actual_date' => now()->toDateString(),
+        'started_at' => now()->subHour()->format('H:i'),
+        'ended_at' => now()->addHour()->format('H:i'),
+        'topic' => 'Koreksi Keterlambatan',
+        'student_attendance_count' => 1,
+        'report' => '',
+        'evidence_photo_path' => '',
+        'status' => 'draft',
+    ]);
+    TeachingAttendance::create([
+        'teaching_schedule_id' => $schedule->id,
+        'student_id' => $student->id,
+        'status' => 'H',
+        'checked_in_at' => now()->subMinutes(30),
+        'late_minutes' => 12,
+        'source' => 'student_qr',
+    ]);
+
+    $this->actingAs($admin)
+        ->patch("/admin/teaching-sessions/{$session->id}/attendances", [
+            'attendances' => [[
+                'student_id' => $student->id,
+                'status' => 'H',
+                'late_minutes' => 7,
+                'reason' => '',
+            ]],
+        ])
+        ->assertSessionHas('success');
+
+    expect(TeachingAttendance::where('student_id', $student->id)->firstOrFail()->late_minutes)->toBe(7);
+
+    $this->actingAs($admin)
+        ->patch("/admin/teaching-sessions/{$session->id}/attendances", [
+            'attendances' => [[
+                'student_id' => $student->id,
+                'status' => 'H',
+                'late_minutes' => 0,
+                'reason' => '',
+            ]],
+        ])
+        ->assertSessionHas('success');
+
+    expect(TeachingAttendance::where('student_id', $student->id)->firstOrFail()->late_minutes)->toBe(0);
 });
 
 test('instructor can open legacy submission file when assigned to student school', function () {
