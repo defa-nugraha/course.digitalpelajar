@@ -114,6 +114,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('payments/success', [PlatformController::class, 'successPayment'])->name('payments.success');
         Route::get('payments', [PlatformController::class, 'paymentHistory'])->name('payments.index');
+        Route::get('payments/{payment}/continue', [PaymentController::class, 'continuePayment'])->name('payments.continue');
     });
 
     Route::middleware('role:school_teacher')->group(function () {

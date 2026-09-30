@@ -2,7 +2,7 @@ import { Panel, Shell } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/react';
-import { Download, ReceiptText } from 'lucide-react';
+import { CreditCard, Download, ReceiptText } from 'lucide-react';
 
 interface PaymentItem {
     id: number;
@@ -11,6 +11,7 @@ interface PaymentItem {
     amountLabel: string;
     status: string;
     method?: string | null;
+    checkoutUrl?: string | null;
     createdAt: string;
     paidAt?: string | null;
 }
@@ -43,12 +44,22 @@ export default function Payments({ payments }: { payments: PaymentItem[] }) {
                                     { label: 'Metode', value: payment.method?.replaceAll('_', ' ') ?? '-' },
                                 ]}
                                 actions={
-                                    <Button asChild variant="outline" size="sm">
-                                        <a href={`/payments/${payment.id}/invoice`}>
-                                            <Download className="size-4" />
-                                            Invoice
-                                        </a>
-                                    </Button>
+                                    <>
+                                        {payment.status === 'pending' && payment.checkoutUrl && (
+                                            <Button asChild size="sm">
+                                                <a href={`/payments/${payment.id}/continue`}>
+                                                    <CreditCard className="size-4" />
+                                                    Bayar sekarang
+                                                </a>
+                                            </Button>
+                                        )}
+                                        <Button asChild variant="outline" size="sm">
+                                            <a href={`/payments/${payment.id}/invoice`}>
+                                                <Download className="size-4" />
+                                                Invoice
+                                            </a>
+                                        </Button>
+                                    </>
                                 }
                             />
                         ))}
@@ -62,7 +73,7 @@ export default function Payments({ payments }: { payments: PaymentItem[] }) {
                                     <th>Total</th>
                                     <th>Status</th>
                                     <th>Metode</th>
-                                    <th className="text-right">Invoice</th>
+                                    <th className="text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
@@ -74,11 +85,18 @@ export default function Payments({ payments }: { payments: PaymentItem[] }) {
                                         <td className="capitalize">{payment.status}</td>
                                         <td className="capitalize">{payment.method?.replaceAll('_', ' ') ?? '-'}</td>
                                         <td className="text-right">
-                                            <Button asChild variant="ghost" size="icon">
-                                                <a href={`/payments/${payment.id}/invoice`} aria-label="Unduh invoice">
-                                                    <Download className="size-4" />
-                                                </a>
-                                            </Button>
+                                            <div className="flex justify-end gap-1">
+                                                {payment.status === 'pending' && payment.checkoutUrl && (
+                                                    <Button asChild variant="outline" size="sm">
+                                                        <a href={`/payments/${payment.id}/continue`}>Bayar</a>
+                                                    </Button>
+                                                )}
+                                                <Button asChild variant="ghost" size="icon">
+                                                    <a href={`/payments/${payment.id}/invoice`} aria-label="Unduh invoice">
+                                                        <Download className="size-4" />
+                                                    </a>
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

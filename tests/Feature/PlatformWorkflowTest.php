@@ -214,6 +214,42 @@ test('inertia checkout uses a location response for the payment gateway', functi
         ->assertHeader('X-Inertia-Location', $payment->checkout_url);
 });
 
+test('students can continue only their own pending payment and admins receive its payment link', function () {
+    $student = User::factory()->student()->create();
+    $otherStudent = User::factory()->student()->create();
+    $admin = User::factory()->admin()->create();
+    $course = Course::factory()->paid(250000)->create();
+    $payment = Payment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'amount' => 250000,
+        'status' => 'pending',
+        'checkout_url' => 'https://app.sandbox.midtrans.com/snap/v4/redirection/test-token',
+    ]);
+
+    $this->actingAs($student)
+        ->get("/payments/{$payment->id}/continue")
+        ->assertRedirect($payment->checkout_url);
+
+    $this->actingAs($otherStudent)
+        ->get("/payments/{$payment->id}/continue")
+        ->assertForbidden();
+
+    $this->actingAs($student)
+        ->get('/payments')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('payments/index')
+            ->where('payments.0.id', $payment->id)
+            ->where('payments.0.checkoutUrl', $payment->checkout_url));
+
+    $this->actingAs($admin)
+        ->get('/admin/payments')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/payments')
+            ->where('payments.0.id', $payment->id)
+            ->where('payments.0.checkoutUrl', $payment->checkout_url));
+});
+
 test('role middleware prevents students from accessing admin crud', function () {
     $student = User::factory()->student()->create();
 

@@ -4,8 +4,9 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Head } from '@inertiajs/react';
-import { Download } from 'lucide-react';
+import { Copy, Download, ExternalLink, ReceiptText } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface PaymentRow {
     id: number;
@@ -17,6 +18,7 @@ interface PaymentRow {
     amountLabel: string;
     status: string;
     method?: string | null;
+    checkoutUrl?: string | null;
     paidAt?: string | null;
 }
 
@@ -27,6 +29,49 @@ export default function Payments({ payments }: { payments: PaymentRow[] }) {
         (payment) =>
             (status === 'all' || payment.status === status) &&
             `${payment.orderId} ${payment.student} ${payment.email} ${payment.course}`.toLowerCase().includes(term.toLowerCase()),
+    );
+
+    const copy = async (value: string, label: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            toast.success(`${label} berhasil disalin.`);
+        } catch {
+            toast.error(`Tidak dapat menyalin ${label.toLowerCase()}.`);
+        }
+    };
+
+    const actions = (payment: PaymentRow, compact = false) => (
+        <div className={compact ? 'flex flex-wrap justify-end gap-2' : 'flex justify-end gap-1'}>
+            {payment.checkoutUrl && payment.status === 'pending' && (
+                <>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size={compact ? 'sm' : 'icon'}
+                        onClick={() => void copy(payment.checkoutUrl ?? '', 'Link pembayaran')}
+                    >
+                        <Copy className="size-4" />
+                        {compact && 'Salin link'}
+                    </Button>
+                    <Button asChild size={compact ? 'sm' : 'icon'}>
+                        <a href={payment.checkoutUrl} target="_blank" rel="noreferrer" aria-label="Buka halaman pembayaran">
+                            <ExternalLink className="size-4" />
+                            {compact && 'Buka pembayaran'}
+                        </a>
+                    </Button>
+                </>
+            )}
+            <Button type="button" variant="ghost" size={compact ? 'sm' : 'icon'} onClick={() => void copy(payment.orderId, 'ID order')}>
+                <ReceiptText className="size-4" />
+                {compact && 'Salin order'}
+            </Button>
+            <Button asChild variant="outline" size={compact ? 'sm' : 'icon'}>
+                <a href={`/payments/${payment.id}/invoice`} aria-label="Unduh invoice">
+                    <Download className="size-4" />
+                    {compact && 'Invoice'}
+                </a>
+            </Button>
+        </div>
     );
 
     return (
@@ -76,14 +121,7 @@ export default function Payments({ payments }: { payments: PaymentRow[] }) {
                                     { label: 'Total', value: payment.amountLabel },
                                     { label: 'Metode', value: payment.method?.replaceAll('_', ' ') ?? '-' },
                                 ]}
-                                actions={
-                                    <Button asChild variant="outline" size="sm">
-                                        <a href={`/payments/${payment.id}/invoice`}>
-                                            <Download className="size-4" />
-                                            Invoice
-                                        </a>
-                                    </Button>
-                                }
+                                actions={actions(payment, true)}
                             />
                         ))}
                     </MobileCardList>
@@ -97,7 +135,7 @@ export default function Payments({ payments }: { payments: PaymentRow[] }) {
                                     <th>Total</th>
                                     <th>Status</th>
                                     <th>Metode</th>
-                                    <th className="text-right">Invoice</th>
+                                    <th className="text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
@@ -112,13 +150,7 @@ export default function Payments({ payments }: { payments: PaymentRow[] }) {
                                         <td>{payment.amountLabel}</td>
                                         <td className="capitalize">{payment.status}</td>
                                         <td className="capitalize">{payment.method?.replaceAll('_', ' ') ?? '-'}</td>
-                                        <td className="text-right">
-                                            <Button asChild variant="ghost" size="icon">
-                                                <a href={`/payments/${payment.id}/invoice`} aria-label="Unduh invoice">
-                                                    <Download className="size-4" />
-                                                </a>
-                                            </Button>
-                                        </td>
+                                        <td className="text-right">{actions(payment)}</td>
                                     </tr>
                                 ))}
                             </tbody>

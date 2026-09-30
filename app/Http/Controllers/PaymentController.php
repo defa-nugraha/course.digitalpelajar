@@ -18,6 +18,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PaymentController extends Controller
 {
+    /** Resume a pending payment after ownership and status checks on the server. */
+    public function continuePayment(Request $request, Payment $payment): RedirectResponse
+    {
+        abort_unless($payment->user_id === $request->user()->id, 403);
+        abort_unless($payment->isPending(), 409, 'Pembayaran ini sudah tidak berstatus pending.');
+        abort_unless(filled($payment->checkout_url), 422, 'Tautan pembayaran belum tersedia. Silakan buat pesanan baru atau hubungi admin.');
+
+        return redirect()->away($payment->checkout_url);
+    }
+
     public function mockSettle(
         Request $request,
         Payment $payment,
