@@ -1,5 +1,6 @@
 import { FooterMark, PublicContent, PublicNav } from '@/components/platform';
 import { SeoData, SeoHead } from '@/components/seo-head';
+import { ServiceTransitionDialog } from '@/components/service-transition-dialog';
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
 import {
@@ -231,6 +232,7 @@ export default function Welcome({ seo, courses, partnerSchools, homeSections = [
     return (
         <>
             <SeoHead seo={seo} fallbackTitle="Aplikasi Pembelajaran Robotik" />
+            <ServiceTransitionDialog />
             <div className="min-h-screen bg-[#FAF8FF] text-slate-950">
                 <PublicNav />
                 <PublicContent>
