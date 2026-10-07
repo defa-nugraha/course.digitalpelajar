@@ -83,20 +83,34 @@ jobs:
           touch database/database.sqlite
           php artisan key:generate
 
-      - name: Run Unit tests
+      - name: Run Unit tests per file
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
           CACHE_STORE: array
           SESSION_DRIVER: array
           QUEUE_CONNECTION: sync
-        run: php artisan test --testsuite=Unit
+        run: |
+          set -e
+          find tests/Unit -type f -name '*Test.php' -print0 |
+            while IFS= read -r -d '' test_file; do
+              echo "::group::Unit test: ${test_file}"
+              php artisan test "${test_file}"
+              echo "::endgroup::"
+            done
 
-      - name: Run Feature tests
+      - name: Run Feature tests per feature
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
           CACHE_STORE: array
           SESSION_DRIVER: array
           QUEUE_CONNECTION: sync
-        run: php artisan test --testsuite=Feature
+        run: |
+          set -e
+          find tests/Feature -type f -name '*Test.php' -print0 |
+            while IFS= read -r -d '' test_file; do
+              echo "::group::Feature test: ${test_file}"
+              php artisan test "${test_file}"
+              echo "::endgroup::"
+            done
