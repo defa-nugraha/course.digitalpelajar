@@ -18,8 +18,6 @@ class QuizService
      * Every submitted attempt is persisted, including failed attempts.
      * Answers remain stored for grading/history, while detailed per-question
      * feedback is only exposed for passed attempts.
-     *
-     * @param array<int, string|null> $answers
      */
     public function grade(User $user, Quiz $quiz, array $answers): QuizAttempt
     {
