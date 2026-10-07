@@ -30,10 +30,10 @@ export function ServiceTransitionDialog() {
                                 Informasi layanan
                             </span>
                             <DialogTitle className="max-w-md text-2xl leading-tight font-extrabold tracking-tight text-slate-950 sm:text-3xl">
-                                Layanan pembuatan aplikasi kini hadir di Sasana Kode
+                                Layanan pembuatan aplikasi telah dipindahkan ke Sasana Kode
                             </DialogTitle>
                             <DialogDescription className="max-w-md text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-                                Untuk konsultasi dan layanan pembuatan website, aplikasi, atau sistem digital, silakan kunjungi platform baru kami di
+                                Untuk konsultasi dan layanan pembuatan website, aplikasi, atau sistem digital, kini seluruh layanannya dialihkan ke
                                 <strong className="font-bold text-slate-900"> sasanakode.id</strong>.
                             </DialogDescription>
                         </DialogHeader>
