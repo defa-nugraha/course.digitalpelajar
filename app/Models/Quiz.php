@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\QuizFactory;
@@ -54,12 +56,11 @@ class Quiz extends Model
      * Stable editor IDs are preferred for deduplication. Legacy questions
      * without IDs receive a deterministic ID from their content.
      *
-     * @param mixed $questions
      * @return array<int, array<string, mixed>>
      */
     public static function normalizeQuestions(mixed $questions): array
     {
-        if (! is_array($questions)) {
+        if (!is_array($questions)) {
             return [];
         }
 
@@ -67,7 +68,7 @@ class Quiz extends Model
         $seen = [];
 
         foreach ($questions as $question) {
-            if (! is_array($question)) {
+            if (!is_array($question)) {
                 continue;
             }
 
