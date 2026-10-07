@@ -238,7 +238,7 @@ test('students can continue only their own pending payment and admins receive it
     $this->actingAs($student)
         ->get('/payments')
         ->assertInertia(fn (Assert $page) => $page
-            ->component('payments/index')
+            ->component('payments/index', false)
             ->where('payments.0.id', $payment->id)
             ->where('payments.0.checkoutUrl', $payment->checkout_url));
 
