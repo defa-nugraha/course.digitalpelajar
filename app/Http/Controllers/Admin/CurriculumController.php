@@ -668,6 +668,14 @@ class CurriculumController extends Controller
             }
         }
 
+        $questions = Quiz::normalizeQuestions($questions);
+
+        if ($questions === []) {
+            throw ValidationException::withMessages([
+                'questions' => 'Kuis harus memiliki minimal satu pertanyaan yang lengkap.',
+            ]);
+        }
+
         $data['questions'] = $questions;
         $data['time_limit_mode'] = $data['time_limit_mode'] ?? 'none';
 
