@@ -1,0 +1,24 @@
+name: one-time-prettier-fix
+on:
+  push:
+    branches:
+      - main
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write resources/js/components/service-transition-dialog.tsx resources/js/pages/admin/quiz-editor.tsx resources/js/pages/student/learning.tsx
+      - name: Commit formatted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add resources/js/components/service-transition-dialog.tsx resources/js/pages/admin/quiz-editor.tsx resources/js/pages/student/learning.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "style: apply Prettier formatting"
+          git push
