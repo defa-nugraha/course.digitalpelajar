@@ -223,10 +223,12 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         quizSubmittingRef.current = true;
         setQuizValidationMessage(null);
 
+        quizForm.transform((data) => ({
+            ...data,
+            auto_submitted: autoSubmit,
+        }));
+
         quizForm.post(`/quizzes/${activeQuiz.id}/attempts`, {
-            data: {
-                auto_submitted: autoSubmit,
-            },
             preserveScroll: true,
             onSuccess: closeQuizAfterSubmit,
             onError: () => {
