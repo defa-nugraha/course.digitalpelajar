@@ -73,7 +73,7 @@ class QuizService
     {
         $final = $enrollment->course->quizzes()->where('is_final_exam', true)->first();
 
-        if (! $final) {
+        if ($final === null) {
             return false;
         }
 
@@ -115,7 +115,7 @@ class QuizService
      */
     public function passedAttemptBreakdown(Quiz $quiz, QuizAttempt $attempt): array
     {
-        if (! $attempt->passed) {
+        if ($attempt->passed === false) {
             return [];
         }
 
