@@ -37,12 +37,14 @@ interface QuizInfo {
 type TimerMode = 'none' | 'total' | 'per_question';
 
 interface StoredQuestion {
+    id?: string;
     question?: string;
     answer?: string;
     options?: string[];
 }
 
 interface QuestionForm {
+    id: string;
     question: string;
     answer: string;
     options: string[];
@@ -114,11 +116,22 @@ export default function QuizEditor({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        const cleanedQuestions = questions.map((item) => ({
-            question: item.question.trim(),
-            answer: item.answer.trim(),
-            options: item.options.map((option) => option.trim()).filter(Boolean),
-        }));
+        const seenQuestionIds = new Set<string>();
+        const cleanedQuestions = questions
+            .map((item) => ({
+                id: item.id,
+                question: item.question.trim(),
+                answer: item.answer.trim(),
+                options: item.options.map((option) => option.trim()).filter(Boolean),
+            }))
+            .filter((item) => {
+                if (seenQuestionIds.has(item.id)) {
+                    return false;
+                }
+
+                seenQuestionIds.add(item.id);
+                return true;
+            });
 
         form.transform((data) => ({
             ...data,
@@ -237,23 +250,10 @@ export default function QuizEditor({
                         </div>
                     </Panel>
 
-                    <Panel
-                        title="Pertanyaan"
-                        action={
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setQuestions((items) => [...items, blankQuestion(items.length + 1)])}
-                            >
-                                <Plus className="size-4" />
-                                Pertanyaan
-                            </Button>
-                        }
-                    >
+                    <Panel title="Pertanyaan">
                         <div className="space-y-5">
                             {questions.map((question, questionIndex) => (
-                                <section key={questionIndex} className="rounded-xl border border-slate-200 p-4">
+                                <section key={question.id} className="rounded-xl border border-slate-200 p-4">
                                     <div className="mb-4 flex items-center justify-between gap-3">
                                         <h2 className="font-bold text-slate-950">Pertanyaan {questionIndex + 1}</h2>
                                         <Button
@@ -330,6 +330,17 @@ export default function QuizEditor({
                                 </section>
                             ))}
                         </div>
+                        <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-200 pt-5">
+                            <p className="text-sm text-slate-500">{questions.length} pertanyaan</p>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setQuestions((items) => [...items, blankQuestion(items.length + 1)])}
+                            >
+                                <Plus className="size-4" />
+                                Tambah pertanyaan
+                            </Button>
+                        </div>
                         <InputError message={form.errors.questions} className="mt-4" />
                     </Panel>
                 </div>
@@ -374,8 +385,17 @@ export default function QuizEditor({
     );
 }
 
+function createQuestionId(): string {
+    if (typeof globalThis.crypto?.randomUUID === 'function') {
+        return globalThis.crypto.randomUUID();
+    }
+
+    return `q-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function blankQuestion(index: number): QuestionForm {
     return {
+        id: createQuestionId(),
         question: `Pertanyaan ${index}`,
         answer: '',
         options: ['', '', '', ''],
@@ -387,11 +407,42 @@ function normalizeQuestions(questions?: StoredQuestion[] | null): QuestionForm[]
         return [blankQuestion(1)];
     }
 
-    return questions.map((question, index) => ({
-        question: question.question ?? `Pertanyaan ${index + 1}`,
-        answer: question.answer ?? '',
-        options: Array.isArray(question.options) && question.options.length > 0 ? question.options : ['', '', '', ''],
-    }));
+    const seenIds = new Set<string>();
+    const seenContent = new Set<string>();
+
+    return questions.flatMap((question, index) => {
+        const contentKey = JSON.stringify({
+            question: (question.question ?? '').trim(),
+            answer: (question.answer ?? '').trim(),
+            options: (question.options ?? []).map((option) => option.trim()).filter(Boolean),
+        });
+        const id = question.id?.trim() || `legacy-${hashString(contentKey)}`;
+
+        if (seenIds.has(id) || seenContent.has(contentKey)) {
+            return [];
+        }
+
+        seenIds.add(id);
+        seenContent.add(contentKey);
+
+        return [{
+            id,
+            question: question.question ?? `Pertanyaan ${index + 1}`,
+            answer: question.answer ?? '',
+            options: Array.isArray(question.options) && question.options.length > 0 ? question.options : ['', '', '', ''],
+        }];
+    });
+}
+
+function hashString(value: string): string {
+    let hash = 0;
+
+    for (let index = 0; index < value.length; index += 1) {
+        hash = (hash << 5) - hash + value.charCodeAt(index);
+        hash |= 0;
+    }
+
+    return Math.abs(hash).toString(36);
 }
 
 function timerSummary(mode: TimerMode, seconds: string): string {
