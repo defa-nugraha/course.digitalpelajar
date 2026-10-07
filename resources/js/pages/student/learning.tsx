@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     ClipboardCheck,
@@ -60,10 +60,36 @@ interface QuizData {
     bestScore: number;
     timeLimitMode?: QuizTimeLimitMode | null;
     timeLimitSeconds?: number | null;
-    questions: { index: number; question: string; options?: string[] }[];
+    questions: { index: number; id: string; question: string; options?: string[] }[];
 }
 
 type QuizTimeLimitMode = 'none' | 'total' | 'per_question';
+
+interface QuizResultQuestion {
+    index: number;
+    question: string;
+    options: string[];
+    yourAnswer: string;
+    correctAnswer: string;
+    correct: boolean;
+}
+
+interface QuizResult {
+    quizId: number;
+    attemptId: number;
+    score: number;
+    passingScore: number;
+    passed: boolean;
+    questionResults: QuizResultQuestion[];
+}
+
+interface SharedPageProps {
+    flash?: {
+        quizResult?: QuizResult | null;
+        success?: string | null;
+        warning?: string | null;
+    };
+}
 
 interface SubmissionData {
     id: number;
@@ -110,9 +136,12 @@ interface LearningProps {
 }
 
 export default function Learning({ course, currentLesson, blocks, lessonItems = [], quiz, finalQuiz, submission }: LearningProps) {
+    const page = usePage<SharedPageProps>();
+    const quizResult = page.props.flash?.quizResult ?? null;
     const [activeQuiz, setActiveQuiz] = useState<QuizData | null>(null);
     const [activeQuizQuestionIndex, setActiveQuizQuestionIndex] = useState(0);
     const [remainingQuizSeconds, setRemainingQuizSeconds] = useState<number | null>(null);
+    const [quizValidationMessage, setQuizValidationMessage] = useState<string | null>(null);
     const [submissionOpen, setSubmissionOpen] = useState(false);
     const [copiedBlockId, setCopiedBlockId] = useState<number | null>(null);
     const [interactiveCompletion, setInteractiveCompletion] = useState<Record<number, boolean>>({});
@@ -163,6 +192,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
             item.questions.map(() => ''),
         );
         quizForm.clearErrors();
+        setQuizValidationMessage(null);
     };
 
     const closeQuizAfterSubmit = useCallback(() => {
@@ -172,11 +202,31 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         quizSubmittingRef.current = false;
     }, []);
 
-    const finishQuiz = useCallback(() => {
+    const finishQuiz = useCallback((autoSubmit = false) => {
         if (!activeQuiz) return;
         if (quizSubmittingRef.current) return;
+
+        const unansweredCount = activeQuiz.questions.reduce(
+            (count, _question, index) => count + (String(quizForm.data.answers[index] ?? '').trim() === '' ? 1 : 0),
+            0,
+        );
+
+        if (!autoSubmit && unansweredCount > 0) {
+            setQuizValidationMessage(
+                unansweredCount === 1
+                    ? 'Masih ada 1 soal yang belum dijawab. Jawab semua soal sebelum mengirim quiz.'
+                    : `Masih ada ${unansweredCount} soal yang belum dijawab. Jawab semua soal sebelum mengirim quiz.`,
+            );
+            return;
+        }
+
         quizSubmittingRef.current = true;
+        setQuizValidationMessage(null);
+
         quizForm.post(`/quizzes/${activeQuiz.id}/attempts`, {
+            data: {
+                auto_submitted: autoSubmit,
+            },
             preserveScroll: true,
             onSuccess: closeQuizAfterSubmit,
             onError: () => {
@@ -192,14 +242,26 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
 
     const submitQuiz = (event: FormEvent) => {
         event.preventDefault();
-        finishQuiz();
+        finishQuiz(false);
+    };
+
+    const goToQuizQuestion = (questionIndex: number) => {
+        if (!activeQuiz) return;
+
+        const nextIndex = Math.min(Math.max(questionIndex, 0), activeQuiz.questions.length - 1);
+        setActiveQuizQuestionIndex(nextIndex);
+        setQuizValidationMessage(null);
+        setRemainingQuizSeconds(isPerQuestionTimedQuiz(activeQuiz) ? (activeQuiz.timeLimitSeconds ?? null) : remainingQuizSeconds);
     };
 
     const goToNextQuizQuestion = () => {
         if (!activeQuiz) return;
-        const nextIndex = Math.min(activeQuizQuestionIndex + 1, activeQuiz.questions.length - 1);
-        setActiveQuizQuestionIndex(nextIndex);
-        setRemainingQuizSeconds(isPerQuestionTimedQuiz(activeQuiz) ? (activeQuiz.timeLimitSeconds ?? null) : remainingQuizSeconds);
+        goToQuizQuestion(activeQuizQuestionIndex + 1);
+    };
+
+    const goToPreviousQuizQuestion = () => {
+        if (!activeQuiz) return;
+        goToQuizQuestion(activeQuizQuestionIndex - 1);
     };
 
     useEffect(() => {
@@ -215,7 +277,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                 return;
             }
 
-            finishQuiz();
+            finishQuiz(true);
 
             return;
         }
@@ -258,12 +320,17 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         if (!currentLesson || !canCompleteLesson) return;
         router.post(`/courses/${course.id}/lessons/${currentLesson.id}/complete`, {}, { preserveScroll: true });
     };
-    const activeQuizQuestions =
-        activeQuiz && isPerQuestionTimedQuiz(activeQuiz)
-            ? activeQuiz.questions.slice(activeQuizQuestionIndex, activeQuizQuestionIndex + 1)
-            : (activeQuiz?.questions ?? []);
+    const activeQuizQuestion = activeQuiz?.questions[activeQuizQuestionIndex] ?? null;
     const activeQuizIsPerQuestionTimed = activeQuiz ? isPerQuestionTimedQuiz(activeQuiz) : false;
-    const activeQuizHasNextQuestion = activeQuizIsPerQuestionTimed && activeQuizQuestionIndex < (activeQuiz?.questions.length ?? 0) - 1;
+    const activeQuizHasNextQuestion = activeQuiz ? activeQuizQuestionIndex < activeQuiz.questions.length - 1 : false;
+    const activeQuizHasPreviousQuestion = activeQuizQuestionIndex > 0;
+    const activeQuizAnsweredCount = activeQuiz
+        ? activeQuiz.questions.reduce(
+              (count, _question, index) => count + (String(quizForm.data.answers[index] ?? '').trim() !== '' ? 1 : 0),
+              0,
+          )
+        : 0;
+    const activeQuizAllAnswered = Boolean(activeQuiz) && activeQuizAnsweredCount === activeQuiz!.questions.length;
 
     return (
         <>
@@ -332,6 +399,56 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                             <h2 className={`${videoBlock ? 'mt-4' : 'mt-2'} text-3xl font-extrabold`}>{currentLesson?.title ?? course.title}</h2>
                             {!videoBlock && <p className="mt-2 text-slate-600">{course.description}</p>}
                         </div>
+
+                        {quizResult ? (
+                            <div className={`mb-6 rounded-2xl border p-5 ${quizResult.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p className={`text-xs font-bold tracking-wider uppercase ${quizResult.passed ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                            Hasil quiz
+                                        </p>
+                                        <h2 className="mt-1 text-xl font-extrabold text-slate-950">
+                                            Nilai {quizResult.score} / 100
+                                        </h2>
+                                    </div>
+                                    <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${quizResult.passed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
+                                        {quizResult.passed ? 'Lulus' : 'Belum lulus'}
+                                    </span>
+                                </div>
+                                <p className="mt-2 text-sm leading-6 text-slate-700">
+                                    Nilai minimal: {quizResult.passingScore}.{' '}
+                                    {quizResult.passed
+                                        ? 'Anda dapat melihat hasil setiap soal.'
+                                        : 'Silakan ulangi quiz sampai mencapai nilai minimal.'}
+                                </p>
+                                {quizResult.passed && quizResult.questionResults.length > 0 ? (
+                                    <div className="mt-4 space-y-3">
+                                        {quizResult.questionResults.map((result) => (
+                                            <div key={result.index} className="rounded-xl border border-white/80 bg-white p-4">
+                                                <div className="flex gap-3">
+                                                    <span className={`mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full ${result.correct ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {result.correct ? '✓' : '×'}
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-slate-950">
+                                                            {result.index + 1}. {result.question}
+                                                        </p>
+                                                        <p className="mt-1 text-sm text-slate-600">
+                                                            Jawaban Anda: <span className="font-semibold">{result.yourAnswer || 'Tidak dijawab'}</span>
+                                                        </p>
+                                                        {!result.correct && (
+                                                            <p className="mt-1 text-sm text-slate-600">
+                                                                Jawaban benar: <span className="font-semibold text-emerald-700">{result.correctAnswer}</span>
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : null}
 
                         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
                             <Panel title="Materi Lesson">
@@ -463,50 +580,84 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
 
             <Dialog open={Boolean(activeQuiz)} onOpenChange={() => undefined}>
                 <DialogContent
-                    className="max-h-[90vh] overflow-y-auto [&>button]:hidden"
+                    className="max-h-[92vh] overflow-y-auto [&>button]:hidden sm:max-w-3xl"
                     onEscapeKeyDown={(event) => event.preventDefault()}
                     onPointerDownOutside={(event) => event.preventDefault()}
                 >
                     <DialogHeader>
                         <DialogTitle>{activeQuiz?.title}</DialogTitle>
                         <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-                            Quiz sedang berjalan. Selesaikan dan kirim jawaban terlebih dahulu sebelum kembali ke materi.
+                            Quiz sedang berjalan. Selesaikan seluruh soal sebelum mengirim jawaban.
                         </div>
-                        {activeQuiz && activeQuiz.timeLimitMode !== 'none' && activeQuiz.timeLimitSeconds ? (
-                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                                <span className="inline-flex items-center gap-2 font-semibold">
-                                    <Clock3 className="size-4" />
-                                    {activeQuiz.timeLimitMode === 'per_question'
-                                        ? `Soal ${activeQuizQuestionIndex + 1} dari ${activeQuiz.questions.length}`
-                                        : 'Batas waktu keseluruhan quiz'}
-                                </span>
-                                <span className="rounded-full bg-white px-3 py-1 font-bold text-blue-700 shadow-sm">
-                                    Sisa waktu {formatQuizDuration(remainingQuizSeconds ?? 0)}
-                                </span>
+                        {activeQuiz && (
+                            <div className="mt-4 space-y-3">
+                                <div className="flex items-center justify-between gap-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
+                                    <span>
+                                        {activeQuizAnsweredCount} dari {activeQuiz.questions.length} soal terjawab
+                                    </span>
+                                    {activeQuiz.timeLimitMode !== 'none' && activeQuiz.timeLimitSeconds ? (
+                                        <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-blue-700 normal-case">
+                                            <Clock3 className="size-4" />
+                                            {formatQuizDuration(remainingQuizSeconds ?? 0)}
+                                        </span>
+                                    ) : null}
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    {activeQuiz.questions.map((question, index) => {
+                                        const answered = String(quizForm.data.answers[index] ?? '').trim() !== '';
+
+                                        return (
+                                            <button
+                                                key={question.id}
+                                                type="button"
+                                                onClick={() => goToQuizQuestion(index)}
+                                                className={`relative flex size-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition ${
+                                                    index === activeQuizQuestionIndex
+                                                        ? 'border-blue-700 bg-blue-700 text-white shadow-sm'
+                                                        : answered
+                                                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                                                          : 'border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700'
+                                                }`}
+                                                aria-label={`Buka soal ${index + 1}`}
+                                            >
+                                                {index + 1}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        ) : null}
+                        )}
                     </DialogHeader>
+
                     <form onSubmit={submitQuiz} className="space-y-5">
-                        {activeQuizQuestions.map((question) => (
-                            <div key={question.index} className="space-y-2">
-                                <Label>
-                                    {question.index + 1}. {question.question}
-                                </Label>
-                                {question.options && question.options.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {question.options.map((option) => (
+                        {activeQuizQuestion ? (
+                            <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-xs font-bold tracking-wide text-blue-700 uppercase">
+                                        Soal {activeQuizQuestionIndex + 1} dari {activeQuiz?.questions.length ?? 0}
+                                    </p>
+                                    <span className="text-xs font-semibold text-slate-500">
+                                        {String(quizForm.data.answers[activeQuizQuestionIndex] ?? '').trim() !== '' ? 'Sudah dijawab' : 'Belum dijawab'}
+                                    </span>
+                                </div>
+                                <Label className="text-base leading-7">{activeQuizQuestion.question}</Label>
+
+                                {activeQuizQuestion.options && activeQuizQuestion.options.length > 0 ? (
+                                    <div className="space-y-2 pt-2">
+                                        {activeQuizQuestion.options.map((option) => (
                                             <label
                                                 key={option}
-                                                className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3 text-sm hover:border-blue-300 hover:bg-blue-50"
+                                                className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm hover:border-blue-300 hover:bg-blue-50"
                                             >
                                                 <input
                                                     type="radio"
-                                                    name={`question-${question.index}`}
-                                                    checked={(quizForm.data.answers[question.index] ?? '') === option}
+                                                    name={`question-${activeQuizQuestion.index}`}
+                                                    checked={(quizForm.data.answers[activeQuizQuestion.index] ?? '') === option}
                                                     onChange={() => {
                                                         const answers = [...quizForm.data.answers];
-                                                        answers[question.index] = option;
+                                                        answers[activeQuizQuestion.index] = option;
                                                         quizForm.setData('answers', answers);
+                                                        setQuizValidationMessage(null);
                                                     }}
                                                 />
                                                 {option}
@@ -515,32 +666,55 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                     </div>
                                 ) : (
                                     <Input
-                                        value={quizForm.data.answers[question.index] ?? ''}
+                                        value={quizForm.data.answers[activeQuizQuestion.index] ?? ''}
                                         onChange={(event) => {
                                             const answers = [...quizForm.data.answers];
-                                            answers[question.index] = event.target.value;
+                                            answers[activeQuizQuestion.index] = event.target.value;
                                             quizForm.setData('answers', answers);
+                                            setQuizValidationMessage(null);
                                         }}
                                     />
                                 )}
-                                <InputError message={quizForm.errors[`answers.${question.index}` as keyof typeof quizForm.errors]} />
+
+                                <InputError message={quizForm.errors[`answers.${activeQuizQuestion.index}` as keyof typeof quizForm.errors]} />
                             </div>
-                        ))}
-                        <DialogFooter>
-                            {activeQuizHasNextQuestion ? (
-                                <Button type="button" disabled={quizForm.processing} onClick={goToNextQuizQuestion}>
+                        ) : null}
+
+                        {quizValidationMessage ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-900">
+                                {quizValidationMessage}
+                            </div>
+                        ) : null}
+
+                        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={quizForm.processing || !activeQuizHasPreviousQuestion}
+                                onClick={goToPreviousQuizQuestion}
+                            >
+                                Sebelumnya
+                            </Button>
+
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={quizForm.processing || !activeQuizHasNextQuestion}
+                                    onClick={goToNextQuizQuestion}
+                                >
                                     Soal berikutnya
                                 </Button>
-                            ) : (
-                                <Button type="submit" disabled={quizForm.processing}>
-                                    Kirim Jawaban
-                                </Button>
-                            )}
+                                {activeQuiz && activeQuizQuestionIndex === activeQuiz.questions.length - 1 ? (
+                                    <Button type="submit" disabled={quizForm.processing || !activeQuizAllAnswered}>
+                                        Kirim semua jawaban
+                                    </Button>
+                                ) : null}
+                            </div>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
-
             <Dialog open={submissionOpen} onOpenChange={setSubmissionOpen}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
