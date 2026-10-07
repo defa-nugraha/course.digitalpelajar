@@ -115,7 +115,7 @@ interface LessonItem {
     bestScore?: number;
     timeLimitMode?: QuizTimeLimitMode | null;
     timeLimitSeconds?: number | null;
-    questions?: { index: number; question: string; options?: string[] }[];
+    questions?: { index: number; id?: string; question: string; options?: string[] }[];
 }
 
 interface LearningProps {
