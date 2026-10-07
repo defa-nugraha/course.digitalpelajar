@@ -60,7 +60,7 @@ class Quiz extends Model
      */
     public static function normalizeQuestions(mixed $questions): array
     {
-        if (!is_array($questions)) {
+        if (! is_array($questions)) {
             return [];
         }
 
@@ -68,7 +68,7 @@ class Quiz extends Model
         $seen = [];
 
         foreach ($questions as $question) {
-            if (!is_array($question)) {
+            if (! is_array($question)) {
                 continue;
             }
 
