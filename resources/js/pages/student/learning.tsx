@@ -323,7 +323,6 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         router.post(`/courses/${course.id}/lessons/${currentLesson.id}/complete`, {}, { preserveScroll: true });
     };
     const activeQuizQuestion = activeQuiz?.questions[activeQuizQuestionIndex] ?? null;
-    const activeQuizIsPerQuestionTimed = activeQuiz ? isPerQuestionTimedQuiz(activeQuiz) : false;
     const activeQuizHasNextQuestion = activeQuiz ? activeQuizQuestionIndex < activeQuiz.questions.length - 1 : false;
     const activeQuizHasPreviousQuestion = activeQuizQuestionIndex > 0;
     const activeQuizAnsweredCount = activeQuiz
