@@ -35,5 +35,3 @@ test('password is not confirmed with invalid password', function () {
 
     $response->assertSessionHasErrors();
 });
-
-
