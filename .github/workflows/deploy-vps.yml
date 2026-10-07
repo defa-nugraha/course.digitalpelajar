@@ -61,6 +61,8 @@ jobs:
 
   unit-test:
     name: Unit Test (Feature Scenarios)
+    needs: test
+    if: ${{ needs.test.result == 'success' }}
     runs-on: ubuntu-24.04
 
     steps:
