@@ -1,17 +1,24 @@
-name: deploy-vps
+name: test-and-unit-test
 
 on:
   push:
     branches:
       - main
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/**"
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
-  group: deploy-vps
-  cancel-in-progress: false
+  group: test-and-unit-test-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
+    name: Test (Lint & Static Checks)
     runs-on: ubuntu-24.04
 
     steps:
@@ -23,18 +30,52 @@ jobs:
         with:
           php-version: '8.4'
           tools: composer:v2
+          coverage: none
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: npm
 
       - name: Install PHP dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+        run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
 
       - name: Install Node dependencies
         run: npm ci
+
+      - name: PHP syntax check
+        run: |
+          set -e
+          find app config database routes tests -type f -name '*.php' -print0 |
+            xargs -0 -n1 php -l
+
+      - name: PHP code style check
+        run: vendor/bin/pint --test
+
+      - name: ESLint
+        run: npx eslint .
+
+      - name: Prettier
+        run: npm run format:check
+
+  unit-test:
+    name: Unit Test (Feature Scenarios)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
 
       - name: Prepare test environment
         run: |
@@ -42,133 +83,34 @@ jobs:
           touch database/database.sqlite
           php artisan key:generate
 
-      - name: Build frontend assets
-        run: npm run build
-
-      - name: Run tests
+      - name: Run Unit tests per file
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
           CACHE_STORE: array
           SESSION_DRIVER: array
           QUEUE_CONNECTION: sync
-        run: php artisan test
-
-  deploy:
-    runs-on: ubuntu-24.04
-    needs: test
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          tools: composer:v2
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install PHP dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Build frontend assets
-        run: npm run build
-
-      - name: Package application
         run: |
-          tar \
-            --exclude='release.tar.gz' \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='node_modules' \
-            --exclude='.env' \
-            --exclude='storage/app/public' \
-            --exclude='storage/framework/cache/*' \
-            --exclude='storage/framework/sessions/*' \
-            --exclude='storage/framework/views/*' \
-            --exclude='storage/logs/*' \
-            -czf ../release.tar.gz .
-          mv ../release.tar.gz ./release.tar.gz
+          set -e
+          find tests/Unit -type f -name '*Test.php' -print0 |
+            while IFS= read -r -d '' test_file; do
+              echo "::group::Unit test: ${test_file}"
+              php artisan test "${test_file}"
+              echo "::endgroup::"
+            done
 
-      - name: Verify VPS SSH connectivity
+      - name: Run Feature tests per feature
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_PORT: ${{ secrets.VPS_PORT || 22 }}
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
         run: |
-          python - <<'PY'
-          import os
-          import socket
-          import sys
-
-          host = (os.environ.get("VPS_HOST") or "").strip()
-          port_value = (os.environ.get("VPS_PORT") or "22").strip()
-
-          if not host:
-              sys.exit("VPS_HOST secret is empty.")
-
-          if host.startswith(("http://", "https://")):
-              sys.exit("VPS_HOST must be a hostname/IP only, without http:// or https://.")
-
-          try:
-              port = int(port_value)
-          except ValueError:
-              sys.exit("VPS_PORT must be a number, for example 22.")
-
-          try:
-              with socket.create_connection((host, port), timeout=20):
-                  print("VPS SSH TCP connectivity check passed.")
-          except TimeoutError:
-              sys.exit(
-                  "Cannot connect to VPS SSH port: connection timed out. "
-                  "Check VPS_HOST/VPS_PORT, VPS firewall/security group, provider firewall, "
-                  "and whether GitHub-hosted runner IPs are allowed."
-              )
-          except OSError as exc:
-              sys.exit(f"Cannot connect to VPS SSH port: {exc}")
-          PY
-
-      - name: Upload release to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || 22 }}
-          source: release.tar.gz
-          target: ${{ secrets.VPS_DEPLOY_PATH }}
-          timeout: 120s
-          command_timeout: 30m
-
-      - name: Deploy on VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || 22 }}
-          timeout: 120s
-          command_timeout: 30m
-          script: |
-            set -e
-            cd "${{ secrets.VPS_DEPLOY_PATH }}"
-            php artisan down || true
-            tar -xzf release.tar.gz
-            rm release.tar.gz
-            composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-            php artisan migrate --force
-            php artisan storage:link || true
-            php artisan optimize:clear
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan queue:restart || true
-            php artisan up
+          set -e
+          find tests/Feature -type f -name '*Test.php' -print0 |
+            while IFS= read -r -d '' test_file; do
+              echo "::group::Feature test: ${test_file}"
+              php artisan test "${test_file}"
+              echo "::endgroup::"
+            done

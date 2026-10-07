@@ -52,6 +52,7 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn () => $request->session()->get('warning'),
                 'error' => fn () => $request->session()->get('error'),
                 'status' => fn () => $request->session()->get('status'),
+                'quizResult' => fn () => $request->session()->get('quiz_result'),
             ],
             'footer' => fn () => $this->footerPayload(),
         ]);

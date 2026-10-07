@@ -31,7 +31,24 @@ class LearningActionController extends Controller
         $data = $request->validate([
             'answers' => ['required', 'array'],
             'answers.*' => ['nullable', 'string', 'max:2000'],
+            'auto_submitted' => ['nullable', 'boolean'],
         ]);
+
+        $quiz->loadMissing('course', 'lesson.chapter');
+        $questionCount = count(Quiz::normalizeQuestions($quiz->questions));
+        $answers = array_values($data['answers']);
+
+        if (! $request->boolean('auto_submitted')) {
+            for ($index = 0; $index < $questionCount; $index++) {
+                if (blank($answers[$index] ?? null)) {
+                    throw ValidationException::withMessages([
+                        "answers.{$index}" => 'Semua soal wajib dijawab sebelum quiz dikirim.',
+                    ]);
+                }
+            }
+        }
+
+        $answers = array_slice($answers, 0, $questionCount);
 
         $enrollment = Enrollment::query()
             ->where('user_id', $request->user()->id)
@@ -50,13 +67,27 @@ class LearningActionController extends Controller
             $enrollments->assertLessonAccessible($request->user(), $enrollment->course, $quiz->lesson);
         }
 
-        $attempt = $quizzes->grade($request->user(), $quiz, $data['answers']);
+        $attempt = $quizzes->grade($request->user(), $quiz, $answers);
         $certificates->issueIfEligible($request->user(), $enrollment->fresh(['course']));
 
-        return back()->with(
-            $attempt->passed ? 'success' : 'warning',
-            "Nilai kuis {$attempt->score}. ".($attempt->passed ? 'Anda lulus.' : 'Silakan coba lagi.'),
-        );
+        $result = [
+            'quizId' => $quiz->id,
+            'attemptId' => $attempt->id,
+            'score' => $attempt->score,
+            'passingScore' => (int) $quiz->passing_score,
+            'passed' => $attempt->passed,
+            'questionResults' => $attempt->passed
+                ? $quizzes->passedAttemptBreakdown($quiz, $attempt)
+                : [],
+        ];
+
+        $message = $attempt->passed
+            ? "Nilai kuis {$attempt->score}. Anda lulus."
+            : "Nilai kuis {$attempt->score}. Nilai minimal {$quiz->passing_score}. Silakan ulangi quiz.";
+
+        return back()
+            ->with($attempt->passed ? 'success' : 'warning', $message)
+            ->with('quiz_result', $result);
     }
 
     public function submitProject(
