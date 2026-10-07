@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 use App\Models\User;
 
-declare(strict_types=1);
-
-use App\Models\User;
-
-
 return [
 
     /*
