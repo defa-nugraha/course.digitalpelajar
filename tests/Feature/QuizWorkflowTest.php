@@ -34,7 +34,7 @@ it('normalizes duplicate questions while preserving the first question order', f
 
     expect($questions)->toHaveCount(2)
         ->and($questions[0]['id'])->toBe('q-1')
-        ->and($questions[0]['options'])->toBe(['Membaca kondisi', 'Menyalakan motor'])
+        ->and($questions[0]['options'])->toBe(['Membaca kondisi', 'Menyalakan motor', 'A'])
         ->and($questions[1]['id'])->toStartWith('q-');
 });
 
