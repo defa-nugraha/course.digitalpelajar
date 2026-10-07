@@ -594,13 +594,17 @@ class PlatformController extends Controller
                             ->where('quiz_id', $quiz->id)
                             ->where('user_id', $userId)
                             ->max('score'),
-                        'questions' => collect(json_decode($quiz->questions ?: '[]', true))
-                            ->map(fn (array $question, int $index) => [
-                                'index' => $index,
-                                'question' => $question['question'] ?? '',
-                                'options' => collect($question['options'] ?? [])->filter()->values(),
-                            ])
-                            ->values(),
+                        'questions' => Quiz::normalizeQuestions(json_decode($quiz->questions ?: '[]', true))
+                            ? collect(Quiz::normalizeQuestions(json_decode($quiz->questions ?: '[]', true)))
+                                ->values()
+                                ->map(fn (array $question, int $index) => [
+                                    'index' => $index,
+                                    'id' => (string) $question['id'],
+                                    'question' => $question['question'],
+                                    'options' => $question['options'],
+                                ])
+                                ->values()
+                            : collect(),
                         'orderNo' => (int) $quiz->order_no,
                     ];
                 })
@@ -617,11 +621,14 @@ class PlatformController extends Controller
         if ($finalQuiz) {
             $finalQuiz->timeLimitMode = $finalQuiz->timeLimitMode ?? 'none';
             $finalQuiz->timeLimitSeconds = $finalQuiz->timeLimitSeconds ? (int) $finalQuiz->timeLimitSeconds : null;
-            $finalQuiz->questions = collect(json_decode($finalQuiz->questions ?: '[]', true))
+            $finalQuestions = Quiz::normalizeQuestions(json_decode($finalQuiz->questions ?: '[]', true));
+            $finalQuiz->questions = collect($finalQuestions)
+                ->values()
                 ->map(fn (array $question, int $index) => [
                     'index' => $index,
-                    'question' => $question['question'] ?? '',
-                    'options' => collect($question['options'] ?? [])->filter()->values(),
+                    'id' => (string) $question['id'],
+                    'question' => $question['question'],
+                    'options' => $question['options'],
                 ])
                 ->values();
             $finalQuiz->bestScore = (int) DB::table('quiz_attempts')
