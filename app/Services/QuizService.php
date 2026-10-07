@@ -89,7 +89,6 @@ class QuizService
 
         return $quizzes->every(fn (Quiz $quiz) => $quiz->attempts()
             ->where('user_id', $user->id)
-            ->where('passed', true)
             ->exists());
     }
 
