@@ -16,9 +16,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Inertia\Response;
 
 class LearningActionController extends Controller
@@ -134,7 +134,7 @@ class LearningActionController extends Controller
             );
         }
 
-        if (! ($data['auto_submitted'] ?? false)) {
+        if (!($data['auto_submitted'] ?? false)) {
             for ($index = 0; $index < $questionCount; $index++) {
                 if (blank($answers[$index] ?? null)) {
                     throw ValidationException::withMessages([
