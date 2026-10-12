@@ -448,7 +448,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                             {quizTimeSummary(finalQuiz.timeLimitMode, finalQuiz.timeLimitSeconds)}.
                                         </p>
                                     </div>
-                                    <Button onClick={() => requestQuizStart(finalQuiz)>
+                                    <Button onClick={() => requestQuizStart(finalQuiz)}>
                                         <ClipboardCheck className="size-4" />
                                         Kerjakan Ujian
                                     </Button>
