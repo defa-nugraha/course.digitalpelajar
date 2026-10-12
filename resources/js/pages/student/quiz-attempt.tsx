@@ -68,7 +68,7 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
         }
 
         submittingRef.current = true;
-        setTimeExpired(true);
+        if (autoSubmit) setTimeExpired(true);
         setValidationMessage(null);
         form.transform((data) => ({ ...data, auto_submitted: autoSubmit }));
         form.post(`/quizzes/${quiz.id}/attempts`, {
