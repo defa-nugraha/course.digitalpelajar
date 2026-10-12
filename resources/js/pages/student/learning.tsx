@@ -391,7 +391,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                         <ActionButton
                                             icon={ClipboardCheck}
                                             title={`${quiz.title} · nilai terbaik ${quiz.bestScore}${quizTimeSummary(quiz.timeLimitMode, quiz.timeLimitSeconds)}`}
-                                            onClick={() => requestQuizStart(quiz)
+                                            onClick={() => requestQuizStart(quiz)}
                                         />
                                     )}
                                     {submissionBlock && !renderedItems.some((item) => item.type === 'submission') && (
