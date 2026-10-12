@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Throwable;
@@ -22,7 +23,14 @@ class GoogleAuthController extends Controller
     {
         try {
             $googleUser = Socialite::driver('google')->user();
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            Log::error('Google OAuth callback failed while retrieving the Google user.', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'host' => request()->getHost(),
+                'configured_redirect_uri' => config('services.google.redirect'),
+            ]);
+
             return to_route('login')->with('status', 'Login Google gagal. Silakan coba lagi atau gunakan email dan password.');
         }
 
