@@ -134,7 +134,7 @@ class LearningActionController extends Controller
             );
         }
 
-        if (!($data['auto_submitted'] ?? false)) {
+        if (! ($data['auto_submitted'] ?? false)) {
             for ($index = 0; $index < $questionCount; $index++) {
                 if (blank($answers[$index] ?? null)) {
                     throw ValidationException::withMessages([
