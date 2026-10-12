@@ -204,7 +204,6 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         router.post(`/courses/${course.id}/lessons/${currentLesson.id}/complete`, {}, { preserveScroll: true });
     };
 
-
     return (
         <>
             <Head title="Halaman Belajar" />
@@ -477,11 +476,13 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                 <p>Waktu mulai dihitung saat Anda memilih “Mulai quiz”. Pastikan koneksi internet stabil.</p>
                                 {selectedQuiz.timeLimitMode === 'per_question' ? (
                                     <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
-                                        Setiap soal memiliki batas waktu sendiri. Saat waktu habis, sistem berpindah ke soal berikutnya dan Anda tidak dapat kembali ke soal sebelumnya.
+                                        Setiap soal memiliki batas waktu sendiri. Saat waktu habis, sistem berpindah ke soal berikutnya dan Anda tidak
+                                        dapat kembali ke soal sebelumnya.
                                     </p>
                                 ) : selectedQuiz.timeLimitMode === 'total' ? (
                                     <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
-                                        Waktu berlaku untuk seluruh soal. Saat waktu habis, quiz otomatis dikirim; soal yang belum dijawab akan dinilai sebagai kosong.
+                                        Waktu berlaku untuk seluruh soal. Saat waktu habis, quiz otomatis dikirim; soal yang belum dijawab akan
+                                        dinilai sebagai kosong.
                                     </p>
                                 ) : (
                                     <p>Jawab seluruh soal sebelum mengirim quiz. Setelah dimulai, hindari menutup atau memuat ulang halaman.</p>
@@ -490,8 +491,12 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                         </div>
                     )}
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setSelectedQuiz(null)}>Batal</Button>
-                        <Button type="button" disabled={!selectedQuiz || selectedQuiz.questions.length === 0} onClick={confirmQuizStart}>Mulai quiz</Button>
+                        <Button type="button" variant="outline" onClick={() => setSelectedQuiz(null)}>
+                            Batal
+                        </Button>
+                        <Button type="button" disabled={!selectedQuiz || selectedQuiz.questions.length === 0} onClick={confirmQuizStart}>
+                            Mulai quiz
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -842,4 +847,3 @@ function formatQuizDuration(totalSeconds: number): string {
 
     return seconds > 0 ? `${minutes} menit ${seconds} detik` : `${minutes} menit`;
 }
-

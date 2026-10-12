@@ -1,7 +1,7 @@
+import { Shell } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shell } from '@/components/platform';
 import { Head, useForm } from '@inertiajs/react';
 import { AlertTriangle, Clock3, Send } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,9 +34,7 @@ interface QuizAttemptProps {
 export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizAttemptProps) {
     const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
     const [questionDeadline, setQuestionDeadline] = useState<number | null>(() =>
-        quiz.timeLimitMode === 'per_question' && quiz.timeLimitSeconds
-            ? Date.now() + quiz.timeLimitSeconds * 1000
-            : null,
+        quiz.timeLimitMode === 'per_question' && quiz.timeLimitSeconds ? Date.now() + quiz.timeLimitSeconds * 1000 : null,
     );
     const [remainingSeconds, setRemainingSeconds] = useState<number | null>(() => {
         if (quiz.timeLimitMode === 'total' && deadlineAt) {
@@ -54,30 +52,29 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
         auto_submitted: false,
     });
 
-    const finishQuiz = useCallback((autoSubmit = false) => {
-        if (submittingRef.current) return;
+    const finishQuiz = useCallback(
+        (autoSubmit = false) => {
+            if (submittingRef.current) return;
 
-        const unanswered = form.data.answers.filter((answer) => answer.trim() === '').length;
-        if (!autoSubmit && unanswered > 0) {
-            setValidationMessage(
-                unanswered === 1
-                    ? 'Masih ada 1 soal yang belum dijawab.'
-                    : `Masih ada ${unanswered} soal yang belum dijawab.`,
-            );
-            return;
-        }
+            const unanswered = form.data.answers.filter((answer) => answer.trim() === '').length;
+            if (!autoSubmit && unanswered > 0) {
+                setValidationMessage(unanswered === 1 ? 'Masih ada 1 soal yang belum dijawab.' : `Masih ada ${unanswered} soal yang belum dijawab.`);
+                return;
+            }
 
-        submittingRef.current = true;
-        if (autoSubmit) setTimeExpired(true);
-        setValidationMessage(null);
-        form.transform((data) => ({ ...data, auto_submitted: autoSubmit }));
-        form.post(`/quizzes/${quiz.id}/attempts`, {
-            preserveScroll: true,
-            onError: () => {
-                submittingRef.current = false;
-            },
-        });
-    }, [form, quiz.id]);
+            submittingRef.current = true;
+            if (autoSubmit) setTimeExpired(true);
+            setValidationMessage(null);
+            form.transform((data) => ({ ...data, auto_submitted: autoSubmit }));
+            form.post(`/quizzes/${quiz.id}/attempts`, {
+                preserveScroll: true,
+                onError: () => {
+                    submittingRef.current = false;
+                },
+            });
+        },
+        [form, quiz.id],
+    );
 
     const goToPreviousQuestion = () => {
         if (quiz.timeLimitMode === 'per_question' || activeQuestionIndex <= 0 || timeExpired) return;
@@ -105,11 +102,12 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
         }
 
         const updateTimer = () => {
-            const secondsLeft = quiz.timeLimitMode === 'total' && deadlineAt
-                ? Math.max(0, Math.ceil(deadlineAt - Date.now() / 1000))
-                : questionDeadline
-                    ? Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000))
-                    : quiz.timeLimitSeconds ?? 0;
+            const secondsLeft =
+                quiz.timeLimitMode === 'total' && deadlineAt
+                    ? Math.max(0, Math.ceil(deadlineAt - Date.now() / 1000))
+                    : questionDeadline
+                      ? Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000))
+                      : (quiz.timeLimitSeconds ?? 0);
 
             setRemainingSeconds(secondsLeft);
             if (secondsLeft > 0) return;
@@ -163,7 +161,9 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
                                 Soal {activeQuestionIndex + 1} dari {quiz.questions.length} · {answeredCount} dijawab
                             </p>
                             {remainingSeconds !== null && (
-                                <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-extrabold ${remainingSeconds <= 10 ? 'bg-red-100 text-red-700' : 'bg-white text-blue-700'}`}>
+                                <span
+                                    className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-extrabold ${remainingSeconds <= 10 ? 'bg-red-100 text-red-700' : 'bg-white text-blue-700'}`}
+                                >
                                     <Clock3 className="size-4" />
                                     {formatDuration(remainingSeconds)}
                                 </span>
@@ -248,16 +248,28 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
 
                             <footer className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
                                 {quiz.timeLimitMode !== 'per_question' && activeQuestionIndex > 0 ? (
-                                    <Button type="button" variant="outline" className="min-h-11" onClick={goToPreviousQuestion} disabled={form.processing || timeExpired}>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="min-h-11"
+                                        onClick={goToPreviousQuestion}
+                                        disabled={form.processing || timeExpired}
+                                    >
                                         Soal sebelumnya
                                     </Button>
-                                ) : <span />}
+                                ) : (
+                                    <span />
+                                )}
                                 {activeQuestionIndex < quiz.questions.length - 1 ? (
                                     <Button type="submit" className="min-h-11" disabled={form.processing || timeExpired}>
                                         Soal berikutnya
                                     </Button>
                                 ) : (
-                                    <Button type="submit" className="min-h-11" disabled={form.processing || timeExpired || answeredCount !== quiz.questions.length}>
+                                    <Button
+                                        type="submit"
+                                        className="min-h-11"
+                                        disabled={form.processing || timeExpired || answeredCount !== quiz.questions.length}
+                                    >
                                         <Send className="size-4" />
                                         Kirim semua jawaban
                                     </Button>
@@ -283,4 +295,3 @@ function formatDuration(totalSeconds: number): string {
 
     return seconds > 0 ? `${minutes} menit ${seconds} detik` : `${minutes} menit`;
 }
-
