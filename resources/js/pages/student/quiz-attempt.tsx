@@ -79,6 +79,13 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
         });
     }, [form, quiz.id]);
 
+    const goToPreviousQuestion = () => {
+        if (quiz.timeLimitMode === 'per_question' || activeQuestionIndex <= 0 || timeExpired) return;
+
+        setActiveQuestionIndex((current) => current - 1);
+        setValidationMessage(null);
+    };
+
     const goToNextQuestion = () => {
         if (activeQuestionIndex >= quiz.questions.length - 1 || timeExpired) return;
 
@@ -239,7 +246,12 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
                                 </div>
                             )}
 
-                            <footer className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <footer className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+                                {quiz.timeLimitMode !== 'per_question' && activeQuestionIndex > 0 ? (
+                                    <Button type="button" variant="outline" className="min-h-11" onClick={goToPreviousQuestion} disabled={form.processing || timeExpired}>
+                                        Soal sebelumnya
+                                    </Button>
+                                ) : <span />}
                                 {activeQuestionIndex < quiz.questions.length - 1 ? (
                                     <Button type="submit" className="min-h-11" disabled={form.processing || timeExpired}>
                                         Soal berikutnya
