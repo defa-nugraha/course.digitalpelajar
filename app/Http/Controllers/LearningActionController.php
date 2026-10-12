@@ -16,11 +16,66 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LearningActionController extends Controller
 {
+    public function startQuizAttempt(
+        Request $request,
+        Quiz $quiz,
+        EnrollmentService $enrollments,
+    ): \Inertia\Response {
+        $quiz->loadMissing('course', 'lesson.chapter');
+        $enrollment = Enrollment::query()
+            ->where('user_id', $request->user()->id)
+            ->where('course_id', $quiz->course_id)
+            ->whereIn('status', ['active', 'completed'])
+            ->firstOrFail();
+
+        abort_if(
+            $quiz->is_final_exam && $enrollment->progress_percent < 100,
+            403,
+            'Selesaikan seluruh lesson sebelum mengerjakan ujian akhir.',
+        );
+
+        if ($quiz->lesson_id) {
+            $enrollments->assertLessonAccessible($request->user(), $quiz->course, $quiz->lesson);
+        }
+
+        $questions = $quiz->studentQuestions();
+        abort_if($questions === [], 422, 'Quiz belum memiliki soal yang dapat dikerjakan.');
+
+        $sessionKey = "quiz_attempt_started_at.{$request->user()->id}.{$quiz->id}";
+        $startedAt = (int) $request->session()->get($sessionKey, 0);
+
+        if ($startedAt <= 0) {
+            $startedAt = now()->timestamp;
+            $request->session()->put($sessionKey, $startedAt);
+        }
+
+        $timeLimitMode = $quiz->time_limit_mode ?? 'none';
+        $timeLimitSeconds = (int) ($quiz->time_limit_seconds ?? 0);
+        $deadlineAt = $timeLimitMode === 'total' && $timeLimitSeconds > 0
+            ? $startedAt + $timeLimitSeconds
+            : null;
+
+        return Inertia::render('student/quiz-attempt', [
+            'quiz' => [
+                'id' => $quiz->id,
+                'title' => $quiz->title,
+                'passingScore' => (int) $quiz->passing_score,
+                'timeLimitMode' => $timeLimitMode,
+                'timeLimitSeconds' => $timeLimitSeconds > 0 ? $timeLimitSeconds : null,
+                'questions' => $questions,
+            ],
+            'courseTitle' => $quiz->course->title,
+            'startedAt' => $startedAt,
+            'deadlineAt' => $deadlineAt,
+        ]);
+    }
+
     public function submitQuiz(
         Request $request,
         Quiz $quiz,
@@ -37,16 +92,6 @@ class LearningActionController extends Controller
         $quiz->loadMissing('course', 'lesson.chapter');
         $questionCount = count(Quiz::normalizeQuestions($quiz->questions));
         $answers = array_values($data['answers']);
-
-        if (! $request->boolean('auto_submitted')) {
-            for ($index = 0; $index < $questionCount; $index++) {
-                if (blank($answers[$index] ?? null)) {
-                    throw ValidationException::withMessages([
-                        "answers.{$index}" => 'Semua soal wajib dijawab sebelum quiz dikirim.',
-                    ]);
-                }
-            }
-        }
 
         $answers = array_slice($answers, 0, $questionCount);
 
@@ -67,7 +112,39 @@ class LearningActionController extends Controller
             $enrollments->assertLessonAccessible($request->user(), $enrollment->course, $quiz->lesson);
         }
 
+        $sessionKey = "quiz_attempt_started_at.{$request->user()->id}.{$quiz->id}";
+        $startedAt = (int) $request->session()->get($sessionKey, 0);
+        abort_if($startedAt <= 0, 403, 'Mulai quiz melalui halaman konfirmasi terlebih dahulu.');
+
+        $elapsedSeconds = max(0, now()->timestamp - $startedAt);
+        $timeLimitMode = $quiz->time_limit_mode ?? 'none';
+        $timeLimitSeconds = (int) ($quiz->time_limit_seconds ?? 0);
+        $timeExpired = $timeLimitMode === 'total'
+            && $timeLimitSeconds > 0
+            && $elapsedSeconds >= $timeLimitSeconds;
+
+        if ($timeExpired) {
+            $data['auto_submitted'] = true;
+        } elseif ($request->boolean('auto_submitted')) {
+            abort_unless(
+                $timeLimitMode === 'per_question' && $timeLimitSeconds > 0 && $elapsedSeconds >= $timeLimitSeconds,
+                422,
+                'Quiz tidak dapat dikirim otomatis sebelum batas waktu tercapai.',
+            );
+        }
+
+        if (! ($data['auto_submitted'] ?? false)) {
+            for ($index = 0; $index < $questionCount; $index++) {
+                if (blank($answers[$index] ?? null)) {
+                    throw ValidationException::withMessages([
+                        "answers.{$index}" => 'Semua soal wajib dijawab sebelum quiz dikirim.',
+                    ]);
+                }
+            }
+        }
+
         $attempt = $quizzes->grade($request->user(), $quiz, $answers);
+        $request->session()->forget($sessionKey);
         $certificates->issueIfEligible($request->user(), $enrollment->fresh(['course']));
 
         $result = [
@@ -85,7 +162,12 @@ class LearningActionController extends Controller
             ? "Nilai kuis {$attempt->score}. Anda lulus."
             : "Nilai kuis {$attempt->score}. Nilai minimal {$quiz->passing_score}. Silakan ulangi quiz.";
 
-        return back()
+        $learningUrl = route('learning.show', array_filter([
+            'course' => $quiz->course_id,
+            'lesson' => $quiz->lesson_id,
+        ], fn ($value) => $value !== null));
+
+        return redirect()->to($learningUrl)
             ->with($attempt->passed ? 'success' : 'warning', $message)
             ->with('quiz_result', $result);
     }

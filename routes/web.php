@@ -93,6 +93,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('learning/blocks/{contentBlock}/interactive-progress', [LearningActionController::class, 'updateInteractiveProgress'])
             ->middleware('throttle:120,1')
             ->name('learning.blocks.interactive-progress');
+        Route::get('quizzes/{quiz}/start', [LearningActionController::class, 'startQuizAttempt'])->name('quizzes.attempts.start');
         Route::post('quizzes/{quiz}/attempts', [LearningActionController::class, 'submitQuiz'])->name('quizzes.attempts.store');
         Route::post('courses/{course}/submissions', [LearningActionController::class, 'submitProject'])->name('submissions.store');
     });
