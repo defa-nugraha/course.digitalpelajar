@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Response;
 
 class LearningActionController extends Controller
 {
@@ -26,7 +27,7 @@ class LearningActionController extends Controller
         Request $request,
         Quiz $quiz,
         EnrollmentService $enrollments,
-    ): \Inertia\Response {
+    ): Response {
         $quiz->loadMissing('course', 'lesson.chapter');
         $enrollment = Enrollment::query()
             ->where('user_id', $request->user()->id)
