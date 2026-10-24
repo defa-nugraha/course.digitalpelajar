@@ -3,6 +3,7 @@ import { MobileCardList, MobileDataCard, StatusBadge } from '@/components/respon
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Head, useForm } from '@inertiajs/react';
+import type { FormEvent } from 'react';
 
 interface StudentOption {
     id: number;
@@ -45,7 +46,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
         due_at: '',
     });
 
-    const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         form.post('/admin/course-bills', {
             onSuccess: () => form.reset('title', 'amount', 'due_at'),
