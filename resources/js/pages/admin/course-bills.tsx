@@ -94,12 +94,27 @@ export default function CourseBills({ students, courses, bills }: Props) {
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Nama tagihan
-                        <Input value={form.data.title} onChange={(event) => form.setData('title', event.target.value)} required maxLength={160} placeholder="Contoh: Tagihan Kursus Oktober" />
+                        <Input
+                            value={form.data.title}
+                            onChange={(event) => form.setData('title', event.target.value)}
+                            required
+                            maxLength={160}
+                            placeholder="Contoh: Tagihan Kursus Oktober"
+                        />
                         {form.errors.title && <span className="text-xs text-red-600">{form.errors.title}</span>}
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Nominal (Rupiah)
-                        <Input type="number" min="1000" max="1000000000" step="1" value={form.data.amount} onChange={(event) => form.setData('amount', event.target.value)} required placeholder="150000" />
+                        <Input
+                            type="number"
+                            min="1000"
+                            max="1000000000"
+                            step="1"
+                            value={form.data.amount}
+                            onChange={(event) => form.setData('amount', event.target.value)}
+                            required
+                            placeholder="150000"
+                        />
                         {form.errors.amount && <span className="text-xs text-red-600">{form.errors.amount}</span>}
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
@@ -134,7 +149,9 @@ export default function CourseBills({ students, courses, bills }: Props) {
                             actions={
                                 bill.checkoutUrl && bill.status !== 'paid' ? (
                                     <Button asChild size="sm" variant="outline">
-                                        <a href={bill.checkoutUrl} target="_blank" rel="noreferrer">Buka pembayaran</a>
+                                        <a href={bill.checkoutUrl} target="_blank" rel="noreferrer">
+                                    Buka pembayaran
+                                </a>
                                     </Button>
                                 ) : null
                             }
