@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\StoreController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserImportController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CourseBillController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\InstructorPayrollController;
