@@ -19,7 +19,7 @@ class MidtransService
      */
     public function createTransaction(Payment $payment): array
     {
-        $payment->loadMissing('course', 'storeOrder.items', 'user');
+        $payment->loadMissing('course', 'storeOrder.items', 'courseBill', 'user');
 
         if (! config('midtrans.is_enabled')) {
             $token = 'mock-snap-'.$payment->order_id;
@@ -41,7 +41,7 @@ class MidtransService
             ])->values()->all()
             : [[
                 'id' => 'course-'.$payment->course_id,
-                'name' => Str::limit($payment->course->title, 50, ''),
+                'name' => Str::limit($payment->courseBill?->title ?? $payment->course->title, 50, ''),
                 'price' => $payment->amount,
                 'quantity' => 1,
             ]];
