@@ -73,7 +73,9 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                 </option>
                             ))}
                         </select>
-                        {form.errors.student_id && <span className="text-xs text-red-600">{form.errors.student_id}</span>}
+                        {form.errors.student_id && (
+                            <span className="text-xs text-red-600">{form.errors.student_id}</span>
+                        )}
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Kursus
@@ -119,7 +121,12 @@ export default function CourseBills({ students, courses, bills }: Props) {
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Jatuh tempo
-                        <Input type="date" value={form.data.due_at} onChange={(event) => form.setData('due_at', event.target.value)} required />
+                        <Input
+                            type="date"
+                            value={form.data.due_at}
+                            onChange={(event) => form.setData('due_at', event.target.value)}
+                            required
+                        />
                         {form.errors.due_at && <span className="text-xs text-red-600">{form.errors.due_at}</span>}
                     </label>
                     <div className="flex items-end">
@@ -133,13 +140,32 @@ export default function CourseBills({ students, courses, bills }: Props) {
                 </p>
             </Panel>
             <Panel title="Daftar tagihan">
-                <MobileCardList empty={<p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}>
+                <MobileCardList
+                    empty={
+                        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500">
+                            Belum ada tagihan kursus.
+                        </p>
+                    }
+                >
                     {bills.map((bill) => (
                         <MobileDataCard
                             key={bill.id}
                             title={bill.title}
                             subtitle={bill.student + ' · ' + bill.email}
-                            badge={<StatusBadge status={bill.status} label={bill.status === 'pending' ? 'Belum dibayar' : bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : bill.status} />}
+                            badge={
+                                <StatusBadge
+                                    status={bill.status}
+                                    label={
+                                        bill.status === 'pending'
+                                            ? 'Belum dibayar'
+                                            : bill.status === 'paid'
+                                              ? 'Lunas'
+                                              : bill.status === 'overdue'
+                                                ? 'Terlambat'
+                                                : bill.status
+                                    }
+                                />
+                            }
                             meta={[
                                 { label: 'Kursus', value: bill.course },
                                 { label: 'Nominal', value: bill.amountLabel },
@@ -150,8 +176,8 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                 bill.checkoutUrl && bill.status !== 'paid' ? (
                                     <Button asChild size="sm" variant="outline">
                                         <a href={bill.checkoutUrl} target="_blank" rel="noreferrer">
-                                    Buka pembayaran
-                                </a>
+                                            Buka pembayaran
+                                        </a>
                                     </Button>
                                 ) : null
                             }
