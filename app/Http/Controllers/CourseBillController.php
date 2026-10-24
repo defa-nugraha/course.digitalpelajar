@@ -50,7 +50,7 @@ class CourseBillController extends Controller
                         'amount' => $bill->amount,
                         'amountLabel' => $this->rupiah($bill->amount),
                         'dueAt' => $bill->due_at->format('Y-m-d'),
-                        'status' => $bill->status,
+                        'status' => $bill->status === 'pending' && $bill->isOverdue() ? 'overdue' : $bill->status,
                         'checkoutUrl' => $payment?->checkout_url,
                         'orderId' => $payment?->order_id,
                         'createdAt' => $bill->created_at->format('d M Y'),
