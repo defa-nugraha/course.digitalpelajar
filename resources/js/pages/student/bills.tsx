@@ -23,7 +23,9 @@ export default function StudentBills({ bills }: { bills: BillItem[] }) {
             <Panel title="Tagihan saya">
                 <MobileCardList
                     empty={
-                        <div className="grid place-items-center rounded-xl border border-dashed border-slate-300 p-8 text-center">
+                        <div
+                            className="grid place-items-center rounded-xl border border-dashed border-slate-300 p-8 text-center"
+                        >
                             <ReceiptText className="size-10 text-slate-300" />
                             <p className="mt-3 text-sm text-slate-500">Belum ada tagihan kursus untuk akun ini.</p>
                         </div>
@@ -57,7 +59,11 @@ export default function StudentBills({ bills }: { bills: BillItem[] }) {
                                 bill.status !== 'paid' && bill.checkoutUrl ? (
                                     <Button asChild size="sm">
                                         <a
-                                            href={bill.paymentId ? `/payments/${bill.paymentId}/continue` : bill.checkoutUrl}
+                                            href={
+                                                bill.paymentId
+                                                    ? `/payments/${bill.paymentId}/continue`
+                                                    : bill.checkoutUrl
+                                            }
                                         >
                                             <CreditCard className="size-4" />
                                             Bayar melalui Midtrans
