@@ -56,13 +56,7 @@ export default function StudentBills({ bills }: { bills: BillItem[] }) {
                             actions={
                                 bill.status !== 'paid' && bill.checkoutUrl ? (
                                     <Button asChild size="sm">
-                                        <a
-                                            href={
-                                                bill.paymentId
-                                                    ? `/payments/${bill.paymentId}/continue`
-                                                    : bill.checkoutUrl
-                                            }
-                                        >
+                                        <a href={bill.paymentId ? `/payments/${bill.paymentId}/continue` : bill.checkoutUrl}>
                                             <CreditCard className="size-4" />
                                             Bayar melalui Midtrans
                                         </a>
