@@ -130,7 +130,10 @@ export default function CourseBills({ students, courses, bills }: Props) {
                         {form.errors.due_at && <span className="text-xs text-red-600">{form.errors.due_at}</span>}
                     </label>
                     <div className="flex items-end">
-                        <Button type="submit" disabled={form.processing || students.length === 0 || courses.length === 0}>
+                        <Button
+                            type="submit"
+                            disabled={form.processing || students.length === 0 || courses.length === 0}
+                        >
                             {form.processing ? 'Membuat tagihan...' : 'Buat tagihan & siapkan Midtrans'}
                         </Button>
                     </div>
