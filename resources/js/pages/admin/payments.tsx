@@ -77,6 +77,11 @@ export default function Payments({ payments }: { payments: PaymentRow[] }) {
     return (
         <Shell title="Monitoring Pembayaran" eyebrow="Admin Pusat">
             <Head title="Monitoring Pembayaran" />
+            <div className="mb-4 flex justify-end">
+                <Button asChild>
+                    <a href="/admin/course-bills">Kelola Tagihan Kursus</a>
+                </Button>
+            </div>
             <Panel
                 title="Riwayat transaksi"
                 action={

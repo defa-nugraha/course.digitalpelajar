@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\StoreController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserImportController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CourseBillController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\InstructorPayrollController;
@@ -79,6 +80,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::middleware('role:student')->group(function () {
+        Route::get('student/bills', [CourseBillController::class, 'studentIndex'])->name('student.bills');
         Route::get('student/dashboard', [PlatformController::class, 'dashboard'])->name('student.dashboard');
         Route::get('student/learning', [PlatformController::class, 'learningIndex'])->name('student.learning.index');
         Route::get('student/catalog', [PlatformController::class, 'internalCatalog'])->name('student.catalog');
@@ -93,6 +95,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('learning/blocks/{contentBlock}/interactive-progress', [LearningActionController::class, 'updateInteractiveProgress'])
             ->middleware('throttle:120,1')
             ->name('learning.blocks.interactive-progress');
+        Route::get('quizzes/{quiz}/start', [LearningActionController::class, 'startQuizAttempt'])->name('quizzes.attempts.start');
         Route::post('quizzes/{quiz}/attempts', [LearningActionController::class, 'submitQuiz'])->name('quizzes.attempts.store');
         Route::post('courses/{course}/submissions', [LearningActionController::class, 'submitProject'])->name('submissions.store');
     });
@@ -296,6 +299,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('admin/reports', [PlatformController::class, 'adminReports'])->name('admin.reports');
         Route::get('admin/payments', [PlatformController::class, 'adminPayments'])->name('admin.payments');
+        Route::get('admin/course-bills', [CourseBillController::class, 'adminIndex'])->name('admin.course-bills');
+        Route::post('admin/course-bills', [CourseBillController::class, 'store'])->name('admin.course-bills.store');
         Route::get('admin/store', [StoreController::class, 'index'])->name('admin.store');
         Route::post('admin/store/categories', [StoreController::class, 'storeCategory'])->name('admin.store.categories.store');
         Route::patch('admin/store/categories/{category}', [StoreController::class, 'updateCategory'])->name('admin.store.categories.update');

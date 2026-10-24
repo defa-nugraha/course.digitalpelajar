@@ -20,6 +20,11 @@ export default function Payments({ payments }: { payments: PaymentItem[] }) {
     return (
         <Shell title="Riwayat Pembayaran" eyebrow="Invoice">
             <Head title="Riwayat Pembayaran" />
+            <div className="mb-4 flex justify-end">
+                <Button asChild variant="outline">
+                    <Link href="/student/bills">Lihat Tagihan Kursus</Link>
+                </Button>
+            </div>
             <Panel title="Transaksi kelas berbayar">
                 <div className="space-y-4">
                     <MobileCardList

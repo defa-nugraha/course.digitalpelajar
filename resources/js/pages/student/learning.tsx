@@ -9,7 +9,6 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     ClipboardCheck,
-    Clock3,
     Code2,
     Copy,
     FileText,
@@ -22,7 +21,7 @@ import {
     Upload,
     Video,
 } from 'lucide-react';
-import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useState } from 'react';
 
 interface Lesson {
     id: number;
@@ -138,15 +137,11 @@ interface LearningProps {
 export default function Learning({ course, currentLesson, blocks, lessonItems = [], quiz, finalQuiz, submission }: LearningProps) {
     const page = usePage<SharedPageProps>();
     const quizResult = page.props.flash?.quizResult ?? null;
-    const [activeQuiz, setActiveQuiz] = useState<QuizData | null>(null);
-    const [activeQuizQuestionIndex, setActiveQuizQuestionIndex] = useState(0);
-    const [remainingQuizSeconds, setRemainingQuizSeconds] = useState<number | null>(null);
-    const [quizValidationMessage, setQuizValidationMessage] = useState<string | null>(null);
+    const [selectedQuiz, setSelectedQuiz] = useState<QuizData | null>(null);
     const [submissionOpen, setSubmissionOpen] = useState(false);
     const [copiedBlockId, setCopiedBlockId] = useState<number | null>(null);
     const [interactiveCompletion, setInteractiveCompletion] = useState<Record<number, boolean>>({});
-    const quizSubmittingRef = useRef(false);
-    const quizForm = useForm<{ answers: string[] }>({ answers: [] });
+
     const submissionForm = useForm({
         lesson_id: currentLesson ? String(currentLesson.id) : '',
         code: '',
@@ -182,132 +177,15 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
     const canCompleteLesson =
         Boolean(currentLesson) && currentLesson?.state !== 'done' && unfinishedStepBlocks.length === 0 && unfinishedInteractiveBlocks.length === 0;
 
-    const openQuiz = (item: QuizData) => {
-        quizSubmittingRef.current = false;
-        setActiveQuiz(item);
-        setActiveQuizQuestionIndex(0);
-        setRemainingQuizSeconds(initialQuizTimerSeconds(item));
-        quizForm.setData(
-            'answers',
-            item.questions.map(() => ''),
-        );
-        quizForm.clearErrors();
-        setQuizValidationMessage(null);
+    const requestQuizStart = (item: QuizData) => {
+        setSelectedQuiz(item);
     };
 
-    const closeQuizAfterSubmit = useCallback(() => {
-        setActiveQuiz(null);
-        setActiveQuizQuestionIndex(0);
-        setRemainingQuizSeconds(null);
-        quizSubmittingRef.current = false;
-    }, []);
+    const confirmQuizStart = () => {
+        if (!selectedQuiz) return;
 
-    const finishQuiz = useCallback(
-        (autoSubmit = false) => {
-            if (!activeQuiz) return;
-            if (quizSubmittingRef.current) return;
-
-            const unansweredCount = activeQuiz.questions.reduce(
-                (count, _question, index) => count + (String(quizForm.data.answers[index] ?? '').trim() === '' ? 1 : 0),
-                0,
-            );
-
-            if (!autoSubmit && unansweredCount > 0) {
-                setQuizValidationMessage(
-                    unansweredCount === 1
-                        ? 'Masih ada 1 soal yang belum dijawab. Jawab semua soal sebelum mengirim quiz.'
-                        : `Masih ada ${unansweredCount} soal yang belum dijawab. Jawab semua soal sebelum mengirim quiz.`,
-                );
-                return;
-            }
-
-            quizSubmittingRef.current = true;
-            setQuizValidationMessage(null);
-
-            quizForm.transform((data) => ({
-                ...data,
-                auto_submitted: autoSubmit,
-            }));
-
-            quizForm.post(`/quizzes/${activeQuiz.id}/attempts`, {
-                preserveScroll: true,
-                onSuccess: closeQuizAfterSubmit,
-                onError: () => {
-                    quizSubmittingRef.current = false;
-                },
-                onFinish: () => {
-                    if (activeQuiz) {
-                        quizSubmittingRef.current = false;
-                    }
-                },
-            });
-        },
-        [activeQuiz, closeQuizAfterSubmit, quizForm],
-    );
-
-    const submitQuiz = (event: FormEvent) => {
-        event.preventDefault();
-        finishQuiz(false);
+        router.visit(`/quizzes/${selectedQuiz.id}/start`);
     };
-
-    const goToQuizQuestion = (questionIndex: number) => {
-        if (!activeQuiz) return;
-
-        const nextIndex = Math.min(Math.max(questionIndex, 0), activeQuiz.questions.length - 1);
-        setActiveQuizQuestionIndex(nextIndex);
-        setQuizValidationMessage(null);
-        setRemainingQuizSeconds(isPerQuestionTimedQuiz(activeQuiz) ? (activeQuiz.timeLimitSeconds ?? null) : remainingQuizSeconds);
-    };
-
-    const goToNextQuizQuestion = () => {
-        if (!activeQuiz) return;
-        goToQuizQuestion(activeQuizQuestionIndex + 1);
-    };
-
-    const goToPreviousQuizQuestion = () => {
-        if (!activeQuiz) return;
-        goToQuizQuestion(activeQuizQuestionIndex - 1);
-    };
-
-    useEffect(() => {
-        if (!activeQuiz || remainingQuizSeconds === null) {
-            return;
-        }
-
-        if (remainingQuizSeconds <= 0) {
-            if (isPerQuestionTimedQuiz(activeQuiz) && activeQuizQuestionIndex < activeQuiz.questions.length - 1) {
-                setActiveQuizQuestionIndex((current) => current + 1);
-                setRemainingQuizSeconds(activeQuiz.timeLimitSeconds ?? null);
-
-                return;
-            }
-
-            finishQuiz(true);
-
-            return;
-        }
-
-        const timeout = window.setTimeout(() => {
-            setRemainingQuizSeconds((current) => (current === null ? null : Math.max(current - 1, 0)));
-        }, 1000);
-
-        return () => window.clearTimeout(timeout);
-    }, [activeQuiz, activeQuizQuestionIndex, finishQuiz, remainingQuizSeconds]);
-
-    useEffect(() => {
-        if (!activeQuiz) {
-            return;
-        }
-
-        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-            event.preventDefault();
-            event.returnValue = '';
-        };
-
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [activeQuiz]);
 
     const submitProject = (event: FormEvent) => {
         event.preventDefault();
@@ -325,13 +203,6 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
         if (!currentLesson || !canCompleteLesson) return;
         router.post(`/courses/${course.id}/lessons/${currentLesson.id}/complete`, {}, { preserveScroll: true });
     };
-    const activeQuizQuestion = activeQuiz?.questions[activeQuizQuestionIndex] ?? null;
-    const activeQuizHasNextQuestion = activeQuiz ? activeQuizQuestionIndex < activeQuiz.questions.length - 1 : false;
-    const activeQuizHasPreviousQuestion = activeQuizQuestionIndex > 0;
-    const activeQuizAnsweredCount = activeQuiz
-        ? activeQuiz.questions.reduce((count, _question, index) => count + (String(quizForm.data.answers[index] ?? '').trim() !== '' ? 1 : 0), 0)
-        : 0;
-    const activeQuizAllAnswered = Boolean(activeQuiz) && activeQuizAnsweredCount === activeQuiz!.questions.length;
 
     return (
         <>
@@ -468,7 +339,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                                 key={`quiz-${item.id}`}
                                                 type="button"
                                                 onClick={() =>
-                                                    openQuiz({
+                                                    requestQuizStart({
                                                         id: item.id,
                                                         title: item.title ?? 'Quiz',
                                                         passingScore: item.passingScore ?? 70,
@@ -519,7 +390,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                         <ActionButton
                                             icon={ClipboardCheck}
                                             title={`${quiz.title} · nilai terbaik ${quiz.bestScore}${quizTimeSummary(quiz.timeLimitMode, quiz.timeLimitSeconds)}`}
-                                            onClick={() => openQuiz(quiz)}
+                                            onClick={() => requestQuizStart(quiz)}
                                         />
                                     )}
                                     {submissionBlock && !renderedItems.some((item) => item.type === 'submission') && (
@@ -576,7 +447,7 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                             {quizTimeSummary(finalQuiz.timeLimitMode, finalQuiz.timeLimitSeconds)}.
                                         </p>
                                     </div>
-                                    <Button onClick={() => openQuiz(finalQuiz)}>
+                                    <Button onClick={() => requestQuizStart(finalQuiz)}>
                                         <ClipboardCheck className="size-4" />
                                         Kerjakan Ujian
                                     </Button>
@@ -587,143 +458,46 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                 </main>
             </Shell>
 
-            <Dialog open={Boolean(activeQuiz)} onOpenChange={() => undefined}>
-                <DialogContent
-                    className="max-h-[92vh] overflow-y-auto sm:max-w-3xl [&>button]:hidden"
-                    onEscapeKeyDown={(event) => event.preventDefault()}
-                    onPointerDownOutside={(event) => event.preventDefault()}
-                >
+            <Dialog open={Boolean(selectedQuiz)} onOpenChange={(open) => !open && setSelectedQuiz(null)}>
+                <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>{activeQuiz?.title}</DialogTitle>
-                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-                            Quiz sedang berjalan. Selesaikan seluruh soal sebelum mengirim jawaban.
-                        </div>
-                        {activeQuiz && (
-                            <div className="mt-4 space-y-3">
-                                <div className="flex items-center justify-between gap-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
-                                    <span>
-                                        {activeQuizAnsweredCount} dari {activeQuiz.questions.length} soal terjawab
-                                    </span>
-                                    {activeQuiz.timeLimitMode !== 'none' && activeQuiz.timeLimitSeconds ? (
-                                        <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-blue-700 normal-case">
-                                            <Clock3 className="size-4" />
-                                            {formatQuizDuration(remainingQuizSeconds ?? 0)}
-                                        </span>
-                                    ) : null}
-                                </div>
-                                <div className="flex gap-2 overflow-x-auto pb-1">
-                                    {activeQuiz.questions.map((question, index) => {
-                                        const answered = String(quizForm.data.answers[index] ?? '').trim() !== '';
-
-                                        return (
-                                            <button
-                                                key={question.id}
-                                                type="button"
-                                                onClick={() => goToQuizQuestion(index)}
-                                                className={`relative flex size-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition ${
-                                                    index === activeQuizQuestionIndex
-                                                        ? 'border-blue-700 bg-blue-700 text-white shadow-sm'
-                                                        : answered
-                                                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                                                          : 'border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700'
-                                                }`}
-                                                aria-label={`Buka soal ${index + 1}`}
-                                            >
-                                                {index + 1}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
+                        <DialogTitle>Konfirmasi pengerjaan quiz</DialogTitle>
                     </DialogHeader>
-
-                    <form onSubmit={submitQuiz} className="space-y-5">
-                        {activeQuizQuestion ? (
-                            <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
-                                <div className="flex items-center justify-between gap-3">
-                                    <p className="text-xs font-bold tracking-wide text-blue-700 uppercase">
-                                        Soal {activeQuizQuestionIndex + 1} dari {activeQuiz?.questions.length ?? 0}
+                    {selectedQuiz && (
+                        <div className="space-y-4">
+                            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                                <h3 className="font-extrabold text-slate-950">{selectedQuiz.title}</h3>
+                                <p className="mt-2 text-sm text-slate-600">
+                                    {selectedQuiz.questions.length} soal · Nilai minimal {selectedQuiz.passingScore}
+                                    {quizTimeSummary(selectedQuiz.timeLimitMode, selectedQuiz.timeLimitSeconds)}
+                                </p>
+                            </div>
+                            <div className="space-y-2 text-sm leading-6 text-slate-700">
+                                <p>Waktu mulai dihitung saat Anda memilih “Mulai quiz”. Pastikan koneksi internet stabil.</p>
+                                {selectedQuiz.timeLimitMode === 'per_question' ? (
+                                    <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                                        Setiap soal memiliki batas waktu sendiri. Saat waktu habis, sistem berpindah ke soal berikutnya dan Anda tidak
+                                        dapat kembali ke soal sebelumnya.
                                     </p>
-                                    <span className="text-xs font-semibold text-slate-500">
-                                        {String(quizForm.data.answers[activeQuizQuestionIndex] ?? '').trim() !== ''
-                                            ? 'Sudah dijawab'
-                                            : 'Belum dijawab'}
-                                    </span>
-                                </div>
-                                <Label className="text-base leading-7">{activeQuizQuestion.question}</Label>
-
-                                {activeQuizQuestion.options && activeQuizQuestion.options.length > 0 ? (
-                                    <div className="space-y-2 pt-2">
-                                        {activeQuizQuestion.options.map((option) => (
-                                            <label
-                                                key={option}
-                                                className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm hover:border-blue-300 hover:bg-blue-50"
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name={`question-${activeQuizQuestion.index}`}
-                                                    checked={(quizForm.data.answers[activeQuizQuestion.index] ?? '') === option}
-                                                    onChange={() => {
-                                                        const answers = [...quizForm.data.answers];
-                                                        answers[activeQuizQuestion.index] = option;
-                                                        quizForm.setData('answers', answers);
-                                                        setQuizValidationMessage(null);
-                                                    }}
-                                                />
-                                                {option}
-                                            </label>
-                                        ))}
-                                    </div>
+                                ) : selectedQuiz.timeLimitMode === 'total' ? (
+                                    <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                                        Waktu berlaku untuk seluruh soal. Saat waktu habis, quiz otomatis dikirim; soal yang belum dijawab akan
+                                        dinilai sebagai kosong.
+                                    </p>
                                 ) : (
-                                    <Input
-                                        value={quizForm.data.answers[activeQuizQuestion.index] ?? ''}
-                                        onChange={(event) => {
-                                            const answers = [...quizForm.data.answers];
-                                            answers[activeQuizQuestion.index] = event.target.value;
-                                            quizForm.setData('answers', answers);
-                                            setQuizValidationMessage(null);
-                                        }}
-                                    />
+                                    <p>Jawab seluruh soal sebelum mengirim quiz. Setelah dimulai, hindari menutup atau memuat ulang halaman.</p>
                                 )}
-
-                                <InputError message={quizForm.errors[`answers.${activeQuizQuestion.index}` as keyof typeof quizForm.errors]} />
                             </div>
-                        ) : null}
-
-                        {quizValidationMessage ? (
-                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 font-semibold text-amber-900">
-                                {quizValidationMessage}
-                            </div>
-                        ) : null}
-
-                        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={quizForm.processing || !activeQuizHasPreviousQuestion}
-                                onClick={goToPreviousQuizQuestion}
-                            >
-                                Sebelumnya
-                            </Button>
-
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={quizForm.processing || !activeQuizHasNextQuestion}
-                                    onClick={goToNextQuizQuestion}
-                                >
-                                    Soal berikutnya
-                                </Button>
-                                {activeQuiz && activeQuizQuestionIndex === activeQuiz.questions.length - 1 ? (
-                                    <Button type="submit" disabled={quizForm.processing || !activeQuizAllAnswered}>
-                                        Kirim semua jawaban
-                                    </Button>
-                                ) : null}
-                            </div>
-                        </DialogFooter>
-                    </form>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setSelectedQuiz(null)}>
+                            Batal
+                        </Button>
+                        <Button type="button" disabled={!selectedQuiz || selectedQuiz.questions.length === 0} onClick={confirmQuizStart}>
+                            Mulai quiz
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
             <Dialog open={submissionOpen} onOpenChange={setSubmissionOpen}>
@@ -1053,18 +827,6 @@ function hasReadableContent(content: string): boolean {
             .replace(/&nbsp;/g, ' ')
             .trim() !== '' || /<(img|video)\b/i.test(content)
     );
-}
-
-function isPerQuestionTimedQuiz(quiz: QuizData): boolean {
-    return quiz.timeLimitMode === 'per_question' && Number(quiz.timeLimitSeconds ?? 0) > 0;
-}
-
-function initialQuizTimerSeconds(quiz: QuizData): number | null {
-    if (quiz.timeLimitMode === 'none' || !quiz.timeLimitSeconds) {
-        return null;
-    }
-
-    return quiz.timeLimitSeconds;
 }
 
 function quizTimeSummary(mode?: QuizTimeLimitMode | null, seconds?: number | null): string {

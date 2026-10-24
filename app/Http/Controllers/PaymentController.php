@@ -52,9 +52,11 @@ class PaymentController extends Controller
                 ],
             ]);
 
-            $freshPayment = $payment->fresh(['user', 'storeOrder']);
+            $freshPayment = $payment->fresh(['user', 'storeOrder', 'courseBill']);
             if ($freshPayment->store_order_id) {
                 $storeOrders->activateFromPayment($freshPayment);
+            } elseif ($freshPayment->course_bill_id) {
+                $freshPayment->courseBill?->update(['status' => 'paid', 'paid_at' => now()]);
             } else {
                 $enrollments->activateFromPayment($freshPayment);
             }
@@ -138,9 +140,11 @@ class PaymentController extends Controller
             ]);
 
             if ($status === 'paid') {
-                $freshPayment = $payment->fresh(['user', 'storeOrder']);
+                $freshPayment = $payment->fresh(['user', 'storeOrder', 'courseBill']);
                 if ($freshPayment->store_order_id) {
                     $storeOrders->activateFromPayment($freshPayment);
+                } elseif ($freshPayment->course_bill_id) {
+                    $freshPayment->courseBill?->update(['status' => 'paid', 'paid_at' => now()]);
                 } else {
                     $enrollments->activateFromPayment($freshPayment);
                 }

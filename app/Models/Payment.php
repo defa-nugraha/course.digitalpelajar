@@ -16,6 +16,7 @@ class Payment extends Model
         'user_id',
         'course_id',
         'store_order_id',
+        'course_bill_id',
         'order_id',
         'gateway_transaction_id',
         'amount',
@@ -46,6 +47,11 @@ class Payment extends Model
     public function storeOrder(): BelongsTo
     {
         return $this->belongsTo(StoreOrder::class);
+    }
+
+    public function courseBill(): BelongsTo
+    {
+        return $this->belongsTo(CourseBill::class);
     }
 
     public function isPaid(): bool
