@@ -129,17 +129,33 @@ export default function CourseBills({ students, courses, bills }: Props) {
                     </div>
                 </form>
                 <p className="mt-4 text-sm text-slate-500">
-                    Setiap tagihan dibuat untuk satu siswa, dengan nominal dan tanggal jatuh tempo tersendiri. Tagihan yang berulang dapat dibuat sebagai tagihan baru sesuai periode yang ditentukan admin.
+                    Setiap tagihan dibuat untuk satu siswa, dengan nominal dan tanggal jatuh tempo tersendiri. Tagihan yang berulang dapat dibuat
+                    sebagai tagihan baru sesuai periode yang ditentukan admin.
                 </p>
             </Panel>
             <Panel title="Daftar tagihan">
-                <MobileCardList empty={<p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}>
+                <MobileCardList
+                    empty={<p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}
+                >
                     {bills.map((bill) => (
                         <MobileDataCard
                             key={bill.id}
                             title={bill.title}
                             subtitle={bill.student + ' · ' + bill.email}
-                            badge={<StatusBadge status={bill.status} label={bill.status === 'pending' ? 'Belum dibayar' : bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : bill.status} />}
+                            badge={
+                                <StatusBadge
+                                    status={bill.status}
+                                    label={
+                                        bill.status === 'pending'
+                                            ? 'Belum dibayar'
+                                            : bill.status === 'paid'
+                                              ? 'Lunas'
+                                              : bill.status === 'overdue'
+                                                ? 'Terlambat'
+                                                : bill.status
+                                    }
+                                />
+                            }
                             meta={[
                                 { label: 'Kursus', value: bill.course },
                                 { label: 'Nominal', value: bill.amountLabel },
@@ -150,8 +166,8 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                 bill.checkoutUrl && bill.status !== 'paid' ? (
                                     <Button asChild size="sm" variant="outline">
                                         <a href={bill.checkoutUrl} target="_blank" rel="noreferrer">
-                                    Buka pembayaran
-                                </a>
+                                            Buka pembayaran
+                                        </a>
                                     </Button>
                                 ) : null
                             }
