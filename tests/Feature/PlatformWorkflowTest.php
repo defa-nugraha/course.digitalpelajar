@@ -157,6 +157,10 @@ test('student workflow persists progress quiz submission review and certificate'
     expect($enrollment->fresh()->progress_percent)->toBe(100);
 
     $this->actingAs($student)
+        ->get("/quizzes/{$quiz->id}/start")
+        ->assertOk();
+
+    $this->actingAs($student)
         ->post("/quizzes/{$quiz->id}/attempts", ['answers' => ['Ya']])
         ->assertSessionHasNoErrors();
 
