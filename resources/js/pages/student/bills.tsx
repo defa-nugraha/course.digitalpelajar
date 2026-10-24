@@ -37,7 +37,15 @@ export default function StudentBills({ bills }: { bills: BillItem[] }) {
                             badge={
                                 <StatusBadge
                                     status={bill.status}
-                                    label={bill.status === 'pending' ? 'Belum dibayar' : bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : bill.status}
+                                    label={
+                                        bill.status === 'pending'
+                                            ? 'Belum dibayar'
+                                            : bill.status === 'paid'
+                                              ? 'Lunas'
+                                              : bill.status === 'overdue'
+                                                ? 'Terlambat'
+                                                : bill.status
+                                    }
                                 />
                             }
                             meta={[
