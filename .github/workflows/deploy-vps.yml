@@ -57,11 +57,8 @@ jobs:
       - name: ESLint
         run: npx eslint .
 
-      - name: Prettier formatting diagnostics
-        run: |
-          npx prettier --write resources/js/pages/admin/course-bills.tsx resources/js/pages/student/bills.tsx
-          git diff -- resources/js/pages/admin/course-bills.tsx resources/js/pages/student/bills.tsx
-          npm run format:check
+      - name: Prettier
+        run: npm run format:check
 
   unit-test:
     name: Unit Test (Feature Scenarios)
