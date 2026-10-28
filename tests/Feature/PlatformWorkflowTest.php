@@ -306,3 +306,33 @@ test('admin can configure quiz timer and student receives timer payload', functi
             ->where('lessonItems.0.timeLimitMode', 'per_question')
             ->where('lessonItems.0.timeLimitSeconds', 45));
 });
+
+test('Midtrans expiration notification marks a pending payment as expired', function () {
+    config([
+        'midtrans.is_enabled' => false,
+        'midtrans.mock_notification_secret' => 'test-notification-secret',
+    ]);
+
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+    $payment = Payment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'amount' => 250000,
+        'status' => 'pending',
+    ]);
+
+    $this->withHeader('X-Midtrans-Mock-Secret', 'test-notification-secret')
+        ->postJson('/payments/midtrans/notification', [
+            'order_id' => $payment->order_id,
+            'gross_amount' => '250000.00',
+            'transaction_status' => 'expire',
+            'status_code' => '200',
+            'signature_key' => 'mock-signature',
+        ])
+        ->assertOk()
+        ->assertJson(['received' => true]);
+
+    expect($payment->fresh()->status)->toBe('expired');
+});
+
