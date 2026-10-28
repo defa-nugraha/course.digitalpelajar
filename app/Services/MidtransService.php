@@ -106,7 +106,8 @@ class MidtransService
             'settlement' => 'paid',
             'capture' => $fraudStatus === null || $fraudStatus === 'accept' ? 'paid' : 'pending',
             'pending' => 'pending',
-            'deny', 'cancel', 'expire', 'failure' => 'failed',
+            'expire' => 'expired',
+            'deny', 'cancel', 'failure' => 'failed',
             default => 'pending',
         };
     }
