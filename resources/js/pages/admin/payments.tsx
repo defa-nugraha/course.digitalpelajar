@@ -101,6 +101,7 @@ export default function Payments({ payments }: { payments: PaymentRow[] }) {
                                 { value: 'pending', label: 'Pending' },
                                 { value: 'paid', label: 'Paid' },
                                 { value: 'failed', label: 'Failed' },
+                                { value: 'expired', label: 'Expired' },
                             ]}
                         />
                     </div>
