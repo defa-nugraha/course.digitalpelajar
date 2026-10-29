@@ -5,6 +5,7 @@ use App\Models\CertificateTemplate;
 use App\Models\Chapter;
 use App\Models\ContentBlock;
 use App\Models\Course;
+use App\Models\CourseBill;
 use App\Models\Enrollment;
 use App\Models\Lesson;
 use App\Models\Payment;
@@ -334,5 +335,57 @@ test('Midtrans expiration notification marks a pending payment as expired', func
         ->assertJson(['received' => true]);
 
     expect($payment->fresh()->status)->toBe('expired');
+});
+
+test('course bill creates Midtrans payment only when student starts payment and deletion removes it from both accounts', function () {
+    config(['midtrans.is_enabled' => false]);
+
+    $admin = User::factory()->admin()->create();
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+
+    $this->actingAs($admin)
+        ->post('/admin/course-bills', [
+            'student_id' => $student->id,
+            'course_id' => $course->id,
+            'title' => 'Tagihan Bulan Oktober',
+            'amount' => 175000,
+            'due_at' => now()->addDays(7)->toDateString(),
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bill = CourseBill::query()->where('student_id', $student->id)->firstOrFail();
+
+    expect(Payment::query()->where('course_bill_id', $bill->id)->exists())->toBeFalse();
+
+    $this->actingAs($student)
+        ->get('/student/bills')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/bills', false)
+            ->where('bills.0.id', $bill->id)
+            ->where('bills.0.checkoutUrl', null));
+
+    $this->actingAs($student)
+        ->withHeader('X-Inertia', 'true')
+        ->post('/student/bills/'.$bill->id.'/pay')
+        ->assertStatus(409)
+        ->assertHeader('X-Inertia-Location');
+
+    $payment = Payment::query()->where('course_bill_id', $bill->id)->firstOrFail();
+
+    expect($payment->checkout_url)->toContain('/payments/mock-checkout');
+
+    $this->actingAs($admin)
+        ->delete('/admin/course-bills/'.$bill->id)
+        ->assertSessionHasNoErrors();
+
+    expect(CourseBill::query()->whereKey($bill->id)->exists())->toBeFalse()
+        ->and(Payment::query()->whereKey($payment->id)->exists())->toBeFalse();
+
+    $this->actingAs($student)
+        ->get('/student/bills')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/bills', false)
+            ->where('bills', []));
 });
 
