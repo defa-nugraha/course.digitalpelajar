@@ -47,6 +47,14 @@ export default function CourseBills({ students, courses, bills }: Props) {
         due_at: '',
     });
 
+    const getStatusLabel = (status: string) => {
+        if (status === 'pending') return 'Belum dibayar';
+        if (status === 'paid') return 'Lunas';
+        if (status === 'overdue') return 'Terlambat';
+
+        return status;
+    };
+
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         form.post('/admin/course-bills', {
@@ -168,15 +176,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                             badge={
                                 <StatusBadge
                                     status={bill.status}
-                                    label={
-                                        bill.status === 'pending'
-                                            ? 'Belum dibayar'
-                                            : bill.status === 'paid'
-                                              ? 'Lunas'
-                                              : bill.status === 'overdue'
-                                                ? 'Terlambat'
-                                                : bill.status
-                                    }
+                                    label={getStatusLabel(bill.status)}
                                 />
                             }
                             meta={[
