@@ -129,19 +129,26 @@ export default function CourseBills({ students, courses, bills }: Props) {
                         {form.errors.due_at && <span className="text-xs text-red-600">{form.errors.due_at}</span>}
                     </label>
                     <div className="flex items-end">
-                        <Button type="submit" disabled={form.processing || students.length === 0 || courses.length === 0}>
+                        <Button
+                            type="submit"
+                            disabled={form.processing || students.length === 0 || courses.length === 0}
+                        >
                             {form.processing ? 'Membuat tagihan...' : 'Buat tagihan'}
                         </Button>
                     </div>
                 </form>
                 <p className="mt-4 text-sm text-slate-500">
-                    Setiap tagihan dibuat untuk satu siswa.
-                    Tautan pembayaran Midtrans baru dibuat saat siswa membuka informasi tagihan dan menekan tombol bayar.
+                    Setiap tagihan dibuat untuk satu siswa. Tautan pembayaran Midtrans baru dibuat saat siswa membuka
+                    informasi tagihan dan menekan tombol bayar.
                 </p>
             </Panel>
             <Panel title="Daftar tagihan">
                 <MobileCardList
-                    empty={<p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}
+                    empty={
+                        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500">
+                            Belum ada tagihan kursus.
+                        </p>
+                    }
                 >
                     {bills.map((bill) => (
                         <MobileDataCard
