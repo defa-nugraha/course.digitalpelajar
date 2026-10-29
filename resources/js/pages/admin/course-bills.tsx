@@ -2,8 +2,9 @@ import { Panel, Shell } from '@/components/platform';
 import { MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import { Trash2 } from 'lucide-react';
 
 interface StudentOption {
     id: number;
@@ -124,13 +125,12 @@ export default function CourseBills({ students, courses, bills }: Props) {
                     </label>
                     <div className="flex items-end">
                         <Button type="submit" disabled={form.processing || students.length === 0 || courses.length === 0}>
-                            {form.processing ? 'Membuat tagihan...' : 'Buat tagihan & siapkan Midtrans'}
+                            {form.processing ? 'Membuat tagihan...' : 'Buat tagihan'}
                         </Button>
                     </div>
                 </form>
                 <p className="mt-4 text-sm text-slate-500">
-                    Setiap tagihan dibuat untuk satu siswa, dengan nominal dan tanggal jatuh tempo tersendiri. Tagihan yang berulang dapat dibuat
-                    sebagai tagihan baru sesuai periode yang ditentukan admin.
+                    Setiap tagihan dibuat untuk satu siswa. Tautan pembayaran Midtrans baru dibuat saat siswa membuka informasi tagihan dan menekan tombol bayar.
                 </p>
             </Panel>
             <Panel title="Daftar tagihan">
@@ -163,13 +163,19 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                 { label: 'Order', value: bill.orderId ?? '-' },
                             ]}
                             actions={
-                                bill.checkoutUrl && bill.status !== 'paid' ? (
-                                    <Button asChild size="sm" variant="outline">
-                                        <a href={bill.checkoutUrl} target="_blank" rel="noreferrer">
-                                            Buka pembayaran
-                                        </a>
-                                    </Button>
-                                ) : null
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                        if (window.confirm('Hapus tagihan ini beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.')) {
+                                            router.delete(`/admin/course-bills/${bill.id}`);
+                                        }
+                                    }}
+                                >
+                                    <Trash2 className="size-4" />
+                                    Hapus tagihan
+                                </Button>
                             }
                         />
                     ))}
