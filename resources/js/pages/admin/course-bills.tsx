@@ -3,8 +3,8 @@ import { MobileCardList, MobileDataCard, StatusBadge } from '@/components/respon
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Head, router, useForm } from '@inertiajs/react';
-import type { FormEvent } from 'react';
 import { Trash2 } from 'lucide-react';
+import type { FormEvent } from 'react';
 
 interface StudentOption {
     id: number;
@@ -120,7 +120,12 @@ export default function CourseBills({ students, courses, bills }: Props) {
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Jatuh tempo
-                        <Input type="date" value={form.data.due_at} onChange={(event) => form.setData('due_at', event.target.value)} required />
+                        <Input
+                            type="date"
+                            value={form.data.due_at}
+                            onChange={(event) => form.setData('due_at', event.target.value)}
+                            required
+                        />
                         {form.errors.due_at && <span className="text-xs text-red-600">{form.errors.due_at}</span>}
                     </label>
                     <div className="flex items-end">
@@ -130,7 +135,8 @@ export default function CourseBills({ students, courses, bills }: Props) {
                     </div>
                 </form>
                 <p className="mt-4 text-sm text-slate-500">
-                    Setiap tagihan dibuat untuk satu siswa. Tautan pembayaran Midtrans baru dibuat saat siswa membuka informasi tagihan dan menekan tombol bayar.
+                    Setiap tagihan dibuat untuk satu siswa. Tautan pembayaran Midtrans baru dibuat saat siswa membuka informasi
+                    tagihan dan menekan tombol bayar.
                 </p>
             </Panel>
             <Panel title="Daftar tagihan">
@@ -168,7 +174,11 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => {
-                                        if (window.confirm('Hapus tagihan ini beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.')) {
+                                        if (
+                                            window.confirm(
+                                                'Hapus tagihan ini beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.',
+                                            )
+                                        ) {
                                             router.delete(`/admin/course-bills/${bill.id}`);
                                         }
                                     }}
