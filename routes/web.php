@@ -81,6 +81,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('role:student')->group(function () {
         Route::get('student/bills', [CourseBillController::class, 'studentIndex'])->name('student.bills');
+        Route::post('student/bills/{courseBill}/pay', [CourseBillController::class, 'pay'])->name('student.bills.pay');
         Route::get('student/dashboard', [PlatformController::class, 'dashboard'])->name('student.dashboard');
         Route::get('student/learning', [PlatformController::class, 'learningIndex'])->name('student.learning.index');
         Route::get('student/catalog', [PlatformController::class, 'internalCatalog'])->name('student.catalog');
@@ -301,6 +302,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('admin/payments', [PlatformController::class, 'adminPayments'])->name('admin.payments');
         Route::get('admin/course-bills', [CourseBillController::class, 'adminIndex'])->name('admin.course-bills');
         Route::post('admin/course-bills', [CourseBillController::class, 'store'])->name('admin.course-bills.store');
+        Route::delete('admin/course-bills/{courseBill}', [CourseBillController::class, 'destroy'])->name('admin.course-bills.destroy');
         Route::get('admin/store', [StoreController::class, 'index'])->name('admin.store');
         Route::post('admin/store/categories', [StoreController::class, 'storeCategory'])->name('admin.store.categories.store');
         Route::patch('admin/store/categories/{category}', [StoreController::class, 'updateCategory'])->name('admin.store.categories.update');
