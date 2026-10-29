@@ -82,9 +82,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                 </option>
                             ))}
                         </select>
-                        {form.errors.student_id && (
-                            <span className="text-xs text-red-600">{form.errors.student_id}</span>
-                        )}
+                        {form.errors.student_id && <span className="text-xs text-red-600">{form.errors.student_id}</span>}
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Kursus
@@ -101,9 +99,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                 </option>
                             ))}
                         </select>
-                        {form.errors.course_id && (
-                            <span className="text-xs text-red-600">{form.errors.course_id}</span>
-                        )}
+                        {form.errors.course_id && <span className="text-xs text-red-600">{form.errors.course_id}</span>}
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Nama tagihan
@@ -114,9 +110,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                             maxLength={160}
                             placeholder="Contoh: Tagihan Kursus Oktober"
                         />
-                        {form.errors.title && (
-                            <span className="text-xs text-red-600">{form.errors.title}</span>
-                        )}
+                        {form.errors.title && <span className="text-xs text-red-600">{form.errors.title}</span>}
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Nominal (Rupiah)
@@ -130,51 +124,34 @@ export default function CourseBills({ students, courses, bills }: Props) {
                             required
                             placeholder="150000"
                         />
-                        {form.errors.amount && (
-                            <span className="text-xs text-red-600">{form.errors.amount}</span>
-                        )}
+                        {form.errors.amount && <span className="text-xs text-red-600">{form.errors.amount}</span>}
                     </label>
                     <label className="grid gap-1 text-sm font-medium">
                         Jatuh tempo
-                        <Input
-                            type="date"
-                            value={form.data.due_at}
-                            onChange={(event) => form.setData('due_at', event.target.value)}
-                            required
-                        />
-                        {form.errors.due_at && (
-                            <span className="text-xs text-red-600">{form.errors.due_at}</span>
-                        )}
+                        <Input type="date" value={form.data.due_at} onChange={(event) => form.setData('due_at', event.target.value)} required />
+                        {form.errors.due_at && <span className="text-xs text-red-600">{form.errors.due_at}</span>}
                     </label>
                     <div className="flex items-end">
-                        <Button
-                            type="submit"
-                            disabled={form.processing || students.length === 0 || courses.length === 0}
-                        >
+                        <Button type="submit" disabled={form.processing || students.length === 0 || courses.length === 0}>
                             {form.processing ? 'Membuat tagihan...' : 'Buat tagihan'}
                         </Button>
                     </div>
                 </form>
                 <p className="mt-4 text-sm text-slate-500">
-                    Setiap tagihan dibuat untuk satu siswa. Tautan pembayaran Midtrans baru dibuat saat siswa membuka informasi tagihan dan menekan tombol bayar.
+                    Setiap tagihan dibuat untuk satu siswa. Tautan pembayaran Midtrans baru dibuat saat siswa membuka informasi tagihan dan menekan
+                    tombol bayar.
                 </p>
             </Panel>
             <Panel title="Daftar tagihan">
                 <MobileCardList
-                    empty={
-                        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500">
-                            Belum ada tagihan kursus.
-                        </p>
-                    }
+                    empty={<p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}
                 >
                     {bills.map((bill) => (
                         <MobileDataCard
                             key={bill.id}
                             title={bill.title}
                             subtitle={bill.student + ' · ' + bill.email}
-                            badge={
-                                <StatusBadge status={bill.status} label={getStatusLabel(bill.status)} />
-                            }
+                            badge={<StatusBadge status={bill.status} label={getStatusLabel(bill.status)} />}
                             meta={[
                                 { label: 'Kursus', value: bill.course },
                                 { label: 'Nominal', value: bill.amountLabel },
