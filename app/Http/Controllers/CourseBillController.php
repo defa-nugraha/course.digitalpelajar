@@ -59,7 +59,7 @@ class CourseBillController extends Controller
         ]);
     }
 
-    public function store(Request $request, MidtransService $midtrans): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'student_id' => [
@@ -74,36 +74,15 @@ class CourseBillController extends Controller
         ]);
 
         $course = Course::query()->where('status', 'published')->findOrFail($data['course_id']);
-
-        $bill = DB::transaction(function () use ($request, $data, $course, $midtrans) {
-            $bill = CourseBill::query()->create([
-                'student_id' => $data['student_id'],
-                'course_id' => $course->id,
-                'created_by' => $request->user()->id,
-                'title' => $data['title'],
-                'amount' => $data['amount'],
-                'due_at' => $data['due_at'],
-                'status' => 'pending',
-            ]);
-
-            $payment = Payment::query()->create([
-                'user_id' => $data['student_id'],
-                'course_id' => $course->id,
-                'course_bill_id' => $bill->id,
-                'order_id' => $midtrans->generateOrderId(),
-                'amount' => $data['amount'],
-                'status' => 'pending',
-            ]);
-
-            return $bill->setRelation('payments', collect([$payment]));
-        });
-
-        $payment = $bill->payments->first();
-        $transaction = $midtrans->createTransaction($payment);
-        $payment->forceFill([
-            'snap_token' => $transaction['snap_token'],
-            'checkout_url' => $transaction['checkout_url'],
-        ])->save();
+        $bill = CourseBill::query()->create([
+            'student_id' => $data['student_id'],
+            'course_id' => $course->id,
+            'created_by' => $request->user()->id,
+            'title' => $data['title'],
+            'amount' => $data['amount'],
+            'due_at' => $data['due_at'],
+            'status' => 'pending',
+        ]);
 
         AuditLogger::log('course_bill.created', $request->user(), $bill, [
             'student_id' => $bill->student_id,
@@ -112,7 +91,61 @@ class CourseBillController extends Controller
             'due_at' => $bill->due_at->toDateString(),
         ]);
 
-        return to_route('admin.course-bills')->with('success', 'Tagihan berhasil dibuat dan tautan pembayaran Midtrans telah disiapkan.');
+        return to_route('admin.course-bills')->with('success', 'Tagihan berhasil dibuat. Tautan Midtrans akan dibuat saat siswa menekan tombol bayar.');
+    }
+
+    public function pay(Request $request, CourseBill $courseBill, MidtransService $midtrans): \Symfony\Component\HttpFoundation\Response
+    {
+        abort_unless($courseBill->student_id === $request->user()->id, 403);
+        abort_unless($courseBill->status !== 'paid', 409, 'Tagihan ini sudah lunas.');
+
+        $payment = $courseBill->payments()->latest('id')->first();
+
+        if ($payment?->status === 'pending' && filled($payment->checkout_url)) {
+            return Inertia::location($payment->checkout_url);
+        }
+
+        if (! $payment || ! in_array($payment->status, ['pending'], true)) {
+            $payment = Payment::query()->create([
+                'user_id' => $courseBill->student_id,
+                'course_id' => $courseBill->course_id,
+                'course_bill_id' => $courseBill->id,
+                'order_id' => $midtrans->generateOrderId(),
+                'amount' => $courseBill->amount,
+                'status' => 'pending',
+            ]);
+        }
+
+        $transaction = $midtrans->createTransaction($payment);
+        $payment->forceFill([
+            'snap_token' => $transaction['snap_token'],
+            'checkout_url' => $transaction['checkout_url'],
+        ])->save();
+
+        AuditLogger::log('course_bill.payment_started', $request->user(), $courseBill, [
+            'payment_id' => $payment->id,
+            'order_id' => $payment->order_id,
+        ]);
+
+        return Inertia::location($transaction['checkout_url']);
+    }
+
+    public function destroy(Request $request, CourseBill $courseBill): RedirectResponse
+    {
+        DB::transaction(function () use ($request, $courseBill) {
+            $paymentIds = $courseBill->payments()->pluck('id')->all();
+
+            AuditLogger::log('course_bill.deleted', $request->user(), $courseBill, [
+                'student_id' => $courseBill->student_id,
+                'amount' => $courseBill->amount,
+                'related_payment_ids' => $paymentIds,
+            ]);
+
+            $courseBill->payments()->delete();
+            $courseBill->delete();
+        });
+
+        return to_route('admin.course-bills')->with('success', 'Tagihan dan data pembayaran terkait berhasil dihapus dari akun siswa.');
     }
 
     public function studentIndex(Request $request): Response
