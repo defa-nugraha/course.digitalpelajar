@@ -156,8 +156,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                     </div>
                 </form>
                 <p className="mt-4 text-sm text-slate-500">
-                    Setiap tagihan dibuat untuk satu siswa. Tautan pembayaran Midtrans baru dibuat saat siswa membuka
-                    informasi tagihan dan menekan tombol bayar.
+                    Setiap tagihan dibuat untuk satu siswa. Tautan pembayaran Midtrans baru dibuat saat siswa membuka informasi tagihan dan menekan tombol bayar.
                 </p>
             </Panel>
             <Panel title="Daftar tagihan">
@@ -174,10 +173,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                             title={bill.title}
                             subtitle={bill.student + ' · ' + bill.email}
                             badge={
-                                <StatusBadge
-                                    status={bill.status}
-                                    label={getStatusLabel(bill.status)}
-                                />
+                                <StatusBadge status={bill.status} label={getStatusLabel(bill.status)} />
                             }
                             meta={[
                                 { label: 'Kursus', value: bill.course },
