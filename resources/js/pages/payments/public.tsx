@@ -434,7 +434,7 @@ export default function PublicPayment({ studentNumber, searched, bills }: Props)
                                     penyedia dan ditampilkan hanya sebagai identifikasi metode pembayaran.
                                 </p>
                                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-medium text-blue-700">
-                                    <a href="https://commons.wikimedia.org/wiki/File:QRIS_logo.svg" target="_blank" rel="noreferrer">
+                                    <a href="https://commons.wikimedia.org/wiki/File:QRIS_Logo.svg" target="_blank" rel="noreferrer">
                                         QRIS
                                     </a>
                                     <a href="https://commons.wikimedia.org/wiki/File:GoPay_logo.svg" target="_blank" rel="noreferrer">

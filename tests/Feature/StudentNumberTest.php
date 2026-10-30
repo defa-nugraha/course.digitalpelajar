@@ -21,7 +21,7 @@ test('a student number cannot be changed after account creation', function () {
     $student = User::factory()->student()->create();
     $originalNumber = $student->student_number;
 
-    $student->student_number = '100001';
+    $student->student_number = '000001';
 
     expect(fn () => $student->save())
         ->toThrow(LogicException::class, 'ID siswa bersifat permanen');
