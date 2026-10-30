@@ -273,7 +273,8 @@ test('public bill lookup requires the student number and registered email togeth
     ])->assertInertia(fn (Assert $page) => $page
         ->component('payments/public', false)
         ->where('studentNumber', null)
-        ->where('searched', true)
+        ->where('searched', false)
+        ->where('otpSent', true)
         ->has('bills', 0));
 
     $this->post('/pembayaran/bayar', [

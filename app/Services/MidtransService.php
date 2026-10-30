@@ -31,7 +31,7 @@ class MidtransService
     {
         return ! $this->isEnabled()
             && (bool) config('midtrans.mock_enabled')
-            && ! app()->environment('production');
+            && config('app.env') !== 'production';
     }
 
     public function createTransaction(Payment $payment): array
