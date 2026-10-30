@@ -190,7 +190,7 @@ test('public checkout creates a fresh payment when the previous Midtrans Snap ha
         ->assertStatus(409)
         ->assertHeader('X-Inertia-Location', 'https://app.sandbox.midtrans.com/snap/v3/vtweb/new-snap-token');
 
-    $newPayment = Payment::query()->where('user_id', $student->id)->whereKeyNot($oldPayment->id)->firstOrFail();
+    $newPayment = Payment::query()->where('user_id', $student->id)->where('id', '!=', $oldPayment->id)->firstOrFail();
 
     expect($oldPayment->fresh()->status)->toBe('expired')
         ->and($newPayment->status)->toBe('pending')
