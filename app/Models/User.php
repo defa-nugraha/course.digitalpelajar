@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
 {
+    protected $attributes = [
+        'role' => 'student',
+    ];
+
     protected static function booted(): void
     {
         static::saving(function (User $user) {
