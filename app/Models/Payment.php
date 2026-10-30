@@ -6,6 +6,7 @@ use Database\Factories\PaymentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Payment extends Model
 {
@@ -52,6 +53,11 @@ class Payment extends Model
     public function courseBill(): BelongsTo
     {
         return $this->belongsTo(CourseBill::class);
+    }
+
+    public function courseBills(): BelongsToMany
+    {
+        return $this->belongsToMany(CourseBill::class, 'course_bill_payment')->withTimestamps();
     }
 
     public function isPaid(): bool
