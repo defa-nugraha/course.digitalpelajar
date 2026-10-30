@@ -226,7 +226,7 @@ class CourseBillController extends Controller
             $courseBill->delete();
         });
 
-        return to_route('admin.course-bills')->with('success', 'Tagihan dan data pembayaran terkait berhasil dihapus dari akun siswa.');
+        return back()->with('success', 'Tagihan dan data pembayaran terkait berhasil dihapus dari akun siswa.');
     }
 
     public function studentIndex(Request $request): Response
