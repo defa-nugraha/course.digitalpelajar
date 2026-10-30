@@ -168,11 +168,48 @@ class PublicPaymentController extends Controller
             return $payment;
         });
 
-        if (filled($payment->checkout_url)) {
-            AuditLogger::log('course_bill.public_payment_resumed', $student, $payment, [
+        if ($payment->status === 'pending' && filled($payment->checkout_url)) {
+            if (! config('midtrans.is_enabled')) {
+                $checkoutUrl = URL::temporarySignedRoute('payments.public-mock-checkout', now()->addHours(2), [
+                    'order' => $payment->order_id,
+                ]);
+
+                $payment->forceFill(['checkout_url' => $checkoutUrl])->save();
+
+                return Inertia::location($checkoutUrl);
+            }
+
+            $gatewayStatus = $midtrans->transactionStatus($payment);
+
+            if ($gatewayStatus === 'pending') {
+                AuditLogger::log('course_bill.public_payment_resumed', $student, $payment, [
+                    'order_id' => $payment->order_id,
+                ]);
+
+                return Inertia::location($payment->checkout_url);
+            }
+
+            $payment->forceFill([
+                'status' => $gatewayStatus,
+                'paid_at' => $gatewayStatus === 'paid' ? ($payment->paid_at ?? now()) : null,
+            ])->save();
+
+            AuditLogger::log('course_bill.public_payment_status_refreshed', $student, $payment, [
                 'order_id' => $payment->order_id,
+                'status' => $gatewayStatus,
             ]);
 
+            if ($gatewayStatus === 'paid') {
+                $this->markCourseBillsPaid($payment->fresh(['courseBill', 'courseBills']));
+
+                return to_route('public-payments.index')
+                    ->with('success', 'Pembayaran sebelumnya telah berhasil dikonfirmasi.');
+            }
+
+            $payment = $this->createReplacementPayment($student, $selectedIds, $midtrans);
+        }
+
+        if (filled($payment->checkout_url)) {
             return Inertia::location($payment->checkout_url);
         }
 
@@ -280,6 +317,101 @@ class PublicPaymentController extends Controller
         });
 
         return to_route('public-payments.index')->with('success', 'Pembayaran tagihan berhasil dikonfirmasi.');
+    }
+
+    private function createReplacementPayment(User $student, array $selectedIds, MidtransService $midtrans): Payment
+    {
+        return DB::transaction(function () use ($student, $selectedIds, $midtrans) {
+            $bills = CourseBill::query()
+                ->where('student_id', $student->id)
+                ->whereIn('id', $selectedIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($bills->count() !== count($selectedIds) || $bills->contains(fn (CourseBill $bill) => $bill->status !== 'pending')) {
+                throw ValidationException::withMessages([
+                    'bill_ids' => 'Status tagihan berubah. Silakan periksa kembali daftar tagihan.',
+                ]);
+            }
+
+            $existingPayment = Payment::query()
+                ->where('user_id', $student->id)
+                ->where('status', 'pending')
+                ->where(function ($query) use ($selectedIds) {
+                    $query->whereIn('course_bill_id', $selectedIds)
+                        ->orWhereHas('courseBills', fn ($billQuery) => $billQuery->whereIn('course_bills.id', $selectedIds));
+                })
+                ->with(['courseBills:id', 'courseBill:id'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingPayment) {
+                $existingBillIds = $existingPayment->courseBills->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+                if ($existingPayment->course_bill_id) {
+                    $existingBillIds[] = (int) $existingPayment->course_bill_id;
+                }
+
+                $existingBillIds = array_values(array_unique($existingBillIds));
+                sort($existingBillIds);
+
+                if ($existingBillIds === $selectedIds) {
+                    return $existingPayment;
+                }
+
+                throw ValidationException::withMessages([
+                    'bill_ids' => 'Tagihan terhubung dengan sesi pembayaran lain yang masih aktif. Muat ulang halaman dan pilih kelompok tagihan tersebut.',
+                ]);
+            }
+
+            $total = (int) $bills->sum('amount');
+            if ($total > 1_000_000_000) {
+                throw ValidationException::withMessages([
+                    'bill_ids' => 'Total tagihan melebihi batas transaksi Rp1.000.000.000.',
+                ]);
+            }
+
+            $singleBill = $bills->count() === 1 ? $bills->first() : null;
+            $replacement = Payment::query()->create([
+                'user_id' => $student->id,
+                'course_id' => $singleBill?->course_id,
+                'course_bill_id' => $singleBill?->id,
+                'order_id' => $midtrans->generateOrderId(),
+                'amount' => $total,
+                'status' => 'pending',
+            ]);
+
+            if (! $singleBill) {
+                $replacement->courseBills()->sync($bills->modelKeys());
+            }
+
+            AuditLogger::log('course_bill.public_payment_recreated', $student, $replacement, [
+                'course_bill_ids' => $bills->modelKeys(),
+                'amount' => $total,
+            ]);
+
+            return $replacement;
+        });
+    }
+
+    private function markCourseBillsPaid(Payment $payment): void
+    {
+        $paidAt = $payment->paid_at ?? now();
+
+        if ($payment->courseBill) {
+            $payment->courseBill->forceFill([
+                'status' => 'paid',
+                'paid_at' => $payment->courseBill->paid_at ?? $paidAt,
+            ])->save();
+        }
+
+        foreach ($payment->courseBills as $bill) {
+            $bill->forceFill([
+                'status' => 'paid',
+                'paid_at' => $bill->paid_at ?? $paidAt,
+            ])->save();
+        }
     }
 
     private function billPayload(CourseBill $bill): array
