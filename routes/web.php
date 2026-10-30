@@ -300,6 +300,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('admin/reports', [PlatformController::class, 'adminReports'])->name('admin.reports');
         Route::get('admin/payments', [PlatformController::class, 'adminPayments'])->name('admin.payments');
+        Route::delete('admin/payments/{payment}', [PaymentController::class, 'destroy'])->name('admin.payments.destroy');
         Route::get('admin/course-bills', [CourseBillController::class, 'adminIndex'])->name('admin.course-bills');
         Route::post('admin/course-bills', [CourseBillController::class, 'store'])->name('admin.course-bills.store');
         Route::delete('admin/course-bills/{courseBill}', [CourseBillController::class, 'destroy'])->name('admin.course-bills.destroy');
