@@ -66,11 +66,11 @@ class PaymentController extends Controller
                 ],
             ]);
 
-            $freshPayment = $payment->fresh(['user', 'storeOrder', 'courseBill']);
+            $freshPayment = $payment->fresh(['user', 'storeOrder', 'courseBill', 'courseBills']);
             if ($freshPayment->store_order_id) {
                 $storeOrders->activateFromPayment($freshPayment);
-            } elseif ($freshPayment->course_bill_id) {
-                $freshPayment->courseBill?->update(['status' => 'paid', 'paid_at' => now()]);
+            } elseif ($freshPayment->course_bill_id || $freshPayment->courseBills->isNotEmpty()) {
+                $this->markCourseBillsPaid($freshPayment);
             } else {
                 $enrollments->activateFromPayment($freshPayment);
             }
@@ -160,11 +160,11 @@ class PaymentController extends Controller
             ]);
 
             if ($status === 'paid') {
-                $freshPayment = $payment->fresh(['user', 'storeOrder', 'courseBill']);
+                $freshPayment = $payment->fresh(['user', 'storeOrder', 'courseBill', 'courseBills']);
                 if ($freshPayment->store_order_id) {
                     $storeOrders->activateFromPayment($freshPayment);
-                } elseif ($freshPayment->course_bill_id) {
-                    $freshPayment->courseBill?->update(['status' => 'paid', 'paid_at' => now()]);
+                } elseif ($freshPayment->course_bill_id || $freshPayment->courseBills->isNotEmpty()) {
+                    $this->markCourseBillsPaid($freshPayment);
                 } else {
                     $enrollments->activateFromPayment($freshPayment);
                 }
@@ -179,10 +179,29 @@ class PaymentController extends Controller
     public function invoice(Request $request, Payment $payment): Response
     {
         abort_unless($payment->user_id === $request->user()->id || $request->user()->isAdmin(), 403);
-        $payment->load('user.school', 'course');
+        $payment->load('user.school', 'course', 'courseBill.course', 'courseBills.course');
 
         return Pdf::loadView('payments.invoice', [
             'payment' => $payment,
         ])->download('invoice-'.strtolower($payment->order_id).'.pdf');
+    }
+
+    private function markCourseBillsPaid(Payment $payment): void
+    {
+        $paidAt = $payment->paid_at ?? now();
+
+        if ($payment->courseBill) {
+            $payment->courseBill->forceFill([
+                'status' => 'paid',
+                'paid_at' => $payment->courseBill->paid_at ?? $paidAt,
+            ])->save();
+        }
+
+        foreach ($payment->courseBills as $courseBill) {
+            $courseBill->forceFill([
+                'status' => 'paid',
+                'paid_at' => $courseBill->paid_at ?? $paidAt,
+            ])->save();
+        }
     }
 }
