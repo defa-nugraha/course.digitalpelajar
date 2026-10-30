@@ -405,6 +405,14 @@ test('course bill creates Midtrans payment only when student starts payment and 
             ->where('bills.0.checkoutUrl', null));
 
     $this->actingAs($student)
+        ->get('/payments')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('payments/index', false)
+            ->where('bills.0.id', $bill->id)
+            ->where('bills.0.title', 'Tagihan Bulan Oktober')
+            ->where('payments', []));
+
+    $this->actingAs($student)
         ->withHeader('X-Inertia', 'true')
         ->post('/student/bills/'.$bill->id.'/pay')
         ->assertStatus(409)
