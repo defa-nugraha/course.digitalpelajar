@@ -1,8 +1,8 @@
 <?php
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Course;
 use App\Models\CourseBill;
-use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
