@@ -1,7 +1,7 @@
 import { Panel, Shell } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { CreditCard, Download, ReceiptText } from 'lucide-react';
 
 interface PaymentItem {
@@ -16,7 +16,19 @@ interface PaymentItem {
     paidAt?: string | null;
 }
 
-export default function Payments({ payments }: { payments: PaymentItem[] }) {
+interface CourseBillItem {
+    id: number;
+    title: string;
+    course: string;
+    amountLabel: string;
+    dueAt: string;
+    status: string;
+    checkoutUrl?: string | null;
+    paymentId?: number | null;
+    orderId?: string | null;
+}
+
+export default function Payments({ payments, bills = [] }: { payments: PaymentItem[]; bills?: CourseBillItem[] }) {
     return (
         <Shell title="Riwayat Pembayaran" eyebrow="Invoice">
             <Head title="Riwayat Pembayaran" />
@@ -25,6 +37,83 @@ export default function Payments({ payments }: { payments: PaymentItem[] }) {
                     <Link href="/student/bills">Lihat Tagihan Kursus</Link>
                 </Button>
             </div>
+            <Panel title={`Tagihan kursus (${bills.length})`}>
+                <MobileCardList
+                    empty={
+                        <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                            Belum ada tagihan kursus untuk akun ini.
+                        </div>
+                    }
+                >
+                    {bills.map((bill) => (
+                        <MobileDataCard
+                            key={bill.id}
+                            title={bill.title}
+                            subtitle={bill.course}
+                            badge={
+                                <StatusBadge
+                                    status={bill.status}
+                                    label={bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : 'Belum dibayar'}
+                                />
+                            }
+                            meta={[
+                                { label: 'Nominal', value: bill.amountLabel },
+                                { label: 'Jatuh tempo', value: bill.dueAt },
+                                { label: 'ID order', value: bill.orderId ?? '-' },
+                            ]}
+                            actions={
+                                bill.status !== 'paid' ? (
+                                    <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`)}>
+                                        <CreditCard className="size-4" />
+                                        Bayar tagihan
+                                    </Button>
+                                ) : null
+                            }
+                        />
+                    ))}
+                </MobileCardList>
+                <DesktopTable>
+                    <table className="w-full text-left text-sm">
+                        <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                            <tr>
+                                <th className="py-3">Tagihan</th>
+                                <th>Kursus</th>
+                                <th>Nominal</th>
+                                <th>Jatuh tempo</th>
+                                <th>Status</th>
+                                <th>ID order</th>
+                                <th className="text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {bills.map((bill) => (
+                                <tr key={bill.id}>
+                                    <td className="py-4 font-semibold">{bill.title}</td>
+                                    <td>{bill.course}</td>
+                                    <td>{bill.amountLabel}</td>
+                                    <td>{bill.dueAt}</td>
+                                    <td>
+                                        <StatusBadge
+                                            status={bill.status}
+                                            label={bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : 'Belum dibayar'}
+                                        />
+                                    </td>
+                                    <td className="font-mono text-xs">{bill.orderId ?? '-'}</td>
+                                    <td className="text-right">
+                                        {bill.status !== 'paid' && (
+                                            <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`)}>
+                                                <CreditCard className="size-4" />
+                                                Bayar
+                                            </Button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {bills.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tagihan kursus untuk akun ini.</p>}
+                </DesktopTable>
+            </Panel>
             <Panel title="Transaksi kelas berbayar">
                 <div className="space-y-4">
                     <MobileCardList
