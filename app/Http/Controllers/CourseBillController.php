@@ -221,7 +221,9 @@ class CourseBillController extends Controller
         DB::transaction(function () use ($request, $courseBill) {
             $courseBill->refresh();
             abort_if(
-                $courseBill->status === 'paid' || $courseBill->payments()->whereIn('status', ['paid', 'settlement', 'capture', 'success'])->exists(),
+                $courseBill->status === 'paid'
+                    || $courseBill->payments()->whereIn('status', ['paid', 'settlement', 'capture', 'success'])->exists()
+                    || $courseBill->batchPayments()->whereIn('payments.status', ['paid', 'settlement', 'capture', 'success'])->exists(),
                 409,
                 'Tagihan yang sudah dibayar tidak dapat dihapus.',
             );
@@ -238,15 +240,8 @@ class CourseBillController extends Controller
             ]);
 
             $courseBill->payments()->delete();
+            Payment::query()->whereIn('id', $batchPaymentIds)->delete();
             $courseBill->delete();
-
-            foreach ($batchPaymentIds as $paymentId) {
-                $batchPayment = Payment::query()->find($paymentId);
-
-                if ($batchPayment && ! $batchPayment->courseBills()->exists()) {
-                    $batchPayment->delete();
-                }
-            }
         });
 
         return back()->with('success', 'Tagihan dan data pembayaran terkait berhasil dihapus dari akun siswa.');
