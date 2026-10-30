@@ -45,7 +45,7 @@ class PublicPaymentController extends Controller
                     'batchPayments' => fn ($query) => $query->latest('payments.id')->with('courseBills:id'),
                 ])
                 ->where('student_id', $student->id)
-                ->where('status', '!=', 'paid')
+                ->where('status', 'pending')
                 ->latest('due_at')
                 ->get()
                 ->map(fn (CourseBill $bill) => $this->billPayload($bill))
