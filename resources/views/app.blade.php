@@ -14,7 +14,7 @@
             $seoRobots = ($seo['noindex'] ?? false) ? 'noindex,nofollow' : 'index,follow';
             $seoKeywords = collect($seo['keywords'] ?? [])->filter()->implode(', ');
             $jsonLdItems = collect($seo['jsonLd'] ?? [])->filter()->values();
-            $headIcon = asset('Logo%20Digital%20Pelajar%20%28tanpa%20teks%29.png');
+            $headIcon = asset('Logo%20Digital%20Pelajar%20%28tanpa%20teks%29.png') . '?v=20261030';
         @endphp
 
         <title inertia>{{ $seoTitle }}</title>
