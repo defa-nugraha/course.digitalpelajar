@@ -28,16 +28,14 @@ interface CourseBillItem {
     orderId?: string | null;
 }
 
+const isPaidStatus = (status: string) => ['paid', 'settlement', 'capture', 'success'].includes(status);
+
 export default function Payments({ payments, bills = [] }: { payments: PaymentItem[]; bills?: CourseBillItem[] }) {
     return (
         <Shell title="Riwayat Pembayaran" eyebrow="Invoice">
             <Head title="Riwayat Pembayaran" />
-            <div className="mb-4 flex justify-end">
-                <Button asChild variant="outline">
-                    <Link href="/student/bills">Lihat Tagihan Kursus</Link>
-                </Button>
-            </div>
-            <Panel title={`Tagihan kursus (${bills.length})`}>
+            <div className="mb-8">
+                <Panel title={`Tagihan kursus (${bills.length})`}>
                 <MobileCardList
                     empty={
                         <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
@@ -62,12 +60,22 @@ export default function Payments({ payments, bills = [] }: { payments: PaymentIt
                                 { label: 'ID order', value: bill.orderId ?? '-' },
                             ]}
                             actions={
-                                bill.status !== 'paid' ? (
-                                    <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`)}>
-                                        <CreditCard className="size-4" />
-                                        Bayar tagihan
-                                    </Button>
-                                ) : null
+                                <>
+                                    {bill.status !== 'paid' && (
+                                        <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`)}>
+                                            <CreditCard className="size-4" />
+                                            Bayar tagihan
+                                        </Button>
+                                    )}
+                                    {bill.status === 'paid' && bill.paymentId && (
+                                        <Button asChild variant="outline" size="sm">
+                                            <a href={`/payments/${bill.paymentId}/invoice`}>
+                                                <Download className="size-4" />
+                                                Download invoice
+                                            </a>
+                                        </Button>
+                                    )}
+                                </>
                             }
                         />
                     ))}
@@ -106,6 +114,13 @@ export default function Payments({ payments, bills = [] }: { payments: PaymentIt
                                                 Bayar
                                             </Button>
                                         )}
+                                        {bill.status === 'paid' && bill.paymentId && (
+                                            <Button asChild variant="outline" size="sm">
+                                                <a href={`/payments/${bill.paymentId}/invoice`} aria-label="Download invoice tagihan kursus">
+                                                    <Download className="size-4" />
+                                                </a>
+                                            </Button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -113,7 +128,8 @@ export default function Payments({ payments, bills = [] }: { payments: PaymentIt
                     </table>
                     {bills.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tagihan kursus untuk akun ini.</p>}
                 </DesktopTable>
-            </Panel>
+                </Panel>
+            </div>
             <Panel title="Transaksi kelas berbayar">
                 <div className="space-y-4">
                     <MobileCardList
@@ -147,12 +163,14 @@ export default function Payments({ payments, bills = [] }: { payments: PaymentIt
                                                 </a>
                                             </Button>
                                         )}
-                                        <Button asChild variant="outline" size="sm">
-                                            <a href={`/payments/${payment.id}/invoice`}>
-                                                <Download className="size-4" />
-                                                Invoice
-                                            </a>
-                                        </Button>
+                                        {isPaidStatus(payment.status) && (
+                                            <Button asChild variant="outline" size="sm">
+                                                <a href={`/payments/${payment.id}/invoice`}>
+                                                    <Download className="size-4" />
+                                                    Invoice
+                                                </a>
+                                            </Button>
+                                        )}
                                     </>
                                 }
                             />
@@ -185,11 +203,13 @@ export default function Payments({ payments, bills = [] }: { payments: PaymentIt
                                                         <a href={`/payments/${payment.id}/continue`}>Bayar</a>
                                                     </Button>
                                                 )}
-                                                <Button asChild variant="ghost" size="icon">
-                                                    <a href={`/payments/${payment.id}/invoice`} aria-label="Unduh invoice">
-                                                        <Download className="size-4" />
-                                                    </a>
-                                                </Button>
+                                                {isPaidStatus(payment.status) && (
+                                                    <Button asChild variant="ghost" size="icon">
+                                                        <a href={`/payments/${payment.id}/invoice`} aria-label="Unduh invoice">
+                                                            <Download className="size-4" />
+                                                        </a>
+                                                    </Button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
