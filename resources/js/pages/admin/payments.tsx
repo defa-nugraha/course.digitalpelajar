@@ -207,9 +207,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
             <Head title="Monitoring Pembayaran" />
             <div className="mb-4 flex justify-end">
                 <Dialog open={billsOpen} onOpenChange={setBillsOpen}>
-                    <DialogTrigger asChild>
-                        <Button onClick={openCreateBill}>Kelola Tagihan Kursus</Button>
-                    </DialogTrigger>
+                    <Button type="button" onClick={openCreateBill}>Kelola Tagihan Kursus</Button>
                     <DialogContent className="max-w-3xl">
                         <DialogHeader>
                             <DialogTitle>{editingBillId === null ? 'Buat Tagihan Kursus' : 'Edit Tagihan Kursus'}</DialogTitle>
