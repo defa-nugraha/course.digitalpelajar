@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -43,6 +44,7 @@ class DatabaseSeeder extends Seeder
             'course_prerequisites',
             'courses',
             'learning_paths',
+            'student_number_reservations',
             'users',
             'schools',
             'password_reset_tokens',
@@ -128,7 +130,7 @@ class DatabaseSeeder extends Seeder
             'updated_at' => $now,
         ]);
 
-        $studentId = DB::table('users')->insertGetId([
+        $studentId = User::query()->create([
             'school_id' => $smanSchoolId,
             'name' => 'Andi Saputra',
             'email' => 'siswa@example.test',
@@ -136,11 +138,9 @@ class DatabaseSeeder extends Seeder
             'role' => 'student',
             'status' => 'active',
             'password' => $password,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        ])->id;
 
-        $secondStudentId = DB::table('users')->insertGetId([
+        $secondStudentId = User::query()->create([
             'school_id' => $futureSchoolId,
             'name' => 'Rina Melati',
             'email' => 'rina@example.test',
@@ -148,9 +148,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'student',
             'status' => 'active',
             'password' => $password,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        ])->id;
 
         $pathId = DB::table('learning_paths')->insertGetId([
             'title' => 'Robotics Engineer Path',

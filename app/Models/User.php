@@ -20,19 +20,54 @@ class User extends Authenticatable
     protected static function booted(): void
     {
         static::saving(function (User $user) {
-            if ($user->role === 'student' && blank($user->student_number)) {
-                $user->student_number = static::generateStudentNumber();
+            if ($user->exists && $user->isDirty('student_number')) {
+                throw new \LogicException('ID siswa bersifat permanen dan tidak dapat diubah.');
+            }
+
+            if (! $user->exists) {
+                $user->student_number = $user->role === 'student'
+                    ? static::reserveStudentNumber()
+                    : null;
+            } elseif ($user->role === 'student' && blank($user->student_number)) {
+                $user->student_number = static::reserveStudentNumber();
+            }
+        });
+
+        static::saved(function (User $user) {
+            if (filled($user->student_number)) {
+                DB::table('student_number_reservations')
+                    ->where('student_number', $user->student_number)
+                    ->whereNull('user_id')
+                    ->update([
+                        'user_id' => $user->id,
+                        'updated_at' => now(),
+                    ]);
             }
         });
     }
 
-    private static function generateStudentNumber(): string
+    private static function reserveStudentNumber(): string
     {
-        do {
+        for ($attempt = 0; $attempt < 1000; $attempt++) {
             $studentNumber = (string) random_int(100000, 999999);
-        } while (DB::table('users')->where('student_number', $studentNumber)->exists());
 
-        return $studentNumber;
+            if (DB::table('users')->where('student_number', $studentNumber)->exists()) {
+                continue;
+            }
+
+            $reserved = DB::table('student_number_reservations')->insertOrIgnore([
+                'student_number' => $studentNumber,
+                'user_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            if ($reserved === 1) {
+                return $studentNumber;
+            }
+        }
+
+        throw new \RuntimeException('Tidak dapat membuat ID siswa unik. Silakan coba kembali.');
     }
 
     /** @use HasFactory<UserFactory> */
