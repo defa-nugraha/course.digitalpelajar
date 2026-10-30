@@ -172,6 +172,7 @@ test('midtrans callback checks amount and activates enrollment only after valid 
         'gross_amount' => '499999.00',
         'transaction_status' => 'settlement',
         'status_code' => '200',
+        'signature_key' => 'mock-signature',
     ];
 
     $this->withHeader('X-Midtrans-Mock-Secret', 'test-webhook-secret')
@@ -211,6 +212,7 @@ test('midtrans notification acknowledges signed synthetic orders without changin
     config([
         'midtrans.is_enabled' => true,
         'midtrans.server_key' => 'SB-Mid-server-test-key',
+        'midtrans.merchant_id' => 'G123456789',
     ]);
 
     $payload = [
@@ -218,6 +220,8 @@ test('midtrans notification acknowledges signed synthetic orders without changin
         'gross_amount' => '10000.00',
         'transaction_status' => 'pending',
         'status_code' => '201',
+        'merchant_id' => 'G123456789',
+        'currency' => 'IDR',
     ];
     $payload['signature_key'] = hash(
         'sha512',
