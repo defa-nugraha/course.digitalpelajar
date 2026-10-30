@@ -41,11 +41,16 @@ class CourseBillController extends Controller
                 ->orderBy('title')
                 ->get(['id', 'title']),
             'bills' => CourseBill::query()
-                ->with(['student:id,name,email', 'course:id,title', 'payments' => fn ($query) => $query->latest('id')])
+                ->with([
+                    'student:id,name,email',
+                    'course:id,title',
+                    'payments' => fn ($query) => $query->latest('id'),
+                    'batchPayments' => fn ($query) => $query->latest('payments.id')->with('courseBills:id'),
+                ])
                 ->latest('created_at')
                 ->get()
                 ->map(function (CourseBill $bill) {
-                    $payment = $bill->payments->first();
+                    $payment = $bill->payments->concat($bill->batchPayments)->sortByDesc('id')->first();
 
                     return [
                         'id' => $bill->id,
@@ -62,8 +67,11 @@ class CourseBillController extends Controller
                         'checkoutUrl' => $payment?->checkout_url,
                         'orderId' => $payment?->order_id,
                         'createdAt' => $bill->created_at->format('d M Y'),
-                        'canDelete' => $bill->status !== 'paid' && ! $bill->payments->contains(fn (Payment $item) => $item->isPaid()),
-                        'canEdit' => $bill->status !== 'paid' && $bill->payments->isEmpty(),
+                        'canDelete' => $bill->status !== 'paid'
+                            && ! $bill->payments->concat($bill->batchPayments)->contains(fn (Payment $item) => $item->isPaid()),
+                        'canEdit' => $bill->status !== 'paid'
+                            && $bill->payments->isEmpty()
+                            && $bill->batchPayments->isEmpty(),
                     ];
                 }),
         ];
@@ -107,7 +115,7 @@ class CourseBillController extends Controller
     public function update(Request $request, CourseBill $courseBill): RedirectResponse
     {
         abort_if(
-            $courseBill->status === 'paid' || $courseBill->payments()->exists(),
+            $courseBill->status === 'paid' || $courseBill->payments()->exists() || $courseBill->batchPayments()->exists(),
             409,
             'Tagihan yang sudah memiliki transaksi pembayaran tidak dapat diedit.',
         );
@@ -129,7 +137,7 @@ class CourseBillController extends Controller
         DB::transaction(function () use ($request, $courseBill, $data, $course) {
             $lockedBill = CourseBill::query()->lockForUpdate()->findOrFail($courseBill->id);
             abort_if(
-                $lockedBill->status === 'paid' || $lockedBill->payments()->exists(),
+                $lockedBill->status === 'paid' || $lockedBill->payments()->exists() || $lockedBill->batchPayments()->exists(),
                 409,
                 'Tagihan yang sudah memiliki transaksi pembayaran tidak dapat diedit.',
             );
@@ -168,7 +176,8 @@ class CourseBillController extends Controller
         abort_unless($courseBill->student_id === $request->user()->id, 403);
         abort_unless($courseBill->status !== 'paid', 409, 'Tagihan ini sudah lunas.');
 
-        $payment = $courseBill->payments()->latest('id')->first();
+        $payment = $courseBill->payments()->latest('id')->first()
+            ?? $courseBill->batchPayments()->latest('payments.id')->first();
 
         if ($payment?->status === 'pending' && filled($payment->checkout_url)) {
             return Inertia::location($payment->checkout_url);
@@ -202,7 +211,9 @@ class CourseBillController extends Controller
     public function destroy(Request $request, CourseBill $courseBill): RedirectResponse
     {
         abort_if(
-            $courseBill->status === 'paid' || $courseBill->payments()->whereIn('status', ['paid', 'settlement', 'capture', 'success'])->exists(),
+            $courseBill->status === 'paid'
+                || $courseBill->payments()->whereIn('status', ['paid', 'settlement', 'capture', 'success'])->exists()
+                || $courseBill->batchPayments()->whereIn('payments.status', ['paid', 'settlement', 'capture', 'success'])->exists(),
             409,
             'Tagihan yang sudah dibayar tidak dapat dihapus.',
         );
@@ -214,7 +225,11 @@ class CourseBillController extends Controller
                 409,
                 'Tagihan yang sudah dibayar tidak dapat dihapus.',
             );
-            $paymentIds = $courseBill->payments()->pluck('id')->all();
+            $batchPaymentIds = $courseBill->batchPayments()->pluck('payments.id')->all();
+            $paymentIds = array_values(array_unique(array_merge(
+                $courseBill->payments()->pluck('id')->all(),
+                $batchPaymentIds,
+            )));
 
             AuditLogger::log('course_bill.deleted', $request->user(), $courseBill, [
                 'student_id' => $courseBill->student_id,
@@ -224,6 +239,14 @@ class CourseBillController extends Controller
 
             $courseBill->payments()->delete();
             $courseBill->delete();
+
+            foreach ($batchPaymentIds as $paymentId) {
+                $batchPayment = Payment::query()->find($paymentId);
+
+                if ($batchPayment && ! $batchPayment->courseBills()->exists()) {
+                    $batchPayment->delete();
+                }
+            }
         });
 
         return back()->with('success', 'Tagihan dan data pembayaran terkait berhasil dihapus dari akun siswa.');
@@ -232,12 +255,16 @@ class CourseBillController extends Controller
     public function studentIndex(Request $request): Response
     {
         $bills = CourseBill::query()
-            ->with(['course:id,title', 'payments' => fn ($query) => $query->latest('id')])
+            ->with([
+                'course:id,title',
+                'payments' => fn ($query) => $query->latest('id'),
+                'batchPayments' => fn ($query) => $query->latest('payments.id')->with('courseBills:id'),
+            ])
             ->where('student_id', $request->user()->id)
             ->latest('due_at')
             ->get()
             ->map(function (CourseBill $bill) {
-                $payment = $bill->payments->first();
+                $payment = $bill->payments->concat($bill->batchPayments)->sortByDesc('id')->first();
 
                 return [
                     'id' => $bill->id,
@@ -254,6 +281,7 @@ class CourseBillController extends Controller
 
         return Inertia::render('student/bills', [
             'bills' => $bills,
+            'studentNumber' => $request->user()->student_number,
         ]);
     }
 
