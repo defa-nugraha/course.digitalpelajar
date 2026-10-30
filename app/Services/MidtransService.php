@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Payment;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
@@ -96,9 +97,16 @@ class MidtransService
             return $payment->status;
         }
 
-        $response = Http::withBasicAuth(config('midtrans.server_key'), '')
-            ->acceptJson()
-            ->get(rtrim((string) config('midtrans.api_url'), '/').'/v2/'.rawurlencode($payment->order_id).'/status');
+        try {
+            $response = Http::withBasicAuth(config('midtrans.server_key'), '')
+                ->acceptJson()
+                ->connectTimeout(5)
+                ->timeout(10)
+                ->get(rtrim((string) config('midtrans.api_url'), '/').'/v2/'.rawurlencode($payment->order_id).'/status');
+        } catch (ConnectionException $exception) {
+            report($exception);
+            abort(502, 'Status pembayaran Midtrans belum dapat dihubungi. Silakan coba kembali.');
+        }
 
         if ($response->status() === 404) {
             return 'expired';
