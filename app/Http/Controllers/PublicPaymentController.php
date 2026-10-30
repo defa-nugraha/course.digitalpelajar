@@ -10,7 +10,6 @@ use App\Services\AuditLogger;
 use App\Services\MidtransService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -49,43 +48,45 @@ class PublicPaymentController extends Controller
             'otp' => ['nullable', 'digits:6'],
         ]);
 
+        $normalizedEmail = strtolower(trim($data['email']));
+        $emailHash = hash('sha256', $normalizedEmail);
         $student = User::query()
             ->where('role', 'student')
             ->where('status', 'active')
             ->where('student_number', $data['student_number'])
-            ->whereRaw('LOWER(email) = ?', [strtolower(trim($data['email']))])
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
             ->first();
 
-        $cacheKey = $student
-            ? $this->otpCacheKey($request, $student->id)
-            : null;
+        $otpRecord = $request->session()->get('public_payment_otp');
+        $otpBelongsToRequest = $student
+            && is_array($otpRecord)
+            && (int) ($otpRecord['student_id'] ?? 0) === $student->id
+            && hash_equals((string) ($otpRecord['student_number'] ?? ''), $student->student_number)
+            && hash_equals((string) ($otpRecord['email_hash'] ?? ''), $emailHash);
 
         if (blank($data['otp'] ?? null)) {
-            if ($student && $cacheKey) {
+            if ($student) {
                 $code = (string) random_int(100000, 999999);
                 $expiresAt = now()->addMinutes(5);
 
-                Cache::put($cacheKey, [
+                $request->session()->put('public_payment_otp', [
+                    'student_id' => $student->id,
+                    'student_number' => $student->student_number,
+                    'email_hash' => $emailHash,
                     'hash' => Hash::make($code),
                     'attempts' => 0,
                     'expires_at' => $expiresAt->timestamp,
-                ], $expiresAt);
+                ]);
 
                 try {
                     Notification::route('mail', $student->email)
                         ->notify(new PublicPaymentOtp($code));
                 } catch (Throwable $exception) {
-                    Cache::forget($cacheKey);
+                    $request->session()->forget('public_payment_otp');
                     report($exception);
-
-                    return Inertia::render('payments/public', [
-                        'studentNumber' => null,
-                        'searched' => false,
-                        'otpSent' => true,
-                        'otpError' => null,
-                        'bills' => [],
-                    ]);
                 }
+            } else {
+                $request->session()->forget('public_payment_otp');
             }
 
             return Inertia::render('payments/public', [
@@ -97,25 +98,20 @@ class PublicPaymentController extends Controller
             ]);
         }
 
-        $otpRecord = $cacheKey ? Cache::get($cacheKey) : null;
-        $isOtpValid = is_array($otpRecord)
+        $isOtpValid = $otpBelongsToRequest
             && (int) ($otpRecord['expires_at'] ?? 0) >= now()->timestamp
             && (int) ($otpRecord['attempts'] ?? 5) < 5
             && Hash::check((string) $data['otp'], (string) ($otpRecord['hash'] ?? ''));
 
-        if (! $isOtpValid || ! $student || ! $cacheKey) {
-            if (is_array($otpRecord) && $cacheKey) {
+        if (! $isOtpValid || ! $student) {
+            if ($otpBelongsToRequest) {
                 $attempts = (int) ($otpRecord['attempts'] ?? 0) + 1;
 
                 if ($attempts >= 5 || (int) ($otpRecord['expires_at'] ?? 0) < now()->timestamp) {
-                    Cache::forget($cacheKey);
+                    $request->session()->forget('public_payment_otp');
                 } else {
                     $otpRecord['attempts'] = $attempts;
-                    Cache::put(
-                        $cacheKey,
-                        $otpRecord,
-                        now()->addSeconds(max(1, (int) $otpRecord['expires_at'] - now()->timestamp)),
-                    );
+                    $request->session()->put('public_payment_otp', $otpRecord);
                 }
             }
 
@@ -128,7 +124,7 @@ class PublicPaymentController extends Controller
             ]);
         }
 
-        Cache::forget($cacheKey);
+        $request->session()->forget('public_payment_otp');
         $request->session()->regenerate();
         $request->session()->put('public_payment_identity', [
             'student_id' => $student->id,
@@ -156,11 +152,6 @@ class PublicPaymentController extends Controller
             'otpError' => null,
             'bills' => $bills,
         ]);
-    }
-
-    private function otpCacheKey(Request $request, int $studentId): string
-    {
-        return 'public-payment-otp:'.hash('sha256', $request->session()->getId().'|'.$studentId);
     }
 
     public function pay(Request $request, MidtransService $midtrans): \Symfony\Component\HttpFoundation\Response
