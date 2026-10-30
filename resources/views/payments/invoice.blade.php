@@ -100,14 +100,36 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>
-                        <div class="item-title">{{ $payment->course?->title ?? 'Kelas pembelajaran' }}</div>
-                        <div class="muted">Akses kelas digital</div>
-                    </td>
-                    <td style="text-align: center;">1</td>
-                    <td class="amount">Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
-                </tr>
+                @if($payment->courseBills->isNotEmpty())
+                    @foreach($payment->courseBills as $bill)
+                        <tr>
+                            <td>
+                                <div class="item-title">{{ $bill->title }}</div>
+                                <div class="muted">{{ $bill->course?->title ?? 'Kursus pembelajaran' }}</div>
+                            </td>
+                            <td style="text-align: center;">1</td>
+                            <td class="amount">Rp {{ number_format($bill->amount, 0, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                @elseif($payment->courseBill)
+                    <tr>
+                        <td>
+                            <div class="item-title">{{ $payment->courseBill->title }}</div>
+                            <div class="muted">{{ $payment->courseBill->course?->title ?? 'Kursus pembelajaran' }}</div>
+                        </td>
+                        <td style="text-align: center;">1</td>
+                        <td class="amount">Rp {{ number_format($payment->courseBill->amount, 0, ',', '.') }}</td>
+                    </tr>
+                @else
+                    <tr>
+                        <td>
+                            <div class="item-title">{{ $payment->course?->title ?? 'Kelas pembelajaran' }}</div>
+                            <div class="muted">Akses kelas digital</div>
+                        </td>
+                        <td style="text-align: center;">1</td>
+                        <td class="amount">Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
+                    </tr>
+                @endif
             </tbody>
         </table>
 
