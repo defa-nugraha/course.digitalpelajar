@@ -5,8 +5,48 @@ use App\Models\Course;
 use App\Models\CourseBill;
 use App\Models\Payment;
 use App\Models\User;
+use App\Notifications\PublicPaymentOtp;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
+
+
+function publicPaymentOtpLookup($test, User $student, ?string &$issuedCode = null): TestResponse
+{
+    Notification::fake();
+
+    $payload = [
+        'student_number' => $student->student_number,
+        'email' => $student->email,
+    ];
+
+    $test->post('/pembayaran/tagihan', $payload)
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('payments/public', false)
+            ->where('searched', false)
+            ->where('otpSent', true)
+            ->has('bills', 0));
+
+    $code = null;
+
+    Notification::assertSentOnDemand(
+        PublicPaymentOtp::class,
+        function (PublicPaymentOtp $notification, array $channels, object $notifiable) use (&$code): bool {
+            $code = $notification->code;
+
+            return in_array('mail', $channels, true);
+        },
+    );
+
+    expect($code)->not->toBeNull();
+    $issuedCode = $code;
+
+    return $test->post('/pembayaran/tagihan', [
+        ...$payload,
+        'otp' => $code,
+    ]);
+}
 
 test('student accounts receive unique six digit student numbers automatically', function () {
     $firstStudent = User::factory()->student()->create();
@@ -48,19 +88,18 @@ test('public payment lookup only returns outstanding bills belonging to the subm
             ->where('searched', false)
             ->has('bills', 0));
 
-    $this->post('/pembayaran/tagihan', [
-        'student_number' => $student->student_number,
-    ])->assertInertia(fn (Assert $page) => $page
+    publicPaymentOtpLookup($this, $student)->assertInertia(fn (Assert $page) => $page
         ->component('payments/public', false)
         ->where('studentNumber', $student->student_number)
         ->where('searched', true)
+        ->where('otpSent', false)
         ->has('bills', 1)
         ->where('bills.0.id', $bill->id)
         ->where('bills.0.title', 'Tagihan Robotika Oktober'));
 });
 
 test('public checkout creates one grouped payment and marks every selected bill paid', function () {
-    config(['midtrans.is_enabled' => false]);
+    config(['app.env' => 'testing', 'midtrans.is_enabled' => false, 'midtrans.mock_enabled' => true]);
 
     $student = User::factory()->student()->create();
     $course = Course::factory()->paid(250000)->create();
@@ -82,6 +121,8 @@ test('public checkout creates one grouped payment and marks every selected bill 
         'due_at' => now()->addDays(7)->toDateString(),
         'status' => 'pending',
     ]);
+
+    publicPaymentOtpLookup($this, $student)->assertOk();
 
     $response = $this->withHeader('X-Inertia', 'true')
         ->post('/pembayaran/bayar', [
@@ -124,7 +165,7 @@ test('public checkout creates one grouped payment and marks every selected bill 
 });
 
 test('public checkout rejects a bill that belongs to another student', function () {
-    config(['midtrans.is_enabled' => false]);
+    config(['app.env' => 'testing', 'midtrans.is_enabled' => false, 'midtrans.mock_enabled' => true]);
 
     $student = User::factory()->student()->create();
     $otherStudent = User::factory()->student()->create();
@@ -138,6 +179,8 @@ test('public checkout rejects a bill that belongs to another student', function 
         'due_at' => now()->addDays(7)->toDateString(),
         'status' => 'pending',
     ]);
+
+    publicPaymentOtpLookup($this, $student)->assertOk();
 
     $this->post('/pembayaran/bayar', [
         'student_number' => $student->student_number,
@@ -191,6 +234,8 @@ test('public checkout creates a fresh payment when the previous Midtrans Snap ha
         ], 201),
     ]);
 
+    publicPaymentOtpLookup($this, $student)->assertOk();
+
     $this->withHeader('X-Inertia', 'true')
         ->post('/pembayaran/bayar', [
             'student_number' => $student->student_number,
@@ -207,4 +252,304 @@ test('public checkout creates a fresh payment when the previous Midtrans Snap ha
         ->and($newPayment->amount)->toBe(125000);
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/v2/OLD-ORDER-123/status'));
+});
+
+
+test('public bill lookup requires the student number and registered email together', function () {
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+
+    $bill = CourseBill::query()->create([
+        'student_id' => $student->id,
+        'course_id' => $course->id,
+        'title' => 'Tagihan Terverifikasi',
+        'amount' => 175000,
+        'due_at' => now()->addDays(7)->toDateString(),
+        'status' => 'pending',
+    ]);
+
+    $this->post('/pembayaran/tagihan', [
+        'student_number' => $student->student_number,
+        'email' => 'not-the-registered-email@example.test',
+    ])->assertInertia(fn (Assert $page) => $page
+        ->component('payments/public', false)
+        ->where('studentNumber', null)
+        ->where('searched', true)
+        ->has('bills', 0));
+
+    $this->post('/pembayaran/bayar', [
+        'student_number' => $student->student_number,
+        'bill_ids' => [$bill->id],
+    ])->assertForbidden();
+
+    expect(Payment::query()->exists())->toBeFalse();
+});
+
+test('public checkout rejects requests without a recent server-side identity verification', function () {
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+    $bill = CourseBill::query()->create([
+        'student_id' => $student->id,
+        'course_id' => $course->id,
+        'title' => 'Tagihan Tanpa Verifikasi',
+        'amount' => 125000,
+        'due_at' => now()->addDays(7)->toDateString(),
+        'status' => 'pending',
+    ]);
+
+    $this->post('/pembayaran/bayar', [
+        'student_number' => $student->student_number,
+        'bill_ids' => [$bill->id],
+    ])->assertForbidden();
+
+    expect(Payment::query()->exists())->toBeFalse();
+});
+
+test('production never enables the public mock payment flow even when its flag is forced on', function () {
+    config([
+        'app.env' => 'production',
+        'midtrans.is_enabled' => false,
+        'midtrans.mock_enabled' => true,
+    ]);
+
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+    $bill = CourseBill::query()->create([
+        'student_id' => $student->id,
+        'course_id' => $course->id,
+        'title' => 'Tagihan Production',
+        'amount' => 125000,
+        'due_at' => now()->addDays(7)->toDateString(),
+        'status' => 'pending',
+    ]);
+
+    $this->post('/pembayaran/bayar', [
+        'student_number' => $student->student_number,
+        'bill_ids' => [$bill->id],
+    ])->assertStatus(503);
+
+    $mockUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+        'payments.public-mock-checkout',
+        now()->addMinutes(5),
+        ['order' => 'ORDER-NOT-REAL'],
+    );
+
+    $this->get($mockUrl)->assertNotFound();
+
+    expect(Payment::query()->exists())->toBeFalse();
+});
+
+test('webhook rejects a paid status without status code 200 and does not accept fraud denial', function () {
+    config([
+        'midtrans.is_enabled' => false,
+        'midtrans.mock_notification_secret' => 'test-notification-secret',
+    ]);
+
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+    $bill = CourseBill::query()->create([
+        'student_id' => $student->id,
+        'course_id' => $course->id,
+        'title' => 'Tagihan Proteksi Webhook',
+        'amount' => 125000,
+        'due_at' => now()->addDays(7)->toDateString(),
+        'status' => 'pending',
+    ]);
+    $payment = Payment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'course_bill_id' => $bill->id,
+        'amount' => 125000,
+        'status' => 'pending',
+    ]);
+
+    $payload = [
+        'order_id' => $payment->order_id,
+        'gross_amount' => '125000.00',
+        'transaction_status' => 'settlement',
+        'status_code' => '201',
+        'signature_key' => 'mock-signature',
+        'currency' => 'IDR',
+    ];
+
+    $this->withHeader('X-Midtrans-Mock-Secret', 'test-notification-secret')
+        ->postJson('/payments/midtrans/notification', $payload)
+        ->assertForbidden();
+
+    expect($payment->fresh()->status)->toBe('pending')
+        ->and($bill->fresh()->status)->toBe('pending');
+
+    $payload['status_code'] = '200';
+    $payload['fraud_status'] = 'deny';
+
+    $this->postJson('/payments/midtrans/notification', $payload)->assertOk();
+
+    expect($payment->fresh()->status)->toBe('failed')
+        ->and($bill->fresh()->status)->toBe('pending');
+});
+
+test('delayed webhook notifications cannot downgrade a paid course bill payment', function () {
+    config([
+        'midtrans.is_enabled' => false,
+        'midtrans.mock_notification_secret' => 'test-notification-secret',
+    ]);
+
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+    $bill = CourseBill::query()->create([
+        'student_id' => $student->id,
+        'course_id' => $course->id,
+        'title' => 'Tagihan Idempoten',
+        'amount' => 125000,
+        'due_at' => now()->addDays(7)->toDateString(),
+        'status' => 'pending',
+    ]);
+    $payment = Payment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'course_bill_id' => $bill->id,
+        'amount' => 125000,
+        'status' => 'pending',
+    ]);
+
+    $headers = ['X-Midtrans-Mock-Secret' => 'test-notification-secret'];
+
+    $this->withHeaders($headers)->postJson('/payments/midtrans/notification', [
+        'order_id' => $payment->order_id,
+        'gross_amount' => '125000.00',
+        'transaction_status' => 'settlement',
+        'status_code' => '200',
+        'signature_key' => 'mock-signature',
+        'fraud_status' => 'accept',
+        'currency' => 'IDR',
+    ])->assertOk();
+
+    $paidAt = $payment->fresh()->paid_at;
+
+    $this->withHeaders($headers)->postJson('/payments/midtrans/notification', [
+        'order_id' => $payment->order_id,
+        'gross_amount' => '125000.00',
+        'transaction_status' => 'expire',
+        'status_code' => '407',
+        'signature_key' => 'mock-signature',
+        'currency' => 'IDR',
+    ])->assertOk();
+
+    expect($payment->fresh()->status)->toBe('paid')
+        ->and($payment->fresh()->paid_at->equalTo($paidAt))->toBeTrue()
+        ->and($bill->fresh()->status)->toBe('paid');
+});
+
+
+test('public payment lookup does not reveal whether an ID and email pair exists', function () {
+    Notification::fake();
+
+    $student = User::factory()->student()->create();
+
+    $this->post('/pembayaran/tagihan', [
+        'student_number' => $student->student_number,
+        'email' => 'different@example.test',
+    ])->assertInertia(fn (Assert $page) => $page
+        ->component('payments/public', false)
+        ->where('searched', false)
+        ->where('studentNumber', null)
+        ->where('otpSent', true)
+        ->has('bills', 0));
+
+    Notification::assertNothingSent();
+
+    $this->post('/pembayaran/tagihan', [
+        'student_number' => $student->student_number,
+        'email' => 'different@example.test',
+        'otp' => '123456',
+    ])->assertInertia(fn (Assert $page) => $page
+        ->component('payments/public', false)
+        ->where('searched', false)
+        ->where('otpSent', true)
+        ->has('bills', 0));
+
+    $this->post('/pembayaran/bayar', [
+        'student_number' => $student->student_number,
+        'bill_ids' => [1],
+    ])->assertForbidden();
+});
+
+test('public email verification codes expire after five minutes', function () {
+    Notification::fake();
+
+    $student = User::factory()->student()->create();
+    $payload = [
+        'student_number' => $student->student_number,
+        'email' => $student->email,
+    ];
+
+    $this->post('/pembayaran/tagihan', $payload)
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('payments/public', false)
+            ->where('otpSent', true)
+            ->where('searched', false));
+
+    $code = null;
+
+    Notification::assertSentOnDemand(
+        PublicPaymentOtp::class,
+        function (PublicPaymentOtp $notification, array $channels, object $notifiable) use (&$code): bool {
+            $code = $notification->code;
+
+            return in_array('mail', $channels, true);
+        },
+    );
+
+    expect($code)->not->toBeNull();
+
+    $this->travel(6)->minutes();
+
+    $this->post('/pembayaran/tagihan', [
+        ...$payload,
+        'otp' => $code,
+    ])->assertInertia(fn (Assert $page) => $page
+        ->component('payments/public', false)
+        ->where('otpSent', true)
+        ->where('searched', false)
+        ->where('otpError', 'Kode tidak valid atau kedaluwarsa. Periksa kembali kode atau minta kode baru.')
+        ->has('bills', 0));
+
+    $this->post('/pembayaran/bayar', [
+        'student_number' => $student->student_number,
+        'bill_ids' => [1],
+    ])->assertForbidden();
+});
+
+test('a public email verification code cannot be replayed after successful use', function () {
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+
+    CourseBill::query()->create([
+        'student_id' => $student->id,
+        'course_id' => $course->id,
+        'title' => 'Tagihan Kode Sekali Pakai',
+        'amount' => 125000,
+        'due_at' => now()->addDays(7)->toDateString(),
+        'status' => 'pending',
+    ]);
+
+    $code = null;
+    $verified = publicPaymentOtpLookup($this, $student, $code);
+
+    $verified->assertInertia(fn (Assert $page) => $page
+        ->component('payments/public', false)
+        ->where('searched', true)
+        ->where('otpSent', false)
+        ->has('bills', 1));
+
+    // A successful OTP is removed from cache; a second lookup cannot reuse it.
+    $this->post('/pembayaran/tagihan', [
+        'student_number' => $student->student_number,
+        'email' => $student->email,
+        'otp' => $code,
+    ])->assertInertia(fn (Assert $page) => $page
+        ->component('payments/public', false)
+        ->where('searched', false)
+        ->where('otpSent', true)
+        ->has('bills', 0));
 });
