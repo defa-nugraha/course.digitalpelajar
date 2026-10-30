@@ -37,15 +37,15 @@ interface Props {
 }
 
 const paymentLogoSources = {
-    qris: 'https://upload.wikimedia.org/wikipedia/commons/e/e1/QRIS_logo.svg',
+    qris: 'https://upload.wikimedia.org/wikipedia/commons/e/e0/QRIS_Logo.svg',
     gopay: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/GoPay_logo.svg',
     alfamart: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Alfamart_logo.svg',
     indomaret: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Indomaret.svg',
     banks: {
-        bca: 'https://commons.wikimedia.org/wiki/Special:FilePath/Bank_Central_Asia.svg',
-        bni: 'https://commons.wikimedia.org/wiki/Special:FilePath/Bank_Negara_Indonesia_logo_(2004).svg',
-        bri: 'https://commons.wikimedia.org/wiki/Special:FilePath/BRI_2025.svg',
-        mandiri: 'https://commons.wikimedia.org/wiki/Special:FilePath/Bank_Mandiri_logo_2016.svg',
+        bca: 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Bank_Central_Asia.svg',
+        bni: 'https://upload.wikimedia.org/wikipedia/commons/f/f0/Bank_Negara_Indonesia_logo_%282004%29.svg',
+        bri: 'https://upload.wikimedia.org/wikipedia/commons/5/59/BRI_2025.svg',
+        mandiri: 'https://upload.wikimedia.org/wikipedia/commons/a/ad/Bank_Mandiri_logo_2016.svg',
     },
 };
 
