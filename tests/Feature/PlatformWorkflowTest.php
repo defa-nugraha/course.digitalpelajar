@@ -390,6 +390,13 @@ test('course bill creates Midtrans payment only when student starts payment and 
 
     expect(Payment::query()->where('course_bill_id', $bill->id)->exists())->toBeFalse();
 
+    $this->actingAs($admin)
+        ->get('/admin/payments')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/payments', false)
+            ->where('bills.0.id', $bill->id)
+            ->where('bills.0.checkoutUrl', null));
+
     $this->actingAs($student)
         ->get('/student/bills')
         ->assertInertia(fn (Assert $page) => $page
