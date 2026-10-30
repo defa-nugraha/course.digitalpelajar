@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CourseBill extends Model
@@ -43,6 +44,11 @@ class CourseBill extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function batchPayments(): BelongsToMany
+    {
+        return $this->belongsToMany(Payment::class, 'course_bill_payment')->withTimestamps();
     }
 
     public function latestPayment(): ?Payment
