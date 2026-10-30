@@ -18,6 +18,20 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PaymentController extends Controller
 {
+    public function destroy(Request $request, Payment $payment): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        abort_if($payment->isPaid(), 409, 'Pembayaran yang sudah paid tidak dapat dihapus.');
+
+        DB::transaction(function () use ($payment) {
+            $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+            abort_if($lockedPayment->isPaid(), 409, 'Pembayaran yang sudah paid tidak dapat dihapus.');
+            $lockedPayment->delete();
+        });
+
+        return to_route('admin.payments')->with('success', 'Data pembayaran berhasil dihapus.');
+    }
+
     /** Resume a pending payment after ownership and status checks on the server. */
     public function continuePayment(Request $request, Payment $payment): RedirectResponse
     {
