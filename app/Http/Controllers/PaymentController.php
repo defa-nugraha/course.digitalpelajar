@@ -13,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class PaymentController extends Controller
@@ -159,11 +160,11 @@ class PaymentController extends Controller
             ]);
         }
 
-        abort_unless(
-            $this->grossAmountMatches((string) $payload['gross_amount'], $payment->amount),
-            422,
-            'Nominal callback tidak cocok dengan order.',
-        );
+        if (! $this->grossAmountMatches((string) $payload['gross_amount'], $payment->amount)) {
+            throw ValidationException::withMessages([
+                'gross_amount' => 'Nominal callback tidak cocok dengan order.',
+            ]);
+        }
 
         $status = $midtrans->mapStatus(
             strtolower((string) $payload['transaction_status']),
