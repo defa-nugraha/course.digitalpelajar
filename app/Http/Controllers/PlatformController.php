@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\CourseBillController;
 
 use App\Models\ContentBlock;
 use App\Models\Course;
