@@ -64,6 +64,8 @@ export default function Payments({ payments, students, courses, bills }: Props) 
     const [status, setStatus] = useState('all');
     const [billsOpen, setBillsOpen] = useState(false);
     const [editingBillId, setEditingBillId] = useState<number | null>(null);
+    const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<{ type: 'bill' | 'payment'; id: number; label: string } | null>(null);
     const form = useForm({
         student_id: '',
         course_id: '',
@@ -93,6 +95,10 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                 form.reset();
                 setEditingBillId(null);
                 setBillsOpen(false);
+                toast.success(editingBillId === null ? 'Tagihan kursus berhasil dibuat.' : 'Tagihan kursus berhasil diperbarui.');
+            },
+            onError: () => {
+                toast.error(editingBillId === null ? 'Tagihan kursus gagal dibuat.' : 'Tagihan kursus gagal diperbarui. Periksa kembali data yang diisi.');
             },
         };
 
@@ -144,9 +150,34 @@ export default function Payments({ payments, students, courses, bills }: Props) 
 
     const deleteBill = (bill: BillRow) => {
         if (!bill.canDelete) return;
-        if (window.confirm('Hapus tagihan ini beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.')) {
-            router.delete(`/admin/course-bills/${bill.id}`);
-        }
+        setPendingDelete({ type: 'bill', id: bill.id, label: bill.title });
+        setDeleteConfirmationOpen(true);
+    };
+
+    const deletePayment = (payment: PaymentRow) => {
+        if (['paid', 'settlement', 'capture', 'success'].includes(payment.status)) return;
+        setPendingDelete({ type: 'payment', id: payment.id, label: payment.orderId });
+        setDeleteConfirmationOpen(true);
+    };
+
+    const confirmDelete = () => {
+        if (!pendingDelete) return;
+        const target = pendingDelete;
+        const url = target.type === 'bill' ? `/admin/course-bills/${target.id}` : `/admin/payments/${target.id}`;
+
+        router.delete(url, {
+            onSuccess: () => {
+                toast.success(target.type === 'bill' ? 'Tagihan kursus berhasil dihapus.' : 'Data riwayat transaksi berhasil dihapus.');
+                setDeleteConfirmationOpen(false);
+                setPendingDelete(null);
+            },
+            onError: () => {
+                toast.error(target.type === 'bill' ? 'Tagihan kursus gagal dihapus.' : 'Data riwayat transaksi gagal dihapus.');
+            },
+            onFinish: () => {
+                // Inertia exposes server validation and authorization failures through onError.
+            },
+        });
     };
 
     const actions = (payment: PaymentRow, compact = false) => {
@@ -189,11 +220,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                     disabled={isPaid}
                     title={isPaid ? 'Pembayaran paid tidak dapat dihapus' : 'Hapus pembayaran'}
                     aria-label="Hapus pembayaran"
-                    onClick={() => {
-                        if (!isPaid && window.confirm('Hapus data pembayaran ini? Tagihan kursus tetap tersedia dan pembayaran dapat dibuat kembali.')) {
-                            router.delete(`/admin/payments/${payment.id}`);
-                        }
-                    }}
+                    onClick={() => deletePayment(payment)}
                 >
                     <Trash2 className="size-4" />
                     {compact && 'Hapus'}
@@ -298,6 +325,32 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                     />
                                 ))}
                             </MobileCardList>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+                <Dialog
+                    open={deleteConfirmationOpen}
+                    onOpenChange={(open) => {
+                        setDeleteConfirmationOpen(open);
+                        if (!open) setPendingDelete(null);
+                    }}
+                >
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Konfirmasi penghapusan</DialogTitle>
+                            <DialogDescription>
+                                {pendingDelete?.type === 'bill'
+                                    ? `Yakin ingin menghapus tagihan “${pendingDelete.label}” beserta data pembayaran terkait? Tindakan ini tidak dapat dibatalkan.`
+                                    : `Yakin ingin menghapus transaksi “${pendingDelete?.label ?? ''}”? Tagihan kursus tetap tersedia dan pembayaran dapat dibuat kembali.`}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => setDeleteConfirmationOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button type="button" variant="destructive" onClick={confirmDelete}>
+                                Ya, hapus
+                            </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
