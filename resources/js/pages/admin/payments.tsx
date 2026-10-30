@@ -39,6 +39,7 @@ interface BillRow {
     id: number;
     studentId: number;
     courseId: number;
+    amount: number;
     title: string;
     student: string;
     email: string;
@@ -110,7 +111,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
             student_id: String(bill.studentId),
             course_id: String(bill.courseId),
             title: bill.title,
-            amount: String(Number(bill.amountLabel.replace(/[^0-9]/g, '')) || ''),
+            amount: String(bill.amount),
             due_at: bill.dueAt,
         });
         setBillsOpen(true);
