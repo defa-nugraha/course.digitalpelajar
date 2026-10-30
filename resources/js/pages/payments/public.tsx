@@ -41,6 +41,12 @@ const paymentLogoSources = {
     gopay: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/GoPay_logo.svg',
     alfamart: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Alfamart_logo.svg',
     indomaret: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Indomaret.svg',
+    banks: {
+        bca: 'https://raw.githubusercontent.com/hafidznoor/idn-finlogos/main/icons/bca.svg',
+        bni: 'https://raw.githubusercontent.com/hafidznoor/idn-finlogos/main/icons/bni.svg',
+        bri: 'https://raw.githubusercontent.com/hafidznoor/idn-finlogos/main/icons/bri.svg',
+        mandiri: 'https://raw.githubusercontent.com/hafidznoor/idn-finlogos/main/icons/mandiri.svg',
+    },
 };
 
 export default function PublicPayment({ studentNumber, searched, bills }: Props) {
@@ -412,12 +418,19 @@ export default function PublicPayment({ studentNumber, searched, bills }: Props)
                                     <PaymentMethod name="GoPay" image={paymentLogoSources.gopay} imageClassName="max-w-[86px]" />
                                     <PaymentMethod name="Alfamart" image={paymentLogoSources.alfamart} imageClassName="max-w-[88px]" />
                                     <PaymentMethod name="Indomaret" image={paymentLogoSources.indomaret} imageClassName="max-w-[88px]" />
-                                    <PaymentMethod name="Transfer bank" />
+                                    <PaymentMethod
+                                        name="Transfer bank"
+                                        bankLogos={[
+                                            { name: 'BCA', src: paymentLogoSources.banks.bca },
+                                            { name: 'BNI', src: paymentLogoSources.banks.bni },
+                                            { name: 'BRI', src: paymentLogoSources.banks.bri },
+                                            { name: 'Mandiri', src: paymentLogoSources.banks.mandiri },
+                                        ]}
+                                    />
                                 </div>
                                 <p className="mt-3 text-[11px] leading-5 text-slate-500">
                                     Ketersediaan setiap metode mengikuti aktivasi pada akun merchant dan dapat berbeda
-                                    pada halaman checkout. Logo: Wikimedia Commons, sumber QRIS Bank Indonesia dan
-                                    GoPay, Alfamart, serta Indomaret.
+                                    pada halaman checkout. Logo: Wikimedia Commons (QRIS, GoPay, Alfamart, Indomaret) dan idn-finlogos (BCA, BNI, BRI, Mandiri).
                                 </p>
                                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-medium text-blue-700">
                                     <a href="https://commons.wikimedia.org/wiki/File:QRIS_logo.svg" target="_blank" rel="noreferrer">
@@ -431,6 +444,9 @@ export default function PublicPayment({ studentNumber, searched, bills }: Props)
                                     </a>
                                     <a href="https://commons.wikimedia.org/wiki/File:Indomaret.svg" target="_blank" rel="noreferrer">
                                         Indomaret
+                                    </a>
+                                    <a href="https://github.com/hafidznoor/idn-finlogos" target="_blank" rel="noreferrer">
+                                        Logo bank
                                     </a>
                                 </div>
                             </div>
@@ -447,15 +463,29 @@ function PaymentMethod({
     name,
     image,
     imageClassName,
+    bankLogos,
 }: {
     name: string;
     image?: string;
     imageClassName?: string;
+    bankLogos?: { name: string; src: string }[];
 }) {
     return (
         <div className="flex min-h-[76px] min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-3">
             <div className="flex h-8 w-full items-center justify-center">
-                {image ? (
+                {bankLogos?.length ? (
+                    <div className="flex w-full items-center justify-center gap-1.5">
+                        {bankLogos.map((bank) => (
+                            <img
+                                key={bank.name}
+                                src={bank.src}
+                                alt={'Logo ' + bank.name}
+                                loading="lazy"
+                                className="max-h-5 w-auto max-w-[30px] object-contain"
+                            />
+                        ))}
+                    </div>
+                ) : image ? (
                     <img
                         src={image}
                         alt={'Logo ' + name}
