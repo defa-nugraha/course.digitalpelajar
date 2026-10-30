@@ -42,10 +42,10 @@ const paymentLogoSources = {
     alfamart: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Alfamart_logo.svg',
     indomaret: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Indomaret.svg',
     banks: {
-        bca: 'https://raw.githubusercontent.com/hafidznoor/idn-finlogos/main/icons/bca.svg',
-        bni: 'https://raw.githubusercontent.com/hafidznoor/idn-finlogos/main/icons/bni.svg',
-        bri: 'https://raw.githubusercontent.com/hafidznoor/idn-finlogos/main/icons/bri.svg',
-        mandiri: 'https://raw.githubusercontent.com/hafidznoor/idn-finlogos/main/icons/mandiri.svg',
+        bca: 'https://commons.wikimedia.org/wiki/Special:FilePath/Bank_Central_Asia.svg',
+        bni: 'https://commons.wikimedia.org/wiki/Special:FilePath/Bank_Negara_Indonesia_logo_(2004).svg',
+        bri: 'https://commons.wikimedia.org/wiki/Special:FilePath/BRI_2025.svg',
+        mandiri: 'https://commons.wikimedia.org/wiki/Special:FilePath/Bank_Mandiri_logo_2016.svg',
     },
 };
 
@@ -430,7 +430,8 @@ export default function PublicPayment({ studentNumber, searched, bills }: Props)
                                 </div>
                                 <p className="mt-3 text-[11px] leading-5 text-slate-500">
                                     Ketersediaan setiap metode mengikuti aktivasi pada akun merchant dan dapat berbeda
-                                    pada halaman checkout. Logo: Wikimedia Commons (QRIS, GoPay, Alfamart, Indomaret) dan idn-finlogos (BCA, BNI, BRI, Mandiri).
+                                    pada halaman checkout. Referensi logo: Wikimedia Commons. Logo merupakan merek masing-masing
+                                    penyedia dan ditampilkan hanya sebagai identifikasi metode pembayaran.
                                 </p>
                                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-medium text-blue-700">
                                     <a href="https://commons.wikimedia.org/wiki/File:QRIS_logo.svg" target="_blank" rel="noreferrer">
@@ -445,8 +446,17 @@ export default function PublicPayment({ studentNumber, searched, bills }: Props)
                                     <a href="https://commons.wikimedia.org/wiki/File:Indomaret.svg" target="_blank" rel="noreferrer">
                                         Indomaret
                                     </a>
-                                    <a href="https://github.com/hafidznoor/idn-finlogos" target="_blank" rel="noreferrer">
-                                        Logo bank
+                                    <a href="https://commons.wikimedia.org/wiki/File:Bank_Central_Asia.svg" target="_blank" rel="noreferrer">
+                                        BCA
+                                    </a>
+                                    <a href="https://commons.wikimedia.org/wiki/File:Bank_Negara_Indonesia_logo_(2004).svg" target="_blank" rel="noreferrer">
+                                        BNI
+                                    </a>
+                                    <a href="https://commons.wikimedia.org/wiki/File:BRI_2025.svg" target="_blank" rel="noreferrer">
+                                        BRI
+                                    </a>
+                                    <a href="https://commons.wikimedia.org/wiki/File:Bank_Mandiri_logo_2016.svg" target="_blank" rel="noreferrer">
+                                        Mandiri
                                     </a>
                                 </div>
                             </div>
