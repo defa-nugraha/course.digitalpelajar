@@ -43,14 +43,14 @@ test('public payment lookup only returns outstanding bills belonging to the subm
 
     $this->get('/pembayaran')
         ->assertInertia(fn (Assert $page) => $page
-            ->component('payments/public')
+            ->component('payments/public', false)
             ->where('searched', false)
             ->has('bills', 0));
 
     $this->post('/pembayaran/tagihan', [
         'student_number' => $student->student_number,
     ])->assertInertia(fn (Assert $page) => $page
-        ->component('payments/public')
+        ->component('payments/public', false)
         ->where('studentNumber', $student->student_number)
         ->where('searched', true)
         ->has('bills', 1)
@@ -99,8 +99,8 @@ test('public checkout creates one grouped payment and marks every selected bill 
         ->toEqualCanonicalizing([$firstBill->id, $secondBill->id]);
 
     $mockUrl = $response->headers->get('X-Inertia-Location');
-    $mockPage = $this->get($mockUrl)->assertInertia(fn (Assert $page) => $page
-        ->component('payments/mock-checkout')
+    $mockPage = $this->withHeader('X-Inertia', 'true')->get($mockUrl)->assertInertia(fn (Assert $page) => $page
+        ->component('payments/mock-checkout', false)
         ->where('payment.amount', 250000)
         ->where('payment.type', 'Tagihan kursus'));
 
