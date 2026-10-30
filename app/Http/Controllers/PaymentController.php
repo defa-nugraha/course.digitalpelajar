@@ -29,7 +29,7 @@ class PaymentController extends Controller
             $lockedPayment->delete();
         });
 
-        return to_route('admin.payments')->with('success', 'Data pembayaran berhasil dihapus.');
+        return back()->with('success', 'Data pembayaran berhasil dihapus.');
     }
 
     /** Resume a pending payment after ownership and status checks on the server. */
