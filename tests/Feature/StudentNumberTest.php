@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 test('student numbers are unique six digit identifiers and are reserved to their account', function () {
     $firstStudent = User::factory()->student()->create();
@@ -23,7 +24,7 @@ test('a student number cannot be changed after account creation', function () {
     $student->student_number = '100001';
 
     expect(fn () => $student->save())
-        ->toThrow(\LogicException::class, 'ID siswa bersifat permanen');
+        ->toThrow(LogicException::class, 'ID siswa bersifat permanen');
 
     expect($student->fresh()->student_number)->toBe($originalNumber);
 });
