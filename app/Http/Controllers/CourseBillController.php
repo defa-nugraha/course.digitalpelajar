@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\MidtransService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,8 @@ class CourseBillController extends Controller
 
                     return [
                         'id' => $bill->id,
+                        'studentId' => $bill->student_id,
+                        'courseId' => $bill->course_id,
                         'title' => $bill->title,
                         'student' => $bill->student->name,
                         'email' => $bill->student->email,
@@ -60,6 +63,7 @@ class CourseBillController extends Controller
                         'orderId' => $payment?->order_id,
                         'createdAt' => $bill->created_at->format('d M Y'),
                         'canDelete' => $bill->status !== 'paid' && ! $bill->payments->contains(fn (Payment $item) => $item->isPaid()),
+                        'canEdit' => $bill->status !== 'paid' && $bill->payments->isEmpty(),
                     ];
                 }),
         ];
@@ -98,6 +102,65 @@ class CourseBillController extends Controller
         ]);
 
         return to_route('admin.payments')->with('success', 'Tagihan berhasil dibuat. Tautan Midtrans akan dibuat saat siswa menekan tombol bayar.');
+    }
+
+    public function update(Request $request, CourseBill $courseBill): RedirectResponse
+    {
+        abort_if(
+            $courseBill->status === 'paid' || $courseBill->payments()->exists(),
+            409,
+            'Tagihan yang sudah memiliki transaksi pembayaran tidak dapat diedit.',
+        );
+
+        $data = $request->validate([
+            'student_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'id')->where('role', 'student')->where('status', 'active'),
+            ],
+            'course_id' => ['required', 'integer', 'exists:courses,id'],
+            'title' => ['required', 'string', 'max:160'],
+            'amount' => ['required', 'integer', 'min:1000', 'max:1000000000'],
+            'due_at' => ['required', 'date', 'after_or_equal:today'],
+        ]);
+
+        $course = Course::query()->where('status', 'published')->findOrFail($data['course_id']);
+
+        DB::transaction(function () use ($request, $courseBill, $data, $course) {
+            $lockedBill = CourseBill::query()->lockForUpdate()->findOrFail($courseBill->id);
+            abort_if(
+                $lockedBill->status === 'paid' || $lockedBill->payments()->exists(),
+                409,
+                'Tagihan yang sudah memiliki transaksi pembayaran tidak dapat diedit.',
+            );
+
+            $lockedBill->update([
+                'student_id' => $data['student_id'],
+                'course_id' => $course->id,
+                'title' => $data['title'],
+                'amount' => $data['amount'],
+                'due_at' => $data['due_at'],
+            ]);
+
+            AuditLogger::log('course_bill.updated', $request->user(), $lockedBill, [
+                'student_id' => $lockedBill->student_id,
+                'course_id' => $lockedBill->course_id,
+                'amount' => $lockedBill->amount,
+                'due_at' => $lockedBill->due_at->toDateString(),
+            ]);
+        });
+
+        return to_route('admin.payments')->with('success', 'Tagihan berhasil diperbarui.');
+    }
+
+    public function invoice(Request $request, CourseBill $courseBill): \Symfony\Component\HttpFoundation\Response
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $courseBill->load(['student.school', 'course']);
+
+        return Pdf::loadView('payments.course-bill-invoice', [
+            'bill' => $courseBill,
+        ])->download('invoice-tagihan-'.$courseBill->id.'.pdf');
     }
 
     public function pay(Request $request, CourseBill $courseBill, MidtransService $midtrans): \Symfony\Component\HttpFoundation\Response
