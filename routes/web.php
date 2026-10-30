@@ -21,6 +21,7 @@ use App\Http\Controllers\InstructorPayrollController;
 use App\Http\Controllers\LearningActionController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PublicPaymentController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StudentTeachingAttendanceController;
@@ -48,6 +49,20 @@ Route::get('robots.txt', [PlatformController::class, 'robots'])->name('robots');
 Route::get('certificates/verify', [PlatformController::class, 'verifyCertificate'])->name('certificates.verify');
 Route::get('certificates/{certificate}/qr', [CertificateController::class, 'qr'])->name('certificates.qr');
 Route::post('payments/midtrans/notification', [PaymentController::class, 'notification'])->name('payments.notification');
+
+Route::get('pembayaran', [PublicPaymentController::class, 'index'])->name('public-payments.index');
+Route::post('pembayaran/tagihan', [PublicPaymentController::class, 'lookup'])
+    ->middleware('throttle:5,1')
+    ->name('public-payments.lookup');
+Route::post('pembayaran/bayar', [PublicPaymentController::class, 'pay'])
+    ->middleware('throttle:5,1')
+    ->name('public-payments.pay');
+Route::get('payments/mock-checkout/public', [PublicPaymentController::class, 'mockCheckout'])
+    ->middleware('signed')
+    ->name('payments.public-mock-checkout');
+Route::post('payments/mock-checkout/public/{payment}', [PublicPaymentController::class, 'mockSettle'])
+    ->middleware('signed')
+    ->name('payments.public-mock-settle');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [PlatformController::class, 'roleDashboard'])->name('dashboard');
