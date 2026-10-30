@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 class MidtransService
@@ -19,16 +20,22 @@ class MidtransService
      */
     public function createTransaction(Payment $payment): array
     {
-        $payment->loadMissing('course', 'storeOrder.items', 'courseBill', 'user');
+        $payment->loadMissing('course', 'storeOrder.items', 'courseBill', 'courseBills.course', 'user');
 
         if (! config('midtrans.is_enabled')) {
             $token = 'mock-snap-'.$payment->order_id;
 
             Log::info('Midtrans mock transaction created', ['order_id' => $payment->order_id]);
 
+            $checkoutUrl = $payment->course_bill_id || $payment->courseBills->isNotEmpty()
+                ? URL::temporarySignedRoute('payments.public-mock-checkout', now()->addHours(2), [
+                    'order' => $payment->order_id,
+                ])
+                : url('/payments/mock-checkout?order='.$payment->order_id);
+
             return [
                 'snap_token' => $token,
-                'checkout_url' => url('/payments/mock-checkout?order='.$payment->order_id),
+                'checkout_url' => $checkoutUrl,
             ];
         }
 
@@ -39,12 +46,19 @@ class MidtransService
                 'price' => $item->unit_price,
                 'quantity' => $item->quantity,
             ])->values()->all()
-            : [[
-                'id' => 'course-'.$payment->course_id,
-                'name' => Str::limit($payment->courseBill?->title ?? $payment->course->title, 50, ''),
-                'price' => $payment->amount,
-                'quantity' => 1,
-            ]];
+            : ($payment->courseBills->isNotEmpty()
+                ? $payment->courseBills->map(fn ($bill) => [
+                    'id' => 'course-bill-'.$bill->id,
+                    'name' => Str::limit($bill->title, 50, ''),
+                    'price' => $bill->amount,
+                    'quantity' => 1,
+                ])->values()->all()
+                : [[
+                    'id' => $payment->course_bill_id ? 'course-bill-'.$payment->course_bill_id : 'course-'.$payment->course_id,
+                    'name' => Str::limit($payment->courseBill?->title ?? $payment->course?->title ?? 'Tagihan kursus', 50, ''),
+                    'price' => $payment->amount,
+                    'quantity' => 1,
+                ]]);
 
         $payload = [
             'transaction_details' => [
@@ -53,8 +67,8 @@ class MidtransService
             ],
             'item_details' => $itemDetails,
             'customer_details' => [
-                'first_name' => $payment->user->name,
-                'email' => $payment->user->email,
+                'first_name' => $payment->user?->name ?? 'Siswa',
+                'email' => $payment->user?->email,
             ],
         ];
 
