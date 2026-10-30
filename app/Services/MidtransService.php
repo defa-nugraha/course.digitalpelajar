@@ -88,6 +88,40 @@ class MidtransService
     }
 
     /**
+     * Check the current gateway status before reusing an existing Snap URL.
+     */
+    public function transactionStatus(Payment $payment): string
+    {
+        if (! config('midtrans.is_enabled')) {
+            return $payment->status;
+        }
+
+        $response = Http::withBasicAuth(config('midtrans.server_key'), '')
+            ->acceptJson()
+            ->get(rtrim((string) config('midtrans.api_url'), '/').'/v2/'.rawurlencode($payment->order_id).'/status');
+
+        if ($response->status() === 404) {
+            return 'expired';
+        }
+
+        abort_if(! $response->successful(), 502, 'Status pembayaran Midtrans belum dapat diverifikasi. Silakan coba kembali.');
+
+        $data = $response->json();
+        abort_if(
+            ! is_array($data)
+                || ($data['order_id'] ?? null) !== $payment->order_id
+                || (int) round((float) ($data['gross_amount'] ?? 0)) !== $payment->amount,
+            502,
+            'Informasi transaksi dari Midtrans tidak sesuai dengan tagihan.',
+        );
+
+        return $this->mapStatus(
+            strtolower((string) ($data['transaction_status'] ?? 'pending')),
+            isset($data['fraud_status']) ? strtolower((string) $data['fraud_status']) : null,
+        );
+    }
+
+    /**
      * Verify a Midtrans notification callback signature (PG-004, NFR-003).
      */
     public function verifySignature(array $payload, ?string $mockSecret = null): bool
