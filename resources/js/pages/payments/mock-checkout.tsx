@@ -12,6 +12,7 @@ interface Payment {
     course: string;
     student: string;
     status: string;
+    settleUrl?: string;
 }
 
 export default function MockCheckout({ payment }: { payment: Payment }) {
@@ -55,7 +56,7 @@ export default function MockCheckout({ payment }: { payment: Payment }) {
                     <Button
                         className="mt-5 w-full bg-[#1C7DE8] hover:bg-[#1469c7]"
                         disabled={form.processing || payment.status === 'paid'}
-                        onClick={() => form.post(`/payments/${payment.id}/mock-settle`)}
+                        onClick={() => form.post(payment.settleUrl ?? `/payments/${payment.id}/mock-settle`)}
                     >
                         Konfirmasi Pembayaran
                     </Button>
