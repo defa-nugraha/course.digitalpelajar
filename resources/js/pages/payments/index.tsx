@@ -30,10 +30,22 @@ interface CourseBillItem {
 
 const isPaidStatus = (status: string) => ['paid', 'settlement', 'capture', 'success'].includes(status);
 
-export default function Payments({ payments, bills = [] }: { payments: PaymentItem[]; bills?: CourseBillItem[] }) {
+export default function Payments({ payments, bills = [], studentNumber }: { payments: PaymentItem[]; bills?: CourseBillItem[]; studentNumber?: string | null }) {
     return (
         <Shell title="Riwayat Pembayaran" eyebrow="Invoice">
             <Head title="Riwayat Pembayaran" />
+            {studentNumber && (
+                <div className="mb-6 flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="text-xs font-bold tracking-wide text-blue-700 uppercase">ID Siswa Anda</p>
+                        <p className="mt-1 font-mono text-2xl font-extrabold tracking-[0.2em] text-[#075DB5]">{studentNumber}</p>
+                        <p className="mt-1 text-xs text-blue-800">Gunakan ID ini untuk melihat dan membayar tagihan melalui halaman pembayaran publik.</p>
+                    </div>
+                    <Button asChild variant="outline" className="border-blue-200 bg-white text-blue-800 hover:bg-blue-100">
+                        <Link href="/pembayaran">Buka pembayaran publik</Link>
+                    </Button>
+                </div>
+            )}
             <div className="mb-8">
                 <Panel title={`Tagihan kursus (${bills.length})`}>
                 <MobileCardList
