@@ -97,9 +97,7 @@ class PaymentController extends Controller
     ): JsonResponse {
         $payload = $request->all();
 
-        // Midtrans sends an empty probe when the notification URL is tested
-        // from the dashboard. Acknowledge the connectivity check without
-        // treating it as a payment notification or changing any data.
+        // Midtrans sends an empty probe when the notification URL is tested.
         if ($payload === []) {
             Log::info('Midtrans notification endpoint probe acknowledged', [
                 'ip' => $request->ip(),
@@ -111,21 +109,46 @@ class PaymentController extends Controller
 
         $request->validate([
             'order_id' => ['required', 'string', 'max:255'],
-            'gross_amount' => ['required', 'numeric', 'min:0'],
+            'gross_amount' => ['required', 'numeric', 'min:0', 'max:1000000000'],
             'transaction_status' => ['required', 'string', 'max:50'],
-            'status_code' => [config('midtrans.is_enabled') ? 'required' : 'nullable', 'string', 'max:10'],
-            'signature_key' => [config('midtrans.is_enabled') ? 'required' : 'nullable', 'string'],
+            'status_code' => ['required', 'string', 'max:10'],
+            'signature_key' => ['required', 'string', 'max:512'],
+            'merchant_id' => [config('midtrans.is_enabled') ? 'required' : 'nullable', 'string', 'max:50'],
+            'currency' => [config('midtrans.is_enabled') ? 'required' : 'nullable', 'string', 'size:3', 'in:IDR'],
+            'fraud_status' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'transaction_id' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'payment_type' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
+
+        if ($midtrans->isEnabled()) {
+            abort_unless(
+                filled(config('midtrans.server_key')) && filled(config('midtrans.merchant_id')),
+                503,
+                'Konfigurasi Midtrans belum lengkap.',
+            );
+        }
+
         abort_unless(
             $midtrans->verifySignature($payload, $request->header('X-Midtrans-Mock-Secret')),
             403,
             'Signature Midtrans tidak valid.',
         );
 
-        $payment = Payment::where('order_id', $payload['order_id'] ?? null)->first();
+        if (filled(config('midtrans.merchant_id'))) {
+            abort_unless(
+                ($payload['merchant_id'] ?? null) === config('midtrans.merchant_id'),
+                403,
+                'Merchant ID pada notifikasi tidak sesuai.',
+            );
+        }
+
+        if (isset($payload['currency'])) {
+            abort_unless(strtoupper($payload['currency']) === 'IDR', 422, 'Mata uang transaksi tidak sesuai.');
+        }
+
+        $payment = Payment::query()->where('order_id', $payload['order_id'])->first();
+
         if (! $payment) {
-            // Dashboard tests can use a synthetic order ID. Only acknowledge
-            // it after its Midtrans signature has been verified successfully.
             Log::warning('Valid Midtrans notification ignored for unknown order', [
                 'order_id' => $payload['order_id'],
                 'transaction_id' => $payload['transaction_id'] ?? null,
@@ -136,31 +159,50 @@ class PaymentController extends Controller
                 'ignored' => 'unknown_order',
             ]);
         }
-        if ((int) round((float) $payload['gross_amount']) !== $payment->amount) {
+
+        if (! $this->grossAmountMatches((string) $payload['gross_amount'], $payment->amount)) {
             throw ValidationException::withMessages([
                 'gross_amount' => 'Nominal callback tidak cocok dengan order.',
             ]);
         }
 
         $status = $midtrans->mapStatus(
-            (string) $payload['transaction_status'],
-            isset($payload['fraud_status']) ? (string) $payload['fraud_status'] : null,
+            strtolower((string) $payload['transaction_status']),
+            isset($payload['fraud_status']) ? strtolower((string) $payload['fraud_status']) : null,
         );
-        if ($payment->isPaid() && $status !== 'paid') {
-            $status = 'paid';
+
+        if ($status === 'paid') {
+            abort_unless($payload['status_code'] === '200', 403, 'Status code transaksi belum menyatakan pembayaran berhasil.');
         }
 
         DB::transaction(function () use ($payment, $status, $payload, $enrollments, $storeOrders) {
-            $payment->update([
-                'status' => $status,
-                'gateway_transaction_id' => $payload['transaction_id'] ?? $payment->gateway_transaction_id,
-                'payment_method' => $payload['payment_type'] ?? $payment->payment_method,
+            $lockedPayment = Payment::query()
+                ->lockForUpdate()
+                ->findOrFail($payment->id);
+
+            $wasPaid = $lockedPayment->isPaid();
+            $finalStatus = $status;
+
+            // Delayed notifications must not downgrade paid or terminal payments.
+            if ($wasPaid && $status !== 'paid') {
+                $finalStatus = $lockedPayment->status;
+            } elseif (in_array($lockedPayment->status, ['expired', 'failed'], true) && $status !== 'paid') {
+                $finalStatus = $lockedPayment->status;
+            }
+
+            $statusChanged = $lockedPayment->status !== $finalStatus;
+            $lockedPayment->update([
+                'status' => $finalStatus,
+                'gateway_transaction_id' => $payload['transaction_id'] ?? $lockedPayment->gateway_transaction_id,
+                'payment_method' => $payload['payment_type'] ?? $lockedPayment->payment_method,
                 'gateway_payload' => $payload,
-                'paid_at' => $status === 'paid' ? ($payment->paid_at ?? now()) : null,
+                'paid_at' => $finalStatus === 'paid' ? ($lockedPayment->paid_at ?? now()) : null,
             ]);
 
-            if ($status === 'paid') {
-                $freshPayment = $payment->fresh(['user', 'storeOrder', 'courseBill', 'courseBills']);
+            // Fulfillment side effects run only on the first transition to paid.
+            if (! $wasPaid && $finalStatus === 'paid') {
+                $freshPayment = $lockedPayment->fresh(['user', 'storeOrder', 'courseBill', 'courseBills']);
+
                 if ($freshPayment->store_order_id) {
                     $storeOrders->activateFromPayment($freshPayment);
                 } elseif ($freshPayment->course_bill_id || $freshPayment->courseBills->isNotEmpty()) {
@@ -170,10 +212,26 @@ class PaymentController extends Controller
                 }
             }
 
-            AuditLogger::log('payment.notification', $payment->user, $payment, ['status' => $status]);
+            if ($statusChanged) {
+                AuditLogger::log('payment.notification', $lockedPayment->user, $lockedPayment, [
+                    'status' => $finalStatus,
+                ]);
+            }
         });
 
         return response()->json(['received' => true]);
+    }
+
+    private function grossAmountMatches(string $grossAmount, int $expectedAmount): bool
+    {
+        if (! preg_match('/^\\d+(?:\\.\\d{1,2})?$/D', $grossAmount)) {
+            return false;
+        }
+
+        [$units, $fraction] = array_pad(explode('.', $grossAmount, 2), 2, '0');
+        $receivedCents = ((int) $units * 100) + (int) str_pad($fraction, 2, '0');
+
+        return $receivedCents === ($expectedAmount * 100);
     }
 
     public function invoice(Request $request, Payment $payment): Response

@@ -19,11 +19,26 @@ class MidtransService
      *
      * @return array{snap_token: string, checkout_url: string}
      */
+    public function isEnabled(): bool
+    {
+        return (bool) config('midtrans.is_enabled');
+    }
+
+    /**
+     * Mock payment is strictly unavailable in production, even when misconfigured.
+     */
+    public function isMockEnabled(): bool
+    {
+        return ! $this->isEnabled()
+            && (bool) config('midtrans.mock_enabled')
+            && config('app.env') !== 'production';
+    }
+
     public function createTransaction(Payment $payment): array
     {
         $payment->loadMissing('course', 'storeOrder.items', 'courseBill', 'courseBills.course', 'user');
 
-        if (! config('midtrans.is_enabled')) {
+        if ($this->isMockEnabled()) {
             $token = 'mock-snap-'.$payment->order_id;
 
             Log::info('Midtrans mock transaction created', ['order_id' => $payment->order_id]);
@@ -39,6 +54,8 @@ class MidtransService
                 'checkout_url' => $checkoutUrl,
             ];
         }
+
+        abort_unless($this->isEnabled(), 503, 'Gateway pembayaran belum dikonfigurasi. Silakan hubungi administrator.');
 
         $itemDetails = $payment->storeOrder
             ? $payment->storeOrder->items->map(fn ($item) => [
@@ -145,8 +162,12 @@ class MidtransService
         $orderId = $payload['order_id'] ?? '';
         $statusCode = $payload['status_code'] ?? '';
         $grossAmount = $payload['gross_amount'] ?? '';
-        $serverKey = config('midtrans.server_key');
+        $serverKey = (string) config('midtrans.server_key');
         $signature = $payload['signature_key'] ?? '';
+
+        if ($serverKey === '') {
+            return false;
+        }
 
         $expected = hash('sha512', $orderId.$statusCode.$grossAmount.$serverKey);
 
@@ -159,11 +180,11 @@ class MidtransService
     public function mapStatus(string $transactionStatus, ?string $fraudStatus = null): string
     {
         return match ($transactionStatus) {
-            'settlement' => 'paid',
-            'capture' => $fraudStatus === null || $fraudStatus === 'accept' ? 'paid' : 'pending',
+            'settlement' => $fraudStatus === null || $fraudStatus === 'accept' ? 'paid' : ($fraudStatus === 'deny' ? 'failed' : 'pending'),
+            'capture' => $fraudStatus === null || $fraudStatus === 'accept' ? 'paid' : ($fraudStatus === 'deny' ? 'failed' : 'pending'),
             'pending' => 'pending',
             'expire' => 'expired',
-            'deny', 'cancel', 'failure' => 'failed',
+            'deny', 'cancel', 'failure', 'refund', 'partial_refund', 'chargeback' => 'failed',
             default => 'pending',
         };
     }

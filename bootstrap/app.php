@@ -17,7 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // The production app runs behind a reverse proxy / TLS terminator.
         // Trust forwarded headers so Laravel generates HTTPS assets, routes,
         // redirects, and signed URLs for the original client request.
-        $middleware->trustProxies(at: '*');
+        $trustedProxies = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TRUSTED_PROXIES', '')),
+        )));
+
+        $middleware->trustProxies(at: $trustedProxies ?: null);
 
         $middleware->validateCsrfTokens(except: [
             'payments/midtrans/notification',

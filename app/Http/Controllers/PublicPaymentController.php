@@ -5,15 +5,19 @@ namespace App\Http\Controllers;
 use App\Models\CourseBill;
 use App\Models\Payment;
 use App\Models\User;
+use App\Notifications\PublicPaymentOtp;
 use App\Services\AuditLogger;
 use App\Services\MidtransService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class PublicPaymentController extends Controller
 {
@@ -22,53 +26,161 @@ class PublicPaymentController extends Controller
         return Inertia::render('payments/public', [
             'studentNumber' => null,
             'searched' => false,
+            'otpSent' => false,
+            'otpError' => null,
             'bills' => [],
         ]);
     }
 
     public function lookup(Request $request): Response
     {
+        $request->session()->forget('public_payment_identity');
+
+        abort_if(
+            app()->environment('production') && in_array(config('mail.default'), ['log', 'array'], true),
+            503,
+            'Verifikasi email belum dikonfigurasi. Silakan hubungi administrator.',
+        );
+
         $data = $request->validate([
             'student_number' => ['required', 'digits:6'],
+            'email' => ['required', 'email:rfc', 'max:255'],
+            'otp' => ['nullable', 'digits:6'],
         ]);
 
+        $normalizedEmail = strtolower(trim($data['email']));
+        $emailHash = hash('sha256', $normalizedEmail);
         $student = User::query()
             ->where('role', 'student')
+            ->where('status', 'active')
             ->where('student_number', $data['student_number'])
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
             ->first();
 
-        $bills = $student
-            ? CourseBill::query()
-                ->with([
-                    'course:id,title',
-                    'payments' => fn ($query) => $query->latest('id'),
-                    'batchPayments' => fn ($query) => $query->latest('payments.id')->with('courseBills:id'),
-                ])
-                ->where('student_id', $student->id)
-                ->where('status', 'pending')
-                ->latest('due_at')
-                ->get()
-                ->map(fn (CourseBill $bill) => $this->billPayload($bill))
-                ->values()
-            : collect();
+        $otpRecord = $request->session()->get('public_payment_otp');
+        $otpBelongsToRequest = $student
+            && is_array($otpRecord)
+            && (int) ($otpRecord['student_id'] ?? 0) === $student->id
+            && hash_equals((string) ($otpRecord['student_number'] ?? ''), $student->student_number)
+            && hash_equals((string) ($otpRecord['email_hash'] ?? ''), $emailHash);
+
+        if (blank($data['otp'] ?? null)) {
+            if ($student) {
+                $code = (string) random_int(100000, 999999);
+                $expiresAt = now()->addMinutes(5);
+
+                $request->session()->put('public_payment_otp', [
+                    'student_id' => $student->id,
+                    'student_number' => $student->student_number,
+                    'email_hash' => $emailHash,
+                    'hash' => Hash::make($code),
+                    'attempts' => 0,
+                    'expires_at' => $expiresAt->timestamp,
+                ]);
+
+                try {
+                    Notification::route('mail', $student->email)
+                        ->notify(new PublicPaymentOtp($code));
+                } catch (Throwable $exception) {
+                    $request->session()->forget('public_payment_otp');
+                    report($exception);
+                }
+            } else {
+                $request->session()->forget('public_payment_otp');
+            }
+
+            return Inertia::render('payments/public', [
+                'studentNumber' => null,
+                'searched' => false,
+                'otpSent' => true,
+                'otpError' => null,
+                'bills' => [],
+            ]);
+        }
+
+        $isOtpValid = $otpBelongsToRequest
+            && (int) ($otpRecord['expires_at'] ?? 0) >= now()->timestamp
+            && (int) ($otpRecord['attempts'] ?? 5) < 5
+            && Hash::check((string) $data['otp'], (string) ($otpRecord['hash'] ?? ''));
+
+        if (! $isOtpValid || ! $student) {
+            if ($otpBelongsToRequest) {
+                $attempts = (int) ($otpRecord['attempts'] ?? 0) + 1;
+
+                if ($attempts >= 5 || (int) ($otpRecord['expires_at'] ?? 0) < now()->timestamp) {
+                    $request->session()->forget('public_payment_otp');
+                } else {
+                    $otpRecord['attempts'] = $attempts;
+                    $request->session()->put('public_payment_otp', $otpRecord);
+                }
+            }
+
+            return Inertia::render('payments/public', [
+                'studentNumber' => null,
+                'searched' => false,
+                'otpSent' => true,
+                'otpError' => 'Kode tidak valid atau kedaluwarsa. Periksa kembali kode atau minta kode baru.',
+                'bills' => [],
+            ]);
+        }
+
+        $request->session()->forget('public_payment_otp');
+        $request->session()->regenerate();
+        $request->session()->put('public_payment_identity', [
+            'student_id' => $student->id,
+            'student_number' => $student->student_number,
+            'verified_at' => now()->timestamp,
+        ]);
+
+        $bills = CourseBill::query()
+            ->with([
+                'course:id,title',
+                'payments' => fn ($query) => $query->latest('id'),
+                'batchPayments' => fn ($query) => $query->latest('payments.id')->with('courseBills:id'),
+            ])
+            ->where('student_id', $student->id)
+            ->where('status', 'pending')
+            ->latest('due_at')
+            ->get()
+            ->map(fn (CourseBill $bill) => $this->billPayload($bill))
+            ->values();
 
         return Inertia::render('payments/public', [
-            'studentNumber' => $data['student_number'],
+            'studentNumber' => $student->student_number,
             'searched' => true,
+            'otpSent' => false,
+            'otpError' => null,
             'bills' => $bills,
         ]);
     }
 
     public function pay(Request $request, MidtransService $midtrans): \Symfony\Component\HttpFoundation\Response
     {
+        abort_unless(
+            $midtrans->isEnabled() || $midtrans->isMockEnabled(),
+            503,
+            'Gateway pembayaran sedang tidak tersedia. Silakan hubungi administrator.',
+        );
+
         $data = $request->validate([
             'student_number' => ['required', 'digits:6'],
             'bill_ids' => ['required', 'array', 'min:1', 'max:25'],
             'bill_ids.*' => ['required', 'integer', 'distinct', 'min:1'],
         ]);
 
+        $identity = $request->session()->get('public_payment_identity');
+        abort_unless(
+            is_array($identity)
+                && (int) ($identity['verified_at'] ?? 0) >= now()->subMinutes(10)->timestamp
+                && hash_equals((string) ($identity['student_number'] ?? ''), $data['student_number']),
+            403,
+            'Silakan verifikasi kembali akun siswa melalui kode email sebelum membayar.',
+        );
+
         $student = User::query()
+            ->where('id', (int) ($identity['student_id'] ?? 0))
             ->where('role', 'student')
+            ->where('status', 'active')
             ->where('student_number', $data['student_number'])
             ->first();
 
@@ -169,7 +281,7 @@ class PublicPaymentController extends Controller
         });
 
         if ($payment->status === 'pending' && filled($payment->checkout_url)) {
-            if (! config('midtrans.is_enabled')) {
+            if ($midtrans->isMockEnabled()) {
                 $checkoutUrl = URL::temporarySignedRoute('payments.public-mock-checkout', now()->addHours(2), [
                     'order' => $payment->order_id,
                 ]);
@@ -233,9 +345,9 @@ class PublicPaymentController extends Controller
         return Inertia::location($transaction['checkout_url']);
     }
 
-    public function mockCheckout(Request $request): Response
+    public function mockCheckout(Request $request, MidtransService $midtrans): Response
     {
-        abort_if(config('midtrans.is_enabled'), 404);
+        abort_unless($midtrans->isMockEnabled(), 404);
 
         $payment = Payment::query()
             ->where('order_id', $request->query('order'))
@@ -267,9 +379,9 @@ class PublicPaymentController extends Controller
         ]);
     }
 
-    public function mockSettle(Request $request, Payment $payment): RedirectResponse
+    public function mockSettle(Request $request, Payment $payment, MidtransService $midtrans): RedirectResponse
     {
-        abort_if(config('midtrans.is_enabled'), 404);
+        abort_unless($midtrans->isMockEnabled(), 404);
         abort_unless($request->query('order') === $payment->order_id, 403);
 
         $method = $request->validate([
@@ -316,7 +428,9 @@ class PublicPaymentController extends Controller
             ]);
         });
 
-        return to_route('public-payments.index')->with('success', 'Pembayaran tagihan berhasil dikonfirmasi.');
+        $request->session()->forget('public_payment_identity');
+
+        return to_route('public-payments.index')->with('success', 'Pembayaran simulasi berhasil dikonfirmasi.');
     }
 
     private function createReplacementPayment(User $student, array $selectedIds, MidtransService $midtrans): Payment

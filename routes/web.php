@@ -52,10 +52,10 @@ Route::post('payments/midtrans/notification', [PaymentController::class, 'notifi
 
 Route::get('pembayaran', [PublicPaymentController::class, 'index'])->name('public-payments.index');
 Route::post('pembayaran/tagihan', [PublicPaymentController::class, 'lookup'])
-    ->middleware('throttle:5,1')
+    ->middleware('throttle:public-payment-lookup')
     ->name('public-payments.lookup');
 Route::post('pembayaran/bayar', [PublicPaymentController::class, 'pay'])
-    ->middleware('throttle:5,1')
+    ->middleware('throttle:public-payment-checkout')
     ->name('public-payments.pay');
 Route::get('payments/mock-checkout/public', [PublicPaymentController::class, 'mockCheckout'])
     ->middleware('signed')

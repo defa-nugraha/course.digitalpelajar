@@ -15,6 +15,9 @@ return [
 
     'is_enabled' => env('MIDTRANS_IS_ENABLED', false),
 
+    // Simulation is enabled by default only in local/testing environments.
+    'mock_enabled' => env('MIDTRANS_MOCK_ENABLED', in_array(env('APP_ENV', 'production'), ['local', 'testing'], true)),
+
     'merchant_id' => env('MIDTRANS_MERCHANT_ID'),
     'server_key' => env('MIDTRANS_SERVER_KEY'),
     'client_key' => env('MIDTRANS_CLIENT_KEY'),
