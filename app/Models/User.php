@@ -9,9 +9,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
 {
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if ($user->role === 'student' && blank($user->student_number)) {
+                $user->student_number = static::generateStudentNumber();
+            }
+        });
+    }
+
+    private static function generateStudentNumber(): string
+    {
+        do {
+            $studentNumber = (string) random_int(100000, 999999);
+        } while (DB::table('users')->where('student_number', $studentNumber)->exists());
+
+        return $studentNumber;
+    }
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
