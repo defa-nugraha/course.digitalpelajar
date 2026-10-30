@@ -303,6 +303,8 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('admin/payments/{payment}', [PaymentController::class, 'destroy'])->name('admin.payments.destroy');
         Route::get('admin/course-bills', [CourseBillController::class, 'adminIndex'])->name('admin.course-bills');
         Route::post('admin/course-bills', [CourseBillController::class, 'store'])->name('admin.course-bills.store');
+        Route::patch('admin/course-bills/{courseBill}', [CourseBillController::class, 'update'])->name('admin.course-bills.update');
+        Route::get('admin/course-bills/{courseBill}/invoice', [CourseBillController::class, 'invoice'])->name('admin.course-bills.invoice');
         Route::delete('admin/course-bills/{courseBill}', [CourseBillController::class, 'destroy'])->name('admin.course-bills.destroy');
         Route::get('admin/store', [StoreController::class, 'index'])->name('admin.store');
         Route::post('admin/store/categories', [StoreController::class, 'storeCategory'])->name('admin.store.categories.store');
