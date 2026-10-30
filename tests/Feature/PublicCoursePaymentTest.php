@@ -99,10 +99,11 @@ test('public checkout creates one grouped payment and marks every selected bill 
         ->toEqualCanonicalizing([$firstBill->id, $secondBill->id]);
 
     $mockUrl = $response->headers->get('X-Inertia-Location');
-    $mockPage = $this->withHeader('X-Inertia', 'true')->get($mockUrl)->assertInertia(fn (Assert $page) => $page
-        ->component('payments/mock-checkout', false)
-        ->where('payment.amount', 250000)
-        ->where('payment.type', 'Tagihan kursus'));
+    $mockPage = $this->withHeader('X-Inertia', 'true')->get($mockUrl)
+        ->assertOk()
+        ->assertJsonPath('component', 'payments/mock-checkout')
+        ->assertJsonPath('props.payment.amount', 250000)
+        ->assertJsonPath('props.payment.type', 'Tagihan kursus');
 
     $settleUrl = $mockPage->json('props.payment.settleUrl');
 
