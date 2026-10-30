@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContentBlock;
-use App\Models\CourseBill;
 use App\Models\Course;
+use App\Models\CourseBill;
 use App\Models\Enrollment;
 use App\Models\HomePageSection;
 use App\Models\InteractiveBlockProgress;
