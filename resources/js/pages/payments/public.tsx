@@ -170,63 +170,63 @@ export default function PublicPayment({ studentNumber, searched, bills }: Props)
                             <div className="min-w-0 space-y-4">
                                 <section className="min-w-0">
                                     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_20px_rgba(15,23,42,0.04)] sm:p-6">
-                                    <div className="mb-5 flex items-center gap-3">
-                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#1C7DE8] sm:size-11">
-                                            <FileSearch className="size-5 sm:size-6" />
+                                        <div className="mb-5 flex items-center gap-3">
+                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#1C7DE8] sm:size-11">
+                                                <FileSearch className="size-5 sm:size-6" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h2 className="font-extrabold">Lihat tagihan Anda</h2>
+                                                <p className="text-xs text-slate-500 sm:text-sm">
+                                                    Masukkan ID Siswa yang terdiri dari 6 digit
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <h2 className="font-extrabold">Lihat tagihan Anda</h2>
-                                            <p className="text-xs text-slate-500 sm:text-sm">
-                                                Masukkan ID Siswa yang terdiri dari 6 digit
-                                            </p>
-                                        </div>
-                                    </div>
 
-                                    <form
-                                        onSubmit={(event) => {
-                                            event.preventDefault();
-                                            lookupForm.post('/pembayaran/tagihan', {
-                                                onSuccess: () => setLookupVersion((current) => current + 1),
-                                            });
-                                        }}
-                                        className="space-y-3.5"
-                                    >
-                                        <label className="block text-sm font-semibold" htmlFor="student_number">
-                                            ID Siswa
-                                        </label>
-                                        <Input
-                                            id="student_number"
-                                            type="text"
-                                            inputMode="numeric"
-                                            autoComplete="off"
-                                            maxLength={6}
-                                            placeholder="Contoh: 482915"
-                                            value={lookupForm.data.student_number}
-                                            onChange={(event) =>
-                                                lookupForm.setData(
-                                                    'student_number',
-                                                    event.target.value.replace(/\D/g, '').slice(0, 6),
-                                                )
-                                            }
-                                            className="h-12 rounded-xl font-mono text-lg tracking-[0.25em]"
-                                            aria-invalid={Boolean(lookupForm.errors.student_number)}
-                                        />
-                                        {lookupForm.errors.student_number && (
-                                            <p className="text-sm text-red-600">{lookupForm.errors.student_number}</p>
-                                        )}
-                                        <Button
-                                            type="submit"
-                                            className="h-11 w-full rounded-xl bg-[#1C7DE8] font-bold hover:bg-[#005DB5]"
-                                            disabled={lookupForm.processing || lookupForm.data.student_number.length !== 6}
+                                        <form
+                                            onSubmit={(event) => {
+                                                event.preventDefault();
+                                                lookupForm.post('/pembayaran/tagihan', {
+                                                    onSuccess: () => setLookupVersion((current) => current + 1),
+                                                });
+                                            }}
+                                            className="space-y-3.5"
                                         >
-                                            {lookupForm.processing ? 'Memeriksa...' : 'Lihat tagihan'}
-                                        </Button>
-                                    </form>
-                                    <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-slate-500">
-                                        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                                        ID Siswa dapat dilihat pada akun siswa atau diminta kepada administrator Digital
-                                        Pelajar.
-                                    </p>
+                                            <label className="block text-sm font-semibold" htmlFor="student_number">
+                                                ID Siswa
+                                            </label>
+                                            <Input
+                                                id="student_number"
+                                                type="text"
+                                                inputMode="numeric"
+                                                autoComplete="off"
+                                                maxLength={6}
+                                                placeholder="Contoh: 482915"
+                                                value={lookupForm.data.student_number}
+                                                onChange={(event) =>
+                                                    lookupForm.setData(
+                                                        'student_number',
+                                                        event.target.value.replace(/\D/g, '').slice(0, 6),
+                                                    )
+                                                }
+                                                className="h-12 rounded-xl font-mono text-lg tracking-[0.25em]"
+                                                aria-invalid={Boolean(lookupForm.errors.student_number)}
+                                            />
+                                            {lookupForm.errors.student_number && (
+                                                <p className="text-sm text-red-600">{lookupForm.errors.student_number}</p>
+                                            )}
+                                            <Button
+                                                type="submit"
+                                                className="h-11 w-full rounded-xl bg-[#1C7DE8] font-bold hover:bg-[#005DB5]"
+                                                disabled={lookupForm.processing || lookupForm.data.student_number.length !== 6}
+                                            >
+                                                {lookupForm.processing ? 'Memeriksa...' : 'Lihat tagihan'}
+                                            </Button>
+                                        </form>
+                                        <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-slate-500">
+                                            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                                            ID Siswa dapat dilihat pada akun siswa atau diminta kepada administrator Digital
+                                            Pelajar.
+                                        </p>
                                     </div>
                                 </section>
 
