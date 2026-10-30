@@ -3,6 +3,7 @@
 use App\Models\Course;
 use App\Models\CourseBill;
 use App\Models\Payment;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -100,7 +101,7 @@ test('public checkout creates one grouped payment and marks every selected bill 
 
     $mockUrl = $response->headers->get('X-Inertia-Location');
     $inertiaHeaders = ['X-Inertia' => 'true'];
-    $assetVersion = app(\App\Http\Middleware\HandleInertiaRequests::class)->version(request());
+    $assetVersion = app(HandleInertiaRequests::class)->version(request());
 
     if ($assetVersion !== null) {
         $inertiaHeaders['X-Inertia-Version'] = $assetVersion;
