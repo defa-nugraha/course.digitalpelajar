@@ -8,9 +8,9 @@ use App\Models\User;
 use App\Notifications\PublicPaymentOtp;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
-
 
 function publicPaymentOtpLookup($test, User $student, ?string &$issuedCode = null): TestResponse
 {
@@ -254,7 +254,6 @@ test('public checkout creates a fresh payment when the previous Midtrans Snap ha
     Http::assertSent(fn ($request) => str_contains($request->url(), '/v2/OLD-ORDER-123/status'));
 });
 
-
 test('public bill lookup requires the student number and registered email together', function () {
     $student = User::factory()->student()->create();
     $course = Course::factory()->paid(250000)->create();
@@ -328,7 +327,7 @@ test('production never enables the public mock payment flow even when its flag i
         'bill_ids' => [$bill->id],
     ])->assertStatus(503);
 
-    $mockUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+    $mockUrl = URL::temporarySignedRoute(
         'payments.public-mock-checkout',
         now()->addMinutes(5),
         ['order' => 'ORDER-NOT-REAL'],
@@ -439,7 +438,6 @@ test('delayed webhook notifications cannot downgrade a paid course bill payment'
         ->and($payment->fresh()->paid_at->equalTo($paidAt))->toBeTrue()
         ->and($bill->fresh()->status)->toBe('paid');
 });
-
 
 test('public payment lookup does not reveal whether an ID and email pair exists', function () {
     Notification::fake();

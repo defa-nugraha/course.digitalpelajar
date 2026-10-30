@@ -10,9 +10,7 @@ class PublicPaymentOtp extends Notification
 {
     use Queueable;
 
-    public function __construct(public readonly string $code)
-    {
-    }
+    public function __construct(public readonly string $code) {}
 
     /**
      * @return array<int, string>
