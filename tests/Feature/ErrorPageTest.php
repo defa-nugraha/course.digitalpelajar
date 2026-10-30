@@ -3,6 +3,8 @@
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 test('method not allowed errors render the Blade template without exposing compiled PHP', function () {
+    config(['app.debug' => false]);
+
     $this->post('/pembayaran')
         ->assertStatus(405)
         ->assertSee('Error 405')
