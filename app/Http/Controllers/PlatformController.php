@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\CourseBillController;
+
 use App\Models\ContentBlock;
 use App\Models\Course;
 use App\Models\Enrollment;
@@ -2046,9 +2048,10 @@ class PlatformController extends Controller
         return $this->renderReports($request);
     }
 
-    public function adminPayments(): Response
+    public function adminPayments(CourseBillController $courseBills): Response
     {
         return Inertia::render('admin/payments', [
+            ...$courseBills->adminData(),
             'payments' => DB::table('payments')
                 ->leftJoin('users', 'payments.user_id', '=', 'users.id')
                 ->leftJoin('courses', 'payments.course_id', '=', 'courses.id')
