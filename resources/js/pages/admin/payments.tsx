@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Copy, Download, ExternalLink, ReceiptText, Trash2 } from 'lucide-react';
+import { Copy, Download, Edit, ExternalLink, Printer, ReceiptText, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { toast } from 'sonner';
@@ -37,6 +37,8 @@ interface CourseOption {
 
 interface BillRow {
     id: number;
+    studentId: number;
+    courseId: number;
     title: string;
     student: string;
     email: string;
@@ -46,6 +48,7 @@ interface BillRow {
     status: string;
     orderId?: string | null;
     canDelete: boolean;
+    canEdit: boolean;
 }
 
 interface Props {
@@ -59,6 +62,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
     const [term, setTerm] = useState('');
     const [status, setStatus] = useState('all');
     const [billsOpen, setBillsOpen] = useState(false);
+    const [editingBillId, setEditingBillId] = useState<number | null>(null);
     const form = useForm({
         student_id: '',
         course_id: '',
@@ -83,13 +87,59 @@ export default function Payments({ payments, students, courses, bills }: Props) 
 
     const submitBill = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.post('/admin/course-bills', {
+        const options = {
             onSuccess: () => {
                 form.reset();
+                setEditingBillId(null);
                 setBillsOpen(false);
             },
-        });
+        };
+
+        if (editingBillId !== null) {
+            form.patch(`/admin/course-bills/${editingBillId}`, options);
+            return;
+        }
+
+        form.post('/admin/course-bills', options);
     };
+
+    const beginEditBill = (bill: BillRow) => {
+        if (!bill.canEdit) return;
+        setEditingBillId(bill.id);
+        form.setData({
+            student_id: String(bill.studentId),
+            course_id: String(bill.courseId),
+            title: bill.title,
+            amount: String(Number(bill.amountLabel.replace(/[^0-9]/g, '')) || ''),
+            due_at: bill.dueAt,
+        });
+        setBillsOpen(true);
+    };
+
+    const openCreateBill = () => {
+        setEditingBillId(null);
+        form.reset();
+        setBillsOpen(true);
+    };
+
+    const billActions = (bill: BillRow, compact = false) => (
+        <div className={compact ? 'flex flex-wrap gap-2' : 'flex justify-end gap-1'}>
+            <Button type="button" variant="outline" size={compact ? 'sm' : 'icon'} disabled={!bill.canEdit} title={bill.canEdit ? 'Edit tagihan' : 'Tagihan yang sudah memiliki transaksi tidak dapat diedit'} aria-label="Edit tagihan" onClick={() => beginEditBill(bill)}>
+                <Edit className="size-4" />
+                {compact && 'Edit'}
+            </Button>
+            <Button asChild type="button" variant="outline" size={compact ? 'sm' : 'icon'} title="Cetak invoice" aria-label="Cetak invoice">
+                <a href={`/admin/course-bills/${bill.id}/invoice`} target="_blank" rel="noreferrer">
+                    <Printer className="size-4" />
+                    {compact && 'Cetak invoice'}
+                </a>
+            </Button>
+            <Button type="button" variant="destructive" size={compact ? 'sm' : 'icon'} disabled={!bill.canDelete} title={bill.canDelete ? 'Hapus tagihan' : 'Tagihan yang sudah dibayar tidak dapat dihapus'} aria-label="Hapus tagihan" onClick={() => deleteBill(bill)}>
+                <Trash2 className="size-4" />
+                {compact && 'Hapus'}
+            </Button>
+        </div>
+    );
 
     const deleteBill = (bill: BillRow) => {
         if (!bill.canDelete) return;
@@ -157,11 +207,11 @@ export default function Payments({ payments, students, courses, bills }: Props) 
             <div className="mb-4 flex justify-end">
                 <Dialog open={billsOpen} onOpenChange={setBillsOpen}>
                     <DialogTrigger asChild>
-                        <Button>Kelola Tagihan Kursus</Button>
+                        <Button onClick={openCreateBill}>Kelola Tagihan Kursus</Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl">
                         <DialogHeader>
-                            <DialogTitle>Kelola Tagihan Kursus</DialogTitle>
+                            <DialogTitle>{editingBillId === null ? 'Buat Tagihan Kursus' : 'Edit Tagihan Kursus'}</DialogTitle>
                             <DialogDescription>
                                 Tagihan langsung tampil di akun siswa. Snap Midtrans dibuat ketika siswa menekan tombol bayar.
                             </DialogDescription>
@@ -226,7 +276,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                             </label>
                             <div className="sm:col-span-2">
                                 <Button type="submit" disabled={form.processing || students.length === 0 || courses.length === 0}>
-                                    {form.processing ? 'Membuat tagihan...' : 'Buat tagihan'}
+                                    {form.processing ? 'Menyimpan...' : editingBillId === null ? 'Buat tagihan' : 'Simpan perubahan'}
                                 </Button>
                             </div>
                         </form>
@@ -245,12 +295,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                             { label: 'Jatuh tempo', value: bill.dueAt },
                                             { label: 'Order', value: bill.orderId ?? '-' },
                                         ]}
-                                        actions={
-                                            <Button type="button" size="sm" variant="destructive" disabled={!bill.canDelete} onClick={() => deleteBill(bill)}>
-                                                <Trash2 className="size-4" />
-                                                Hapus tagihan
-                                            </Button>
-                                        }
+                                        actions={billActions(bill, true)}
                                     />
                                 ))}
                             </MobileCardList>
@@ -258,7 +303,8 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                     </DialogContent>
                 </Dialog>
             </div>
-            <Panel title={`Tagihan kursus (${bills.length})`}>
+            <div className="mb-8">
+                <Panel title={`Tagihan kursus (${bills.length})`}>
                 <div className="space-y-4">
                     <MobileCardList
                         empty={<p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}
@@ -280,6 +326,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                     { label: 'Jatuh tempo', value: bill.dueAt },
                                     { label: 'ID order', value: bill.orderId ?? '-' },
                                 ]}
+                                actions={billActions(bill, true)}
                             />
                         ))}
                     </MobileCardList>
@@ -294,6 +341,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                     <th>Jatuh tempo</th>
                                     <th>Status</th>
                                     <th>ID order</th>
+                                    <th className="text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
@@ -314,6 +362,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                             />
                                         </td>
                                         <td className="font-mono text-xs">{bill.orderId ?? '-'}</td>
+                                        <td className="py-3 text-right">{billActions(bill)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -321,7 +370,8 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                         {bills.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}
                     </DesktopTable>
                 </div>
-            </Panel>
+                </Panel>
+            </div>
             <Panel
                 title="Riwayat transaksi"
                 action={
