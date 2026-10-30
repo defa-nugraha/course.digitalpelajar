@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContentBlock;
+use App\Models\CourseBill;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\HomePageSection;
@@ -731,10 +732,12 @@ class PlatformController extends Controller
 
     public function paymentHistory(Request $request): Response
     {
+        $studentId = $request->user()->id;
+
         return Inertia::render('payments/index', [
             'payments' => DB::table('payments')
                 ->join('courses', 'payments.course_id', '=', 'courses.id')
-                ->where('payments.user_id', $request->user()->id)
+                ->where('payments.user_id', $studentId)
                 ->select(
                     'payments.id',
                     'payments.order_id as orderId',
@@ -752,6 +755,26 @@ class PlatformController extends Controller
                     ...((array) $payment),
                     'amountLabel' => $this->rupiah((int) $payment->amount),
                 ]),
+            'bills' => CourseBill::query()
+                ->with(['course:id,title', 'payments' => fn ($query) => $query->latest('id')])
+                ->where('student_id', $studentId)
+                ->latest('due_at')
+                ->get()
+                ->map(function (CourseBill $bill) {
+                    $payment = $bill->payments->first();
+
+                    return [
+                        'id' => $bill->id,
+                        'title' => $bill->title,
+                        'course' => $bill->course->title,
+                        'amountLabel' => $this->rupiah($bill->amount),
+                        'dueAt' => $bill->due_at->format('d M Y'),
+                        'status' => $bill->status === 'pending' && $bill->isOverdue() ? 'overdue' : $bill->status,
+                        'checkoutUrl' => $payment?->checkout_url,
+                        'paymentId' => $payment?->id,
+                        'orderId' => $payment?->order_id,
+                    ];
+                }),
         ]);
     }
 
