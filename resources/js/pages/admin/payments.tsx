@@ -1,5 +1,6 @@
 import { Panel, Shell } from '@/components/platform';
-import { MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
+import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -267,18 +268,18 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                             value={term}
                             onChange={(event) => setTerm(event.target.value)}
                         />
-                        <select
-                            className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+                        <SearchableSelect
+                            className="w-full sm:w-48"
                             value={status}
-                            onChange={(event) => setStatus(event.target.value)}
-                            aria-label="Filter status pembayaran"
-                        >
-                            <option value="all">Semua status</option>
-                            <option value="pending">Pending</option>
-                            <option value="paid">Paid</option>
-                            <option value="failed">Failed</option>
-                            <option value="expired">Expired</option>
-                        </select>
+                            onChange={setStatus}
+                            options={[
+                                { value: 'all', label: 'Semua status' },
+                                { value: 'pending', label: 'Pending' },
+                                { value: 'paid', label: 'Paid' },
+                                { value: 'failed', label: 'Failed' },
+                                { value: 'expired', label: 'Expired' },
+                            ]}
+                        />
                     </div>
                 }
             >
@@ -302,6 +303,38 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                             />
                         ))}
                     </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Order</th>
+                                    <th>Siswa</th>
+                                    <th>Kursus</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Metode</th>
+                                    <th className="text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {visible.map((payment) => (
+                                    <tr key={payment.id}>
+                                        <td className="py-4 font-mono text-xs">{payment.orderId}</td>
+                                        <td>
+                                            <p className="font-semibold">{payment.student}</p>
+                                            <p className="text-xs text-slate-500">{payment.email}</p>
+                                        </td>
+                                        <td>{payment.course}</td>
+                                        <td>{payment.amountLabel}</td>
+                                        <td className="capitalize">{payment.status}</td>
+                                        <td className="capitalize">{payment.method?.replaceAll('_', ' ') ?? '-'}</td>
+                                        <td className="text-right">{actions(payment)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {visible.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada transaksi yang cocok.</p>}
+                    </DesktopTable>
                 </div>
             </Panel>
         </Shell>
