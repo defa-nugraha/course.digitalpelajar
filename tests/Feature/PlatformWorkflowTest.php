@@ -337,6 +337,38 @@ test('Midtrans expiration notification marks a pending payment as expired', func
     expect($payment->fresh()->status)->toBe('expired');
 });
 
+test('admin can delete unpaid payments but cannot delete paid payments', function () {
+    $admin = User::factory()->admin()->create();
+    $student = User::factory()->student()->create();
+    $course = Course::factory()->paid(250000)->create();
+
+    $pending = Payment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'amount' => 250000,
+        'status' => 'pending',
+    ]);
+    $paid = Payment::factory()->create([
+        'user_id' => $student->id,
+        'course_id' => $course->id,
+        'amount' => 250000,
+        'status' => 'paid',
+        'paid_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->delete('/admin/payments/'.$paid->id)
+        ->assertStatus(409);
+
+    expect(Payment::query()->whereKey($paid->id)->exists())->toBeTrue();
+
+    $this->actingAs($admin)
+        ->delete('/admin/payments/'.$pending->id)
+        ->assertRedirect('/admin/payments');
+
+    expect(Payment::query()->whereKey($pending->id)->exists())->toBeFalse();
+});
+
 test('course bill creates Midtrans payment only when student starts payment and deletion removes it from both accounts', function () {
     config(['midtrans.is_enabled' => false]);
 
