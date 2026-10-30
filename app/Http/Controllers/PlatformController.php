@@ -257,7 +257,7 @@ class PlatformController extends Controller
 
     private function staticSitemapUrl(string $key, array $fallback): ?array
     {
-        if (!Schema::hasTable('seo_settings')) {
+        if (! Schema::hasTable('seo_settings')) {
             return $fallback;
         }
 
