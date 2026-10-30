@@ -257,7 +257,7 @@ class PlatformController extends Controller
 
     private function staticSitemapUrl(string $key, array $fallback): ?array
     {
-        if (! Schema::hasTable('seo_settings')) {
+        if (!Schema::hasTable('seo_settings')) {
             return $fallback;
         }
 
@@ -499,14 +499,14 @@ class PlatformController extends Controller
 
     public function learning(Request $request): Response|RedirectResponse
     {
-        if (! $request->has('course')) {
+        if (!$request->has('course')) {
             return to_route($request->user()->role === 'school_teacher' ? 'teacher.learning.index' : 'student.learning.index');
         }
 
         $courseId = (int) $request->integer('course');
         $userId = $request->user()->id;
 
-        if ($courseId === 0 && ! DB::table('enrollments')
+        if ($courseId === 0 && !DB::table('enrollments')
             ->where('user_id', $userId)
             ->whereIn('status', ['active', 'completed'])
             ->exists()) {
@@ -690,7 +690,7 @@ class PlatformController extends Controller
             ->orderByDesc('price')
             ->first();
 
-        abort_if(! $course, 404);
+        abort_if(!$course, 404);
 
         return Inertia::render('payments/checkout', [
             'course' => [
@@ -758,7 +758,7 @@ class PlatformController extends Controller
     public function teacherDashboard(Request $request): Response
     {
         $schoolId = $request->user()->school_id;
-        abort_if(! $schoolId, 403);
+        abort_if(!$schoolId, 403);
 
         $students = DB::table('users')
             ->leftJoin('enrollments', 'users.id', '=', 'enrollments.user_id')
@@ -910,7 +910,7 @@ class PlatformController extends Controller
 
     public function teacherStudents(Request $request): Response
     {
-        abort_if(! $request->user()->school_id, 403);
+        abort_if(!$request->user()->school_id, 403);
 
         $schoolId = $request->user()->school_id;
         $students = DB::table('users')
@@ -1042,7 +1042,7 @@ class PlatformController extends Controller
 
     public function teacherAttendanceRecap(Request $request): Response
     {
-        abort_if(! $request->user()->school_id, 403);
+        abort_if(!$request->user()->school_id, 403);
 
         $filters = $request->validate([
             'from' => ['nullable', 'date'],
@@ -1546,7 +1546,7 @@ class PlatformController extends Controller
     {
         $schoolId = (int) $request->integer('school', DB::table('schools')->value('id'));
         $school = $this->schools()->firstWhere('id', $schoolId) ?? $this->schools()->first();
-        abort_if(! $school, 404);
+        abort_if(!$school, 404);
 
         return Inertia::render('admin/school-detail', [
             'school' => [
@@ -1694,7 +1694,7 @@ class PlatformController extends Controller
 
         $courseId = (int) $request->integer('course', $courseQuery->clone()->value('id'));
         $course = $courseQuery->clone()->where('id', $courseId)->first();
-        abort_if($courseId > 0 && ! $course, 403);
+        abort_if($courseId > 0 && !$course, 403);
 
         return Inertia::render('admin/course-builder', [
             'routeBase' => $this->managementBasePath($request),
@@ -2249,7 +2249,7 @@ class PlatformController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->school_id) {
+        if (!$user->school_id) {
             return collect();
         }
 
@@ -2354,7 +2354,7 @@ class PlatformController extends Controller
     {
         $user = $request->user();
 
-        if (! $user?->isInstructor()) {
+        if (!$user?->isInstructor()) {
             abort(403);
         }
 
@@ -2483,7 +2483,7 @@ class PlatformController extends Controller
 
     private function contentBlockDisplayContent(string $type, ?string $content, array $metadata = []): ?string
     {
-        if (! filled($content)) {
+        if (!filled($content)) {
             return $content;
         }
 
@@ -2536,7 +2536,7 @@ class PlatformController extends Controller
 
     private function userHasSchoolLearningPathAccess(?int $userId, Course $course): bool
     {
-        if (! $userId || ! $course->learning_path_id) {
+        if (!$userId || !$course->learning_path_id) {
             return false;
         }
 
@@ -2545,7 +2545,7 @@ class PlatformController extends Controller
             ->whereIn('role', ['student', 'school_teacher'])
             ->value('school_id');
 
-        if (! $schoolId) {
+        if (!$schoolId) {
             return false;
         }
 
@@ -2571,7 +2571,7 @@ class PlatformController extends Controller
 
     private function absoluteUrl(?string $url): string
     {
-        if (! filled($url)) {
+        if (!filled($url)) {
             return asset('logo.png');
         }
 
@@ -2677,7 +2677,7 @@ class PlatformController extends Controller
 
     private function publicHomeSections()
     {
-        if (! Schema::hasTable('home_page_sections')) {
+        if (!Schema::hasTable('home_page_sections')) {
             return collect();
         }
 
@@ -2691,7 +2691,7 @@ class PlatformController extends Controller
 
     private function allHomeSections()
     {
-        if (! Schema::hasTable('home_page_sections')) {
+        if (!Schema::hasTable('home_page_sections')) {
             return collect();
         }
 
@@ -2731,7 +2731,7 @@ class PlatformController extends Controller
 
     private function homeSectionImageUrl(?string $imagePath): ?string
     {
-        if (! filled($imagePath)) {
+        if (!filled($imagePath)) {
             return null;
         }
 
@@ -2748,7 +2748,7 @@ class PlatformController extends Controller
             $storagePath = Str::after($storagePath, 'storage/');
         }
 
-        if (! str_starts_with($storagePath, 'home-page/')) {
+        if (!str_starts_with($storagePath, 'home-page/')) {
             return $rawImagePath;
         }
 
@@ -3007,7 +3007,7 @@ class PlatformController extends Controller
             ->select('lessons.id', 'lessons.title', 'chapters.title as chapter')
             ->first();
 
-        if (! $lesson) {
+        if (!$lesson) {
             $lesson = DB::table('lessons')
                 ->join('chapters', 'lessons.chapter_id', '=', 'chapters.id')
                 ->where('chapters.course_id', $courseId)
@@ -3123,7 +3123,7 @@ class PlatformController extends Controller
             ? $enrollmentQuery->clone()->where('courses.id', $courseId)->first()
             : $enrollmentQuery->clone()->orderByDesc('enrollments.updated_at')->first();
 
-        abort_if(! $course, 403, 'Anda belum memiliki akses aktif ke kursus ini.');
+        abort_if(!$course, 403, 'Anda belum memiliki akses aktif ke kursus ini.');
 
         $progress = (int) $course->progress_percent;
         $completedLessonIds = DB::table('lesson_completions')
@@ -3144,10 +3144,10 @@ class PlatformController extends Controller
                     ->map(function ($lesson) use (&$previousComplete, $completedLessonIds, $course) {
                         $completed = in_array($lesson->id, $completedLessonIds, true);
                         $scheduledLocked = $lesson->available_at && now()->isBefore($lesson->available_at);
-                        $sequenceLocked = $course->access_mode === 'sequential' && ! $previousComplete;
+                        $sequenceLocked = $course->access_mode === 'sequential' && !$previousComplete;
                         $state = $completed ? 'done' : (($scheduledLocked || $sequenceLocked) ? 'locked' : 'current');
 
-                        if (! $completed) {
+                        if (!$completed) {
                             $previousComplete = false;
                         }
 
@@ -3220,7 +3220,7 @@ class PlatformController extends Controller
             )
             ->first();
 
-        if (! $certificate) {
+        if (!$certificate) {
             return null;
         }
 
@@ -3246,7 +3246,7 @@ class PlatformController extends Controller
             ->latest('payments.created_at')
             ->first();
 
-        if (! $payment) {
+        if (!$payment) {
             return null;
         }
 
@@ -3381,7 +3381,7 @@ class PlatformController extends Controller
 
     private function schoolLogoUrl(?string $logoPath): ?string
     {
-        if (! filled($logoPath)) {
+        if (!filled($logoPath)) {
             return null;
         }
 
