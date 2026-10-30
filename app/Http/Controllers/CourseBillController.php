@@ -19,7 +19,12 @@ class CourseBillController extends Controller
 {
     public function adminIndex(): Response
     {
-        return Inertia::render('admin/course-bills', [
+        return Inertia::render('admin/course-bills', $this->adminData());
+    }
+
+    public function adminData(): array
+    {
+        return [
             'students' => User::query()
                 ->where('role', 'student')
                 ->where('status', 'active')
@@ -54,9 +59,10 @@ class CourseBillController extends Controller
                         'checkoutUrl' => $payment?->checkout_url,
                         'orderId' => $payment?->order_id,
                         'createdAt' => $bill->created_at->format('d M Y'),
+                        'canDelete' => $bill->status !== 'paid' && ! $bill->payments->contains(fn (Payment $item) => $item->isPaid()),
                     ];
                 }),
-        ]);
+        ];
     }
 
     public function store(Request $request): RedirectResponse
@@ -91,7 +97,7 @@ class CourseBillController extends Controller
             'due_at' => $bill->due_at->toDateString(),
         ]);
 
-        return to_route('admin.course-bills')->with('success', 'Tagihan berhasil dibuat. Tautan Midtrans akan dibuat saat siswa menekan tombol bayar.');
+        return to_route('admin.payments')->with('success', 'Tagihan berhasil dibuat. Tautan Midtrans akan dibuat saat siswa menekan tombol bayar.');
     }
 
     public function pay(Request $request, CourseBill $courseBill, MidtransService $midtrans): \Symfony\Component\HttpFoundation\Response
@@ -132,7 +138,19 @@ class CourseBillController extends Controller
 
     public function destroy(Request $request, CourseBill $courseBill): RedirectResponse
     {
+        abort_if(
+            $courseBill->status === 'paid' || $courseBill->payments()->whereIn('status', ['paid', 'settlement', 'capture', 'success'])->exists(),
+            409,
+            'Tagihan yang sudah dibayar tidak dapat dihapus.',
+        );
+
         DB::transaction(function () use ($request, $courseBill) {
+            $courseBill->refresh();
+            abort_if(
+                $courseBill->status === 'paid' || $courseBill->payments()->whereIn('status', ['paid', 'settlement', 'capture', 'success'])->exists(),
+                409,
+                'Tagihan yang sudah dibayar tidak dapat dihapus.',
+            );
             $paymentIds = $courseBill->payments()->pluck('id')->all();
 
             AuditLogger::log('course_bill.deleted', $request->user(), $courseBill, [
