@@ -176,14 +176,44 @@ class CourseBillController extends Controller
         abort_unless($courseBill->student_id === $request->user()->id, 403);
         abort_unless($courseBill->status !== 'paid', 409, 'Tagihan ini sudah lunas.');
 
-        $payment = $courseBill->payments()->latest('id')->first()
-            ?? $courseBill->batchPayments()->latest('payments.id')->first();
+        $directPayment = $courseBill->payments()->latest('id')->first();
+        $batchPayment = $courseBill->batchPayments()->latest('payments.id')->first();
+        $payment = collect([$directPayment, $batchPayment])
+            ->filter()
+            ->sortByDesc('id')
+            ->first();
 
         if ($payment?->status === 'pending' && filled($payment->checkout_url)) {
-            return Inertia::location($payment->checkout_url);
+            if (! config('midtrans.is_enabled')) {
+                $transaction = $midtrans->createTransaction($payment);
+                $payment->forceFill([
+                    'snap_token' => $transaction['snap_token'],
+                    'checkout_url' => $transaction['checkout_url'],
+                ])->save();
+
+                return Inertia::location($transaction['checkout_url']);
+            }
+
+            $gatewayStatus = $midtrans->transactionStatus($payment);
+            if ($gatewayStatus === 'pending') {
+                return Inertia::location($payment->checkout_url);
+            }
+
+            $payment->forceFill([
+                'status' => $gatewayStatus,
+                'paid_at' => $gatewayStatus === 'paid' ? ($payment->paid_at ?? now()) : null,
+            ])->save();
+
+            if ($gatewayStatus === 'paid') {
+                $this->markCourseBillsPaid($payment->fresh(['courseBill', 'courseBills']));
+
+                return to_route('student.bills')->with('success', 'Pembayaran tagihan berhasil dikonfirmasi.');
+            }
+
+            $payment = null;
         }
 
-        if (! $payment || ! in_array($payment->status, ['pending'], true)) {
+        if (! $payment || $payment->status !== 'pending') {
             $payment = Payment::query()->create([
                 'user_id' => $courseBill->student_id,
                 'course_id' => $courseBill->course_id,
@@ -278,6 +308,25 @@ class CourseBillController extends Controller
             'bills' => $bills,
             'studentNumber' => $request->user()->student_number,
         ]);
+    }
+
+    private function markCourseBillsPaid(Payment $payment): void
+    {
+        $paidAt = $payment->paid_at ?? now();
+
+        if ($payment->courseBill) {
+            $payment->courseBill->forceFill([
+                'status' => 'paid',
+                'paid_at' => $payment->courseBill->paid_at ?? $paidAt,
+            ])->save();
+        }
+
+        foreach ($payment->courseBills as $bill) {
+            $bill->forceFill([
+                'status' => 'paid',
+                'paid_at' => $bill->paid_at ?? $paidAt,
+            ])->save();
+        }
     }
 
     private function rupiah(int $amount): string
