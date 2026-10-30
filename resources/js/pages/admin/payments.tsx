@@ -258,6 +258,70 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                     </DialogContent>
                 </Dialog>
             </div>
+            <Panel title={`Tagihan kursus (${bills.length})`}>
+                <div className="space-y-4">
+                    <MobileCardList
+                        empty={<p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}
+                    >
+                        {bills.map((bill) => (
+                            <MobileDataCard
+                                key={bill.id}
+                                title={bill.title}
+                                subtitle={bill.student + ' · ' + bill.email}
+                                badge={
+                                    <StatusBadge
+                                        status={bill.status}
+                                        label={bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : 'Belum dibayar'}
+                                    />
+                                }
+                                meta={[
+                                    { label: 'Kursus', value: bill.course },
+                                    { label: 'Nominal', value: bill.amountLabel },
+                                    { label: 'Jatuh tempo', value: bill.dueAt },
+                                    { label: 'ID order', value: bill.orderId ?? '-' },
+                                ]}
+                            />
+                        ))}
+                    </MobileCardList>
+                    <DesktopTable>
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs tracking-wider text-slate-500 uppercase">
+                                <tr>
+                                    <th className="py-3">Tagihan</th>
+                                    <th>Siswa</th>
+                                    <th>Kursus</th>
+                                    <th>Nominal</th>
+                                    <th>Jatuh tempo</th>
+                                    <th>Status</th>
+                                    <th>ID order</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {bills.map((bill) => (
+                                    <tr key={bill.id}>
+                                        <td className="py-4 font-semibold">{bill.title}</td>
+                                        <td>
+                                            <p>{bill.student}</p>
+                                            <p className="text-xs text-slate-500">{bill.email}</p>
+                                        </td>
+                                        <td>{bill.course}</td>
+                                        <td>{bill.amountLabel}</td>
+                                        <td>{bill.dueAt}</td>
+                                        <td>
+                                            <StatusBadge
+                                                status={bill.status}
+                                                label={bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : 'Belum dibayar'}
+                                            />
+                                        </td>
+                                        <td className="font-mono text-xs">{bill.orderId ?? '-'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {bills.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}
+                    </DesktopTable>
+                </div>
+            </Panel>
             <Panel
                 title="Riwayat transaksi"
                 action={
