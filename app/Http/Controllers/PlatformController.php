@@ -735,8 +735,9 @@ class PlatformController extends Controller
         $studentId = $request->user()->id;
 
         return Inertia::render('payments/index', [
+            'studentNumber' => $request->user()->student_number,
             'payments' => DB::table('payments')
-                ->join('courses', 'payments.course_id', '=', 'courses.id')
+                ->leftJoin('courses', 'payments.course_id', '=', 'courses.id')
                 ->where('payments.user_id', $studentId)
                 ->select(
                     'payments.id',
@@ -747,7 +748,7 @@ class PlatformController extends Controller
                     'payments.checkout_url as checkoutUrl',
                     'payments.created_at as createdAt',
                     'payments.paid_at as paidAt',
-                    'courses.title as course',
+                    DB::raw("COALESCE(courses.title, 'Tagihan kursus') as course"),
                 )
                 ->latest('payments.created_at')
                 ->get()
@@ -756,12 +757,16 @@ class PlatformController extends Controller
                     'amountLabel' => $this->rupiah((int) $payment->amount),
                 ]),
             'bills' => CourseBill::query()
-                ->with(['course:id,title', 'payments' => fn ($query) => $query->latest('id')])
+                ->with([
+                    'course:id,title',
+                    'payments' => fn ($query) => $query->latest('id'),
+                    'batchPayments' => fn ($query) => $query->latest('payments.id')->with('courseBills:id'),
+                ])
                 ->where('student_id', $studentId)
                 ->latest('due_at')
                 ->get()
                 ->map(function (CourseBill $bill) {
-                    $payment = $bill->payments->first();
+                    $payment = $bill->payments->concat($bill->batchPayments)->sortByDesc('id')->first();
 
                     return [
                         'id' => $bill->id,
