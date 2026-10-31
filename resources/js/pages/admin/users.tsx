@@ -13,6 +13,7 @@ import { FormEvent, useState } from 'react';
 
 interface UserRow {
     id: number;
+    studentNumber?: string | null;
     schoolId?: number | null;
     name: string;
     email: string;
@@ -50,7 +51,7 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
     const visibleUsers = users.filter(
         (user) =>
             (role === 'all' || user.role === role) &&
-            `${user.name} ${user.email} ${user.school} ${user.schoolRequest ?? ''}`.toLowerCase().includes(term.toLowerCase()),
+            `${user.name} ${user.email} ${user.studentNumber ?? ''} ${user.school} ${user.schoolRequest ?? ''}`.toLowerCase().includes(term.toLowerCase()),
     );
     const roleOptions = [
         { value: 'all', label: 'All Roles' },
@@ -144,7 +145,7 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
                             <Input
                                 className="bg-[#FAF8FF] pl-9"
-                                placeholder="Search by name or email..."
+                                placeholder="Cari nama, email, atau ID siswa..."
                                 value={term}
                                 onChange={(event) => setTerm(event.target.value)}
                             />
@@ -168,6 +169,7 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                                 subtitle={user.email}
                                 badge={<StatusBadge status={user.status} label={user.status} />}
                                 meta={[
+                                    ...(user.role === 'student' ? [{ label: 'ID Siswa', value: user.studentNumber ?? '-' }] : []),
                                     { label: 'Role', value: user.roleLabel },
                                     { label: 'Sekolah', value: user.school },
                                     {
@@ -201,6 +203,7 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Nama</th>
+                                    <th>ID Siswa</th>
                                     <th>Email</th>
                                     <th>Role</th>
                                     <th>Sekolah</th>
@@ -213,6 +216,7 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                                 {visibleUsers.map((user) => (
                                     <tr key={user.id}>
                                         <td className="py-4 font-bold">{user.name}</td>
+                                        <td className="font-mono text-xs">{user.role === 'student' ? user.studentNumber ?? '-' : '-'}</td>
                                         <td>{user.email}</td>
                                         <td>{user.roleLabel}</td>
                                         <td>{user.school}</td>
