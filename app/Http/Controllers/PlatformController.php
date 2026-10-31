@@ -363,7 +363,6 @@ class PlatformController extends Controller
                 ->select(
                     'payments.id',
                     'payments.order_id as orderId',
-                    'users.student_number as studentNumber',
                     'payments.amount',
                     'payments.status',
                     'payments.created_at as createdAt',
@@ -2087,6 +2086,7 @@ class PlatformController extends Controller
                 ->select(
                     'payments.id',
                     'payments.order_id as orderId',
+                    'users.student_number as studentNumber',
                     'payments.gateway_transaction_id as transactionId',
                     'payments.amount',
                     'payments.status',
