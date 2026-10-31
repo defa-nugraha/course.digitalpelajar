@@ -30,10 +30,11 @@ class CourseBillController extends Controller
                 ->where('role', 'student')
                 ->where('status', 'active')
                 ->orderBy('name')
-                ->get(['id', 'name', 'email'])
+                ->get(['id', 'name', 'email', 'student_number'])
                 ->map(fn (User $student) => [
                     'id' => $student->id,
                     'name' => $student->name,
+                    'studentNumber' => $student->student_number,
                     'email' => $student->email,
                 ]),
             'courses' => Course::query()
@@ -42,7 +43,7 @@ class CourseBillController extends Controller
                 ->get(['id', 'title']),
             'bills' => CourseBill::query()
                 ->with([
-                    'student:id,name,email',
+                    'student:id,name,email,student_number',
                     'course:id,title',
                     'payments' => fn ($query) => $query->latest('id'),
                     'batchPayments' => fn ($query) => $query->latest('payments.id')->with('courseBills:id'),
@@ -55,6 +56,7 @@ class CourseBillController extends Controller
                     return [
                         'id' => $bill->id,
                         'studentId' => $bill->student_id,
+                        'studentNumber' => $bill->student->student_number,
                         'courseId' => $bill->course_id,
                         'title' => $bill->title,
                         'student' => $bill->student->name,

@@ -252,7 +252,22 @@ test('students can continue only their own pending payment and admins receive it
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/payments', false)
             ->where('payments.0.id', $payment->id)
+            ->where('payments.0.studentNumber', $student->student_number)
             ->where('payments.0.checkoutUrl', $payment->checkout_url));
+});
+
+test('admin user management exposes the permanent student number for student accounts', function () {
+    $admin = User::factory()->admin()->create();
+    $student = User::factory()->student()->create();
+
+    $this->actingAs($admin)
+        ->get('/admin/users')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/users', false)
+            ->has('users', 2)
+            ->where('users', fn ($users) => collect($users)->contains(
+                fn ($user) => $user['id'] === $student->id && $user['studentNumber'] === $student->student_number,
+            )));
 });
 
 test('role middleware prevents students from accessing admin crud', function () {
@@ -395,6 +410,8 @@ test('course bill creates Midtrans payment only when student starts payment and 
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/payments', false)
             ->where('bills.0.id', $bill->id)
+            ->where('bills.0.studentNumber', $student->student_number)
+            ->where('students.0.studentNumber', $student->student_number)
             ->where('bills.0.checkoutUrl', null));
 
     $this->actingAs($student)

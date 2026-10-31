@@ -1609,6 +1609,7 @@ class PlatformController extends Controller
                 ->leftJoin('schools as requested_schools', 'users.requested_school_id', '=', 'requested_schools.id')
                 ->select(
                     'users.id',
+                    'users.student_number as studentNumber',
                     'users.school_id as schoolId',
                     'users.requested_school_id as requestedSchoolId',
                     'users.manual_school_name as manualSchoolName',
@@ -1625,6 +1626,7 @@ class PlatformController extends Controller
                 ->get()
                 ->map(fn ($user) => [
                     'id' => $user->id,
+                    'studentNumber' => $user->studentNumber,
                     'schoolId' => $user->schoolId,
                     'name' => $user->name,
                     'email' => $user->email,
@@ -2084,6 +2086,7 @@ class PlatformController extends Controller
                 ->select(
                     'payments.id',
                     'payments.order_id as orderId',
+                    'users.student_number as studentNumber',
                     'payments.gateway_transaction_id as transactionId',
                     'payments.amount',
                     'payments.status',

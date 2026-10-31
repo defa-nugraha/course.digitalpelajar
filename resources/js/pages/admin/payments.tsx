@@ -14,6 +14,7 @@ interface PaymentRow {
     id: number;
     orderId: string;
     transactionId?: string | null;
+    studentNumber?: string | null;
     student: string;
     email: string;
     course: string;
@@ -28,6 +29,7 @@ interface StudentOption {
     id: number;
     name: string;
     email: string;
+    studentNumber?: string | null;
 }
 
 interface CourseOption {
@@ -38,6 +40,7 @@ interface CourseOption {
 interface BillRow {
     id: number;
     studentId: number;
+    studentNumber?: string | null;
     courseId: number;
     amount: number;
     title: string;
@@ -76,7 +79,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
     const visible = payments.filter(
         (payment) =>
             (status === 'all' || payment.status === status) &&
-            `${payment.orderId} ${payment.student} ${payment.email} ${payment.course}`.toLowerCase().includes(term.toLowerCase()),
+            `${payment.orderId} ${payment.student} ${payment.studentNumber ?? ''} ${payment.email} ${payment.course}`.toLowerCase().includes(term.toLowerCase()),
     );
 
     const copy = async (value: string, label: string) => {
@@ -254,7 +257,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                     <option value="">Pilih siswa</option>
                                     {students.map((student) => (
                                         <option key={student.id} value={student.id}>
-                                            {student.name} — {student.email}
+                                            {student.name} — ID: {student.studentNumber ?? '-'} — {student.email}
                                         </option>
                                     ))}
                                 </select>
@@ -313,7 +316,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                     <MobileDataCard
                                         key={bill.id}
                                         title={bill.title}
-                                        subtitle={bill.student + ' · ' + bill.email}
+                                        subtitle={bill.student + ' · ID: ' + (bill.studentNumber ?? '-') + ' · ' + bill.email}
                                         badge={<StatusBadge status={bill.status} label={bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : 'Belum dibayar'} />}
                                         meta={[
                                             { label: 'Kursus', value: bill.course },
@@ -365,7 +368,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                             <MobileDataCard
                                 key={bill.id}
                                 title={bill.title}
-                                subtitle={bill.student + ' · ' + bill.email}
+                                subtitle={bill.student + ' · ID: ' + (bill.studentNumber ?? '-') + ' · ' + bill.email}
                                 badge={
                                     <StatusBadge
                                         status={bill.status}
@@ -402,6 +405,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                         <td className="py-4 font-semibold">{bill.title}</td>
                                         <td>
                                             <p>{bill.student}</p>
+                                            <p className="font-mono text-xs text-slate-500">ID Siswa: {bill.studentNumber ?? '-'}</p>
                                             <p className="text-xs text-slate-500">{bill.email}</p>
                                         </td>
                                         <td>{bill.course}</td>
@@ -457,7 +461,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                             <MobileDataCard
                                 key={payment.id}
                                 title={payment.student}
-                                subtitle={payment.email}
+                                subtitle={payment.email + ' · ID Siswa: ' + (payment.studentNumber ?? '-')}
                                 badge={<StatusBadge status={payment.status} label={payment.status} />}
                                 meta={[
                                     { label: 'Order', value: <span className="font-mono text-xs">{payment.orderId}</span> },
@@ -488,6 +492,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                         <td className="py-4 font-mono text-xs">{payment.orderId}</td>
                                         <td>
                                             <p className="font-semibold">{payment.student}</p>
+                                            <p className="font-mono text-xs text-slate-500">ID Siswa: {payment.studentNumber ?? '-'}</p>
                                             <p className="text-xs text-slate-500">{payment.email}</p>
                                         </td>
                                         <td>{payment.course}</td>
