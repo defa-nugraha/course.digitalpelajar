@@ -14,7 +14,6 @@ import {
     Landmark,
     LockKeyhole,
     ReceiptText,
-    ShieldCheck,
 } from 'lucide-react';
 
 interface Bill {
@@ -34,8 +33,6 @@ interface Props {
     studentNumber: string | null;
     searched: boolean;
     bills: Bill[];
-    otpSent: boolean;
-    otpError: string | null;
 }
 
 const paymentLogoSources = {
@@ -51,8 +48,8 @@ const paymentLogoSources = {
     },
 };
 
-export default function PublicPayment({ studentNumber, searched, bills, otpSent, otpError }: Props) {
-    const lookupForm = useForm({ student_number: studentNumber ?? '', email: '', otp: '' });
+export default function PublicPayment({ studentNumber, searched, bills }: Props) {
+    const lookupForm = useForm({ student_number: studentNumber ?? '' });
     const paymentForm = useForm({ student_number: studentNumber ?? '', bill_ids: [] as number[] });
     const [selectedBillIds, setSelectedBillIds] = useState<number[]>([]);
     const [lookupVersion, setLookupVersion] = useState(0);
@@ -179,7 +176,7 @@ export default function PublicPayment({ studentNumber, searched, bills, otpSent,
                                             <div className="min-w-0">
                                                 <h2 className="font-extrabold">Lihat tagihan Anda</h2>
                                                 <p className="text-xs text-slate-500 sm:text-sm">
-                                                    Verifikasi akun menggunakan kode sekali pakai melalui email terdaftar
+                                                    Masukkan ID Siswa enam digit untuk mencari tagihan kursus
                                                 </p>
                                             </div>
                                         </div>
@@ -190,7 +187,6 @@ export default function PublicPayment({ studentNumber, searched, bills, otpSent,
                                                 lookupForm.post('/pembayaran/tagihan', {
                                                     onSuccess: (page) => {
                                                         if (page.props.searched === true) {
-                                                            lookupForm.setData('otp', '');
                                                             setLookupVersion((current) => current + 1);
                                                         }
                                                     },
@@ -214,7 +210,6 @@ export default function PublicPayment({ studentNumber, searched, bills, otpSent,
                                                         'student_number',
                                                         event.target.value.replace(/\D/g, '').slice(0, 6),
                                                     );
-                                                    lookupForm.setData('otp', '');
                                                 }}
                                                 className="h-12 rounded-xl font-mono text-lg tracking-[0.25em]"
                                                 aria-invalid={Boolean(lookupForm.errors.student_number)}
@@ -222,72 +217,17 @@ export default function PublicPayment({ studentNumber, searched, bills, otpSent,
                                             {lookupForm.errors.student_number && (
                                                 <p className="text-sm text-red-600">{lookupForm.errors.student_number}</p>
                                             )}
-                                            <label className="block text-sm font-semibold" htmlFor="student_email">
-                                                Email terdaftar
-                                            </label>
-                                            <Input
-                                                id="student_email"
-                                                type="email"
-                                                autoComplete="email"
-                                                maxLength={255}
-                                                placeholder="Masukkan email akun siswa"
-                                                value={lookupForm.data.email}
-                                                onChange={(event) => {
-                                                    lookupForm.setData('email', event.target.value);
-                                                    lookupForm.setData('otp', '');
-                                                }}
-                                                className="h-12 rounded-xl"
-                                                aria-invalid={Boolean(lookupForm.errors.email)}
-                                            />
-                                            {lookupForm.errors.email && (
-                                                <p className="text-sm text-red-600">{lookupForm.errors.email}</p>
-                                            )}
-                                            {otpSent && (
-                                                <>
-                                                    <label className="block text-sm font-semibold" htmlFor="payment_otp">
-                                                        Kode verifikasi email
-                                                    </label>
-                                                    <Input
-                                                        id="payment_otp"
-                                                        type="text"
-                                                        inputMode="numeric"
-                                                        autoComplete="one-time-code"
-                                                        maxLength={6}
-                                                        placeholder="Masukkan 6 digit kode"
-                                                        value={lookupForm.data.otp}
-                                                        onChange={(event) =>
-                                                            lookupForm.setData('otp', event.target.value.replace(/\D/g, '').slice(0, 6))
-                                                        }
-                                                        className="h-12 rounded-xl font-mono text-lg tracking-[0.25em]"
-                                                        aria-invalid={Boolean(otpError)}
-                                                    />
-                                                    {otpError && <p className="text-sm text-red-600">{otpError}</p>}
-                                                </>
-                                            )}
                                             <Button
                                                 type="submit"
                                                 className="h-11 w-full rounded-xl bg-[#1C7DE8] font-bold hover:bg-[#005DB5]"
-                                                disabled={
-                                                    lookupForm.processing ||
-                                                    lookupForm.data.student_number.length !== 6 ||
-                                                    !lookupForm.data.email.trim() ||
-                                                    (otpSent && lookupForm.data.otp.length > 0 && lookupForm.data.otp.length !== 6)
-                                                }
+                                                disabled={lookupForm.processing || lookupForm.data.student_number.length !== 6}
                                             >
-                                                {lookupForm.processing
-                                                    ? 'Memeriksa...'
-                                                    : otpSent
-                                                      ? lookupForm.data.otp.length === 6
-                                                          ? 'Verifikasi kode'
-                                                          : 'Kirim ulang kode'
-                                                      : 'Kirim kode verifikasi'}
+                                                {lookupForm.processing ? 'Mencari...' : 'Lihat tagihan'}
                                             </Button>
                                         </form>
                                         <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-slate-500">
-                                            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                                            {otpSent
-                                                ? 'Jika informasi akun cocok, kode sekali pakai telah dikirim ke email terdaftar. Kode berlaku 5 menit. Kosongkan kode lalu kirim ulang apabila belum menerima email.'
-                                                : 'Jika informasi akun cocok, kode verifikasi sekali pakai akan dikirim ke email terdaftar.'}
+                                            <LockKeyhole className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                                            Gunakan ID Siswa milik Anda atau siswa yang Anda wakili. Hindari membagikan ID secara terbuka.
                                         </p>
                                     </div>
                                 </section>
@@ -298,7 +238,7 @@ export default function PublicPayment({ studentNumber, searched, bills, otpSent,
                                         <Step
                                             number="01"
                                             title="Masukkan ID Siswa"
-                                            description="Masukkan ID Siswa enam digit dan verifikasi kode yang dikirim ke email terdaftar."
+                                            description="Masukkan ID Siswa enam digit untuk mencari tagihan yang masih perlu dibayar."
                                         />
                                         <Step
                                             number="02"
@@ -321,7 +261,7 @@ export default function PublicPayment({ studentNumber, searched, bills, otpSent,
                                         <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                                             {searched && bills.length > 0
                                                 ? bills.length + ' tagihan tersedia'
-                                                : 'Akun belum diverifikasi atau belum memiliki tagihan yang tersedia'}
+                                                : 'Masukkan ID Siswa untuk melihat tagihan yang perlu dibayar'}
                                         </p>
                                     </div>
                                     {searched && bills.length > 0 && (
@@ -334,13 +274,13 @@ export default function PublicPayment({ studentNumber, searched, bills, otpSent,
                                 {!searched ? (
                                     <EmptyState
                                         title="Tagihan Anda akan tampil di sini"
-                                        description="Masukkan ID Siswa, email terdaftar, lalu kode verifikasi untuk melihat tagihan yang masih perlu dibayarkan."
+                                        description="Masukkan ID Siswa enam digit untuk melihat tagihan yang masih perlu dibayarkan."
                                         icon="receipt"
                                     />
                                 ) : bills.length === 0 ? (
                                     <EmptyState
                                         title="Tidak ada tagihan yang perlu dibayar"
-                                        description="Data akun tidak cocok atau belum ada tagihan yang perlu dibayar. Periksa informasi yang dimasukkan atau hubungi administrator."
+                                        description="ID Siswa tidak ditemukan atau belum ada tagihan yang perlu dibayar. Periksa ID atau hubungi administrator."
                                         icon="empty"
                                     />
                                 ) : (
