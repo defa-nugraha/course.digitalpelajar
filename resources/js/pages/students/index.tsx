@@ -2,9 +2,14 @@ import { Panel, ProgressBar, Shell, StatCard } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FieldLabel } from '@/components/form-field';
+import InputError from '@/components/input-error';
+import { confirmDelete } from '@/lib/confirm-delete';
 import { Input } from '@/components/ui/input';
-import { Head, Link } from '@inertiajs/react';
-import { AlertCircle, CheckCircle2, GraduationCap, Search, TrendingUp, Users } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { AlertCircle, CheckCircle2, GraduationCap, Pencil, Search, Trash2, TrendingUp, Users } from 'lucide-react';
+import { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 
 interface StudentRow {
@@ -14,6 +19,11 @@ interface StudentRow {
     status: string;
     schoolId: number;
     school: string;
+    role: string;
+    requestedSchoolId?: number | null;
+    requestedSchoolName?: string | null;
+    schoolVerificationStatus?: string | null;
+    manualSchoolName?: string | null;
     enrollments: number;
     courses: number;
     progress: number;
@@ -41,6 +51,8 @@ interface StudentsProps {
 }
 
 export default function StudentsIndex({ scopeLabel, students, summary, schools }: StudentsProps) {
+    const [editing, setEditing] = useState<StudentRow | null>(null);
+    const editForm = useForm({ name: '', email: '', school_id: '', status: 'active', role: 'student', password: '', password_confirmation: '', whatsapp_phone: '', parent_whatsapp_phone: '' });
     const [term, setTerm] = useState('');
     const [schoolId, setSchoolId] = useState('all');
     const [status, setStatus] = useState('all');
@@ -60,6 +72,30 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
             }),
         [reviewState, schoolId, status, students, term],
     );
+
+    const showEdit = (student: StudentRow) => {
+        setEditing(student);
+        editForm.setData({ name: student.name, email: student.email, school_id: student.schoolId ? String(student.schoolId) : '', status: student.status, role: 'student', password: '', password_confirmation: '', whatsapp_phone: '', parent_whatsapp_phone: '' });
+        editForm.clearErrors();
+    };
+
+    const submitEdit = (event: FormEvent) => {
+        event.preventDefault();
+        editForm.transform((data) => ({ ...data, school_id: data.school_id || null }));
+        if (!editing) return;
+        editForm.patch(`/admin/students/${editing.id}`, { preserveScroll: true, onSuccess: () => setEditing(null) });
+    };
+
+    const removeStudent = (student: StudentRow) => {
+        confirmDelete(`Hapus akun siswa "${student.name}"? Tindakan ini tidak dapat dibatalkan.`, () => {
+            router.delete(`/admin/students/${student.id}`, { preserveScroll: true });
+        });
+    };
+
+    const approveSchool = (student: StudentRow) => {
+        if (!window.confirm(`Setujui pengajuan sekolah "${student.requestedSchoolName}" untuk ${student.name}?`)) return;
+        router.post(`/admin/students/${student.id}/approve-school`, {}, { preserveScroll: true });
+    };
 
     const resetFilters = () => {
         setTerm('');
@@ -153,13 +189,18 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                     { label: 'Aktivitas', value: formatDate(student.lastActivityAt) },
                                 ]}
                                 actions={
-                                    student.reviewUrl ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button type="button" variant="outline" size="sm" onClick={() => showEdit(student)}><Pencil className="size-4" /> Edit</Button>
+                                        {student.requestedSchoolId && <Button type="button" size="sm" onClick={() => approveSchool(student)}><CheckCircle2 className="size-4" /> Approve Sekolah</Button>}
+                                        <Button type="button" variant="destructive" size="sm" onClick={() => removeStudent(student)}><Trash2 className="size-4" /> Hapus</Button>
+                                        {student.reviewUrl ? (
                                         <Button asChild size="sm">
                                             <Link href={student.reviewUrl}>Buka Review</Link>
                                         </Button>
                                     ) : (
                                         <span className="text-xs font-semibold text-slate-400">Tidak ada review</span>
-                                    )
+                                    )}
+                                    </div>
                                 }
                             >
                                 <div className="space-y-2">
@@ -197,6 +238,7 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                                 <div>
                                                     <p className="font-bold text-slate-950">{student.name}</p>
                                                     <p className="mt-1 text-xs text-slate-500">{student.email}</p>
+                                            {student.requestedSchoolName && <p className="mt-1 text-xs font-semibold text-amber-700">Pengajuan sekolah: {student.requestedSchoolName}</p>}
                                                     <p className="mt-1 text-xs font-semibold text-slate-500">{student.status}</p>
                                                 </div>
                                             </div>
@@ -224,13 +266,12 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                         <td>{student.certificates}</td>
                                         <td className="min-w-36 text-xs text-slate-500">{formatDate(student.lastActivityAt)}</td>
                                         <td className="text-right">
-                                            {student.reviewUrl ? (
-                                                <Button asChild size="sm">
-                                                    <Link href={student.reviewUrl}>Review</Link>
-                                                </Button>
-                                            ) : (
-                                                <span className="text-xs text-slate-400">Tidak ada review</span>
-                                            )}
+                                            <div className="flex justify-end gap-2">
+                                                <Button type="button" variant="outline" size="sm" onClick={() => showEdit(student)}>Edit</Button>
+                                                {student.requestedSchoolId && <Button type="button" size="sm" onClick={() => approveSchool(student)}>Approve Sekolah</Button>}
+                                                <Button type="button" variant="destructive" size="sm" onClick={() => removeStudent(student)}>Hapus</Button>
+                                                {student.reviewUrl && <Button asChild size="sm"><Link href={student.reviewUrl}>Review</Link></Button>}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -244,6 +285,18 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                     </DesktopTable>
                 </div>
             </Panel>
+            <Dialog open={Boolean(editing)} onOpenChange={(isOpen) => !isOpen && setEditing(null)}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader><DialogTitle>Edit Akun Siswa</DialogTitle></DialogHeader>
+                    <form onSubmit={submitEdit} className="space-y-4">
+                        <div><FieldLabel htmlFor="student-name">Nama siswa</FieldLabel><Input id="student-name" value={editForm.data.name} onChange={(event) => editForm.setData('name', event.target.value)} required /><InputError message={editForm.errors.name} /></div>
+                        <div><FieldLabel htmlFor="student-email">Email</FieldLabel><Input id="student-email" type="email" value={editForm.data.email} onChange={(event) => editForm.setData('email', event.target.value)} required /><InputError message={editForm.errors.email} /></div>
+                        <div><FieldLabel htmlFor="student-school">Sekolah</FieldLabel><select id="student-school" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editForm.data.school_id} onChange={(event) => editForm.setData('school_id', event.target.value)}><option value="">Tanpa sekolah</option>{schools.map((school) => <option key={school.id} value={String(school.id)}>{school.name}</option>)}</select><InputError message={editForm.errors.school_id} /></div>
+                        <div><FieldLabel htmlFor="student-status">Status akun</FieldLabel><select id="student-status" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editForm.data.status} onChange={(event) => editForm.setData('status', event.target.value)}><option value="active">Aktif</option><option value="inactive">Nonaktif</option></select><InputError message={editForm.errors.status} /></div>
+                        <DialogFooter><Button type="button" variant="outline" onClick={() => setEditing(null)}>Batal</Button><Button type="submit" disabled={editForm.processing}>Simpan Perubahan</Button></DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </Shell>
     );
 }
