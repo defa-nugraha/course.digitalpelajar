@@ -93,6 +93,8 @@ class User extends Authenticatable
         'google_id',
         'avatar',
         'phone',
+        'whatsapp_phone',
+        'parent_whatsapp_phone',
         'address',
         'bank_name',
         'bank_account_name',
