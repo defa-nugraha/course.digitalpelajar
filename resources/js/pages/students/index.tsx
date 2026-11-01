@@ -8,7 +8,7 @@ import InputError from '@/components/input-error';
 import { confirmDelete } from '@/lib/confirm-delete';
 import { Input } from '@/components/ui/input';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { AlertCircle, CheckCircle2, GraduationCap, Pencil, Search, Trash2, TrendingUp, Users } from 'lucide-react';
+import { AlertCircle, CheckCircle2, GraduationCap, Pencil, Search, School as SchoolIcon, Trash2, TrendingUp, Users } from 'lucide-react';
 import { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 
@@ -185,6 +185,8 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                 badge={<StatusBadge status={student.status} label={student.status} />}
                                 meta={[
                                     { label: 'Sekolah', value: student.school },
+                                    ...(student.requestedSchoolName ? [{ label: 'Pengajuan sekolah', value: student.requestedSchoolName }] : []),
+                                    ...(student.manualSchoolName ? [{ label: 'Pengajuan sekolah manual', value: student.manualSchoolName }] : []),
                                     { label: 'Course', value: `${student.courses} course · ${student.enrollments} enrollment` },
                                     { label: 'Submission', value: `${student.pendingSubmissions} pending` },
                                     { label: 'Sertifikat', value: student.certificates },
@@ -192,9 +194,9 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                 ]}
                                 actions={
                                     <div className="flex flex-wrap gap-2">
-                                        <Button type="button" variant="outline" size="sm" onClick={() => showEdit(student)}><Pencil className="size-4" /> Edit</Button>
-                                        {student.requestedSchoolId && <Button type="button" size="sm" onClick={() => approveSchool(student)}><CheckCircle2 className="size-4" /> Approve Sekolah</Button>}
-                                        <Button type="button" variant="destructive" size="sm" onClick={() => removeStudent(student)}><Trash2 className="size-4" /> Hapus</Button>
+                                        <Button type="button" variant="outline" size="icon" title="Edit siswa" aria-label={`Edit siswa ${student.name}`} onClick={() => showEdit(student)}><Pencil className="size-4" /></Button>
+                                        {student.schoolVerificationStatus === 'pending' && (student.requestedSchoolId || student.manualSchoolName) && <Button type="button" variant="outline" size="icon" title={student.requestedSchoolId ? 'Setujui pengajuan sekolah' : 'Tinjau pengajuan sekolah manual'} aria-label={student.requestedSchoolId ? 'Setujui pengajuan sekolah' : 'Tinjau pengajuan sekolah manual'} onClick={() => student.requestedSchoolId ? approveSchool(student) : showEdit(student)}>{student.requestedSchoolId ? <CheckCircle2 className="size-4" /> : <SchoolIcon className="size-4" />}</Button>}
+                                        <Button type="button" variant="destructive" size="icon" title="Hapus siswa" aria-label={`Hapus siswa ${student.name}`} onClick={() => removeStudent(student)}><Trash2 className="size-4" /></Button>
                                         {student.reviewUrl ? (
                                         <Button asChild size="sm">
                                             <Link href={student.reviewUrl}>Buka Review</Link>
@@ -269,9 +271,9 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                         <td className="min-w-36 text-xs text-slate-500">{formatDate(student.lastActivityAt)}</td>
                                         <td className="text-right">
                                             <div className="flex justify-end gap-2">
-                                                <Button type="button" variant="outline" size="sm" onClick={() => showEdit(student)}>Edit</Button>
-                                                {student.requestedSchoolId && <Button type="button" size="sm" onClick={() => approveSchool(student)}>Approve Sekolah</Button>}
-                                                <Button type="button" variant="destructive" size="sm" onClick={() => removeStudent(student)}>Hapus</Button>
+                                                <Button type="button" variant="outline" size="icon" title="Edit siswa" aria-label={`Edit siswa ${student.name}`} onClick={() => showEdit(student)}><Pencil className="size-4" /></Button>
+                                                {student.schoolVerificationStatus === 'pending' && (student.requestedSchoolId || student.manualSchoolName) && <Button type="button" variant="outline" size="icon" title={student.requestedSchoolId ? 'Setujui pengajuan sekolah' : 'Tinjau pengajuan sekolah manual'} aria-label={student.requestedSchoolId ? 'Setujui pengajuan sekolah' : 'Tinjau pengajuan sekolah manual'} onClick={() => student.requestedSchoolId ? approveSchool(student) : showEdit(student)}>{student.requestedSchoolId ? <CheckCircle2 className="size-4" /> : <SchoolIcon className="size-4" />}</Button>}
+                                                <Button type="button" variant="destructive" size="icon" title="Hapus siswa" aria-label={`Hapus siswa ${student.name}`} onClick={() => removeStudent(student)}><Trash2 className="size-4" /></Button>
                                                 {student.reviewUrl && <Button asChild size="sm"><Link href={student.reviewUrl}>Review</Link></Button>}
                                             </div>
                                         </td>
@@ -289,12 +291,29 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
             </Panel>
             <Dialog open={Boolean(editing)} onOpenChange={(isOpen) => !isOpen && setEditing(null)}>
                 <DialogContent className="sm:max-w-xl">
-                    <DialogHeader><DialogTitle>Edit Akun Siswa</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{editing?.schoolVerificationStatus === 'pending' && (editing.requestedSchoolId || editing.manualSchoolName) ? 'Tinjau Pengajuan Sekolah / Edit Siswa' : 'Edit Akun Siswa'}</DialogTitle></DialogHeader>
+                    {editing?.schoolVerificationStatus === 'pending' && editing.manualSchoolName && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                            <p className="font-semibold">Pengajuan sekolah manual</p>
+                            <p>{editing.manualSchoolName}</p>
+                            {editing.schoolVerificationStatus === 'pending' && <p className="mt-1">Pilih sekolah resmi di bawah untuk menetapkan sekolah siswa.</p>}
+                        </div>
+                    )}
                     <form onSubmit={submitEdit} className="space-y-4">
                         <div><FieldLabel htmlFor="student-name">Nama siswa</FieldLabel><Input id="student-name" value={editForm.data.name} onChange={(event) => editForm.setData('name', event.target.value)} required /><InputError message={editForm.errors.name} /></div>
                         <div><FieldLabel htmlFor="student-email">Email</FieldLabel><Input id="student-email" type="email" value={editForm.data.email} onChange={(event) => editForm.setData('email', event.target.value)} required /><InputError message={editForm.errors.email} /></div>
                         <div><FieldLabel htmlFor="student-school">Sekolah</FieldLabel><select id="student-school" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editForm.data.school_id} onChange={(event) => editForm.setData('school_id', event.target.value)}><option value="">Tanpa sekolah</option>{schools.map((school) => <option key={school.id} value={String(school.id)}>{school.name}</option>)}</select><InputError message={editForm.errors.school_id} /></div>
                         <div><FieldLabel htmlFor="student-status">Status akun</FieldLabel><select id="student-status" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editForm.data.status} onChange={(event) => editForm.setData('status', event.target.value)}><option value="active">Aktif</option><option value="inactive">Nonaktif</option></select><InputError message={editForm.errors.status} /></div>
+                        <div>
+                            <FieldLabel htmlFor="student-whatsapp">WhatsApp siswa</FieldLabel>
+                            <Input id="student-whatsapp" type="tel" inputMode="tel" autoComplete="tel" placeholder="Contoh: 081234567890" value={editForm.data.whatsapp_phone} onChange={(event) => editForm.setData('whatsapp_phone', event.target.value)} />
+                            <InputError message={editForm.errors.whatsapp_phone} />
+                        </div>
+                        <div>
+                            <FieldLabel htmlFor="parent-whatsapp">WhatsApp orang tua/wali</FieldLabel>
+                            <Input id="parent-whatsapp" type="tel" inputMode="tel" autoComplete="tel" placeholder="Contoh: 081234567890" value={editForm.data.parent_whatsapp_phone} onChange={(event) => editForm.setData('parent_whatsapp_phone', event.target.value)} />
+                            <InputError message={editForm.errors.parent_whatsapp_phone} />
+                        </div>
                         <DialogFooter><Button type="button" variant="outline" onClick={() => setEditing(null)}>Batal</Button><Button type="submit" disabled={editForm.processing}>Simpan Perubahan</Button></DialogFooter>
                     </form>
                 </DialogContent>
