@@ -1,5 +1,6 @@
+import PaginatedTable from '@/components/paginated-table';
 import { Panel, Shell } from '@/components/platform';
-import { MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
+import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Head, router } from '@inertiajs/react';
 import { CreditCard, Info, ReceiptText } from 'lucide-react';
@@ -91,6 +92,46 @@ export default function StudentBills({ bills }: { bills: BillItem[] }) {
                         />
                     ))}
                 </MobileCardList>
+                <DesktopTable className="mt-4">
+                    <PaginatedTable className="w-full text-left text-sm">
+                        <thead className="text-xs tracking-wide text-slate-500 uppercase">
+                            <tr>
+                                <th className="py-3">Tagihan</th>
+                                <th>Kursus</th>
+                                <th>Nominal</th>
+                                <th>Jatuh tempo</th>
+                                <th>Status</th>
+                                <th>ID order</th>
+                                <th className="text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {bills.map((bill) => (
+                                <tr key={bill.id}>
+                                    <td className="py-4 font-semibold">{bill.title}</td>
+                                    <td>{bill.course}</td>
+                                    <td>{bill.amountLabel}</td>
+                                    <td>{bill.dueAt}</td>
+                                    <td>
+                                        <StatusBadge
+                                            status={bill.status}
+                                            label={bill.status === 'paid' ? 'Lunas' : bill.status === 'overdue' ? 'Terlambat' : 'Belum dibayar'}
+                                        />
+                                    </td>
+                                    <td className="font-mono text-xs">{bill.orderId ?? '-'}</td>
+                                    <td className="text-right">
+                                        {bill.status !== 'paid' && (
+                                            <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`)}>
+                                                <CreditCard className="size-4" />
+                                                Bayar
+                                            </Button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </PaginatedTable>
+                </DesktopTable>
             </Panel>
         </Shell>
     );
