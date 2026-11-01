@@ -8,7 +8,7 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { confirmDelete } from '@/lib/confirm-delete';
+import { confirmAction, confirmDelete } from '@/lib/confirm-delete';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     Award,
@@ -264,7 +264,16 @@ export default function AdminCertificates({
                                         variant="ghost"
                                         size="icon"
                                         aria-label="Aktifkan kembali"
-                                        onClick={() => router.patch(`/admin/certificates/${item.id}/reinstate`, {}, { preserveScroll: true })}
+                                        onClick={() =>
+                                            confirmAction({
+                                                title: 'Aktifkan kembali sertifikat?',
+                                                message: `Sertifikat ${item.no} milik ${item.student} akan diaktifkan kembali.`,
+                                                confirmLabel: 'Aktifkan kembali',
+                                                cancelLabel: 'Batal',
+                                                tone: 'default',
+                                                onConfirm: () => router.patch(`/admin/certificates/${item.id}/reinstate`, {}, { preserveScroll: true }),
+                                            })
+                                        }
                                     >
                                         <RotateCcw className="size-4 text-emerald-700" />
                                     </Button>
