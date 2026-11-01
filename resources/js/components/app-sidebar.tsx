@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Award, BookOpen, Building2, LayoutGrid, PanelLeft, Users } from 'lucide-react';
+import { Award, BookOpen, Building2, LayoutGrid, MessageCircle, PanelLeft, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
@@ -37,6 +37,11 @@ export function AppSidebar() {
                       title: 'User',
                       url: '/admin/users',
                       icon: Users,
+                  },
+                  {
+                      title: 'WhatsApp Center',
+                      url: '/admin/whatsapp',
+                      icon: MessageCircle,
                   },
               ]
             : role === 'internal_instructor'
