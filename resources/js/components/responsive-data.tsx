@@ -10,7 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
 import { MoreVertical } from 'lucide-react';
-import { ReactNode, Children, useEffect, useState } from 'react';
+import { ReactNode, Children, isValidElement, useEffect, useMemo, useState } from 'react';
 
 export function DesktopTable({ children, className }: { children: ReactNode; className?: string }) {
     return <div className={cn('hidden max-w-full overflow-x-auto md:block', className)}>{children}</div>;
@@ -28,13 +28,17 @@ export function MobileCardList({
     pageSize?: number;
 }) {
     const items = Children.toArray(children);
+    const itemSignature = useMemo(() => items.map((item, index) => {
+        if (isValidElement(item)) return `${String(item.key ?? index)}:${item.type}`;
+        return `${index}:${String(item)}`;
+    }).join('|'), [items]);
     const [page, setPage] = useState(1);
     const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
     const currentPage = Math.min(page, pageCount);
     const startIndex = items.length === 0 ? 0 : (currentPage - 1) * pageSize;
     const visibleItems = items.slice(startIndex, startIndex + pageSize);
 
-    useEffect(() => setPage(1), [items.length, pageSize]);
+    useEffect(() => setPage(1), [itemSignature, pageSize]);
     useEffect(() => {
         if (page !== currentPage) setPage(currentPage);
     }, [currentPage, page]);
