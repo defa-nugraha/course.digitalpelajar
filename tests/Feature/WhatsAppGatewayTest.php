@@ -125,6 +125,44 @@ test('bill reminder cannot be sent for a paid bill', function () {
     Bus::assertNotDispatched(SendWhatsAppMessage::class);
 });
 
+test('WhatsApp button mode calls send-template with button definitions', function () {
+    Http::fake([
+        'wa.digitalpelajar.id/send-template' => Http::response([
+            'status' => true,
+            'msg' => 'Template sent successfully!',
+        ], 200),
+    ]);
+
+    $message = WhatsAppMessage::query()->create([
+        'recipient_number' => '6281234567890',
+        'message' => 'Halo, silakan pilih tindakan.',
+        'type' => 'campaign',
+        'status' => 'queued',
+        'send_mode' => 'button',
+        'template_buttons' => [
+            'url|Lihat tagihan|https://digitalpelajar.id/pembayaran',
+            'call|Hubungi kami|6281234567890',
+        ],
+        'footer' => 'Digital Pelajar',
+    ]);
+
+    (new SendWhatsAppMessage($message->id))->handle(app(WhatsAppGateway::class));
+
+    expect($message->fresh()->status)->toBe('sent')
+        ->and($message->fresh()->gateway_response['status'])->toBeTrue();
+
+    Http::assertSent(fn (HttpRequest $request) => $request->url() === 'https://wa.digitalpelajar.id/send-template'
+        && $request['api_key'] === 'test-api-key'
+        && $request['sender'] === '6281234567890'
+        && $request['number'] === '6281234567890'
+        && $request['message'] === 'Halo, silakan pilih tindakan.'
+        && $request['footer'] === 'Digital Pelajar'
+        && $request['template'] === [
+            'url|Lihat tagihan|https://digitalpelajar.id/pembayaran',
+            'call|Hubungi kami|6281234567890',
+        ]);
+});
+
 test('WhatsApp job records a successful gateway response without exposing credentials', function () {
     Http::fake([
         'wa.digitalpelajar.id/send-message' => Http::response([
