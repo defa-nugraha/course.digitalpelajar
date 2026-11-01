@@ -8,7 +8,7 @@ import InputError from '@/components/input-error';
 import { confirmDelete } from '@/lib/confirm-delete';
 import { Input } from '@/components/ui/input';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { AlertCircle, CheckCircle2, GraduationCap, Pencil, Search, School as SchoolIcon, Trash2, TrendingUp, Users } from 'lucide-react';
+import { AlertCircle, CheckCircle2, GraduationCap, FileSearch, Pencil, Search, School as SchoolIcon, Trash2, TrendingUp, Users } from 'lucide-react';
 import { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 
@@ -198,8 +198,8 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                         {student.schoolVerificationStatus === 'pending' && (student.requestedSchoolId || student.manualSchoolName) && <Button type="button" variant="outline" size="icon" title={student.requestedSchoolId ? 'Setujui pengajuan sekolah' : 'Tinjau pengajuan sekolah manual'} aria-label={student.requestedSchoolId ? 'Setujui pengajuan sekolah' : 'Tinjau pengajuan sekolah manual'} onClick={() => student.requestedSchoolId ? approveSchool(student) : showEdit(student)}>{student.requestedSchoolId ? <CheckCircle2 className="size-4" /> : <SchoolIcon className="size-4" />}</Button>}
                                         <Button type="button" variant="destructive" size="icon" title="Hapus siswa" aria-label={`Hapus siswa ${student.name}`} onClick={() => removeStudent(student)}><Trash2 className="size-4" /></Button>
                                         {student.reviewUrl ? (
-                                        <Button asChild size="sm">
-                                            <Link href={student.reviewUrl}>Buka Review</Link>
+                                        <Button asChild variant="outline" size="icon" title="Buka review" aria-label={`Buka review untuk ${student.name}`}>
+                                            <Link href={student.reviewUrl}><FileSearch className="size-4" /></Link>
                                         </Button>
                                     ) : (
                                         <span className="text-xs font-semibold text-slate-400">Tidak ada review</span>
@@ -274,7 +274,7 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                                 <Button type="button" variant="outline" size="icon" title="Edit siswa" aria-label={`Edit siswa ${student.name}`} onClick={() => showEdit(student)}><Pencil className="size-4" /></Button>
                                                 {student.schoolVerificationStatus === 'pending' && (student.requestedSchoolId || student.manualSchoolName) && <Button type="button" variant="outline" size="icon" title={student.requestedSchoolId ? 'Setujui pengajuan sekolah' : 'Tinjau pengajuan sekolah manual'} aria-label={student.requestedSchoolId ? 'Setujui pengajuan sekolah' : 'Tinjau pengajuan sekolah manual'} onClick={() => student.requestedSchoolId ? approveSchool(student) : showEdit(student)}>{student.requestedSchoolId ? <CheckCircle2 className="size-4" /> : <SchoolIcon className="size-4" />}</Button>}
                                                 <Button type="button" variant="destructive" size="icon" title="Hapus siswa" aria-label={`Hapus siswa ${student.name}`} onClick={() => removeStudent(student)}><Trash2 className="size-4" /></Button>
-                                                {student.reviewUrl && <Button asChild size="sm"><Link href={student.reviewUrl}>Review</Link></Button>}
+                                                {student.reviewUrl && <Button asChild variant="outline" size="icon" title="Buka review" aria-label={`Buka review untuk ${student.name}`}><Link href={student.reviewUrl}><FileSearch className="size-4" /></Link></Button>}
                                             </div>
                                         </td>
                                     </tr>
