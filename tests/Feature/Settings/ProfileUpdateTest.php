@@ -144,7 +144,6 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-
 test('student can save their own and parent WhatsApp numbers', function () {
     $student = User::factory()->student()->create();
 
