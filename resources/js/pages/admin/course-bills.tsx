@@ -1,6 +1,7 @@
+import PaginatedTable from '@/components/paginated-table';
 import { confirmAction, confirmDelete } from '@/lib/confirm-delete';
 import { Panel, Shell } from '@/components/platform';
-import { MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
+import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Head, router, useForm } from '@inertiajs/react';
@@ -63,6 +64,24 @@ export default function CourseBills({ students, courses, bills }: Props) {
         form.post('/admin/course-bills', {
             onSuccess: () => form.reset('title', 'amount', 'due_at'),
         });
+    };
+
+    const sendReminder = (bill: BillRow) => {
+        confirmAction({
+            title: 'Kirim pengingat WhatsApp?',
+            message: `Kirim pengingat untuk tagihan ${bill.title} kepada ${bill.student}?`,
+            confirmLabel: 'Kirim pengingat',
+            cancelLabel: 'Batal',
+            tone: 'default',
+            onConfirm: () => router.post(`/admin/course-bills/${bill.id}/whatsapp-reminder`, {}, { preserveScroll: true }),
+        });
+    };
+
+    const removeBill = (bill: BillRow) => {
+        confirmDelete(
+            `Hapus tagihan ${bill.title} beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.`,
+            () => router.delete(`/admin/course-bills/${bill.id}`, { preserveScroll: true }),
+        );
     };
 
     return (
@@ -174,7 +193,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                         size="sm"
                                         variant="outline"
                                         disabled={bill.status === 'paid' || !bill.studentPhone}
-                                        onClick={() => confirmAction({ title: 'Kirim pengingat WhatsApp?', message: 'Kirim pengingat untuk tagihan ' + bill.title + ' kepada ' + bill.student + '?', confirmLabel: 'Kirim pengingat', cancelLabel: 'Batal', tone: 'default', onConfirm: () => router.post('/admin/course-bills/' + bill.id + '/whatsapp-reminder', {}, { preserveScroll: true }) })}
+                                        onClick={() => sendReminder(bill)}
                                     >
                                         <Send className="size-4" />
                                         Kirim pengingat
@@ -183,7 +202,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                         type="button"
                                         size="sm"
                                         variant="destructive"
-                                        onClick={() => confirmDelete('Hapus tagihan ' + bill.title + ' beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.', () => router.delete('/admin/course-bills/' + bill.id, { preserveScroll: true }))}
+                                        onClick={() => removeBill(bill)}
                                     >
                                         <Trash2 className="size-4" />
                                         Hapus tagihan
@@ -193,6 +212,56 @@ export default function CourseBills({ students, courses, bills }: Props) {
                         />
                     ))}
                 </MobileCardList>
+                <DesktopTable className="mt-4">
+                    <PaginatedTable className="w-full text-left text-sm">
+                        <thead className="text-xs tracking-wide text-slate-500 uppercase">
+                            <tr>
+                                <th className="py-3">Tagihan</th>
+                                <th>Siswa</th>
+                                <th>Kursus</th>
+                                <th>Nominal</th>
+                                <th>Jatuh tempo</th>
+                                <th>Status</th>
+                                <th>ID order</th>
+                                <th className="text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {bills.map((bill) => (
+                                <tr key={bill.id}>
+                                    <td className="py-4 font-semibold">{bill.title}</td>
+                                    <td>
+                                        <p className="font-medium">{bill.student}</p>
+                                        <p className="text-xs text-slate-500">{bill.email}</p>
+                                    </td>
+                                    <td>{bill.course}</td>
+                                    <td>{bill.amountLabel}</td>
+                                    <td>{bill.dueAt}</td>
+                                    <td><StatusBadge status={bill.status} label={getStatusLabel(bill.status)} /></td>
+                                    <td className="font-mono text-xs">{bill.orderId ?? '-'}</td>
+                                    <td>
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={bill.status === 'paid' || !bill.studentPhone}
+                                                onClick={() => sendReminder(bill)}
+                                            >
+                                                <Send className="size-4" />
+                                                Pengingat
+                                            </Button>
+                                            <Button type="button" size="sm" variant="destructive" onClick={() => removeBill(bill)}>
+                                                <Trash2 className="size-4" />
+                                                Hapus
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </PaginatedTable>
+                </DesktopTable>
             </Panel>
         </Shell>
     );
