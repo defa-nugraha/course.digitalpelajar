@@ -1,7 +1,8 @@
 import { Panel, Shell, StatCard } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Head } from '@inertiajs/react';
-import { toast } from 'sonner';
+import { notifyError, notifySuccess } from '@/lib/notifications';
+
 import { Award, Download, TrendingUp, Users, Wallet } from 'lucide-react';
 
 interface ReportProps {
@@ -34,9 +35,9 @@ export default function Reports({ stats, bars, paymentStatus, scopeLabel, showRe
             link.download = 'laporan-enrollment.csv';
             link.click();
             window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-            toast.success('Laporan berhasil diekspor ke CSV.');
+            notifySuccess('Laporan berhasil diekspor ke CSV.');
         } catch {
-            toast.error('Laporan gagal diekspor. Silakan coba kembali.');
+            notifyError('Laporan gagal diekspor. Silakan coba kembali.');
         }
     };
 
