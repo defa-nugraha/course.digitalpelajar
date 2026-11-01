@@ -16,6 +16,8 @@ interface StudentRow {
     id: number;
     name: string;
     email: string;
+    whatsappPhone?: string | null;
+    parentWhatsappPhone?: string | null;
     status: string;
     schoolId: number;
     school: string;
@@ -52,7 +54,7 @@ interface StudentsProps {
 
 export default function StudentsIndex({ scopeLabel, students, summary, schools }: StudentsProps) {
     const [editing, setEditing] = useState<StudentRow | null>(null);
-    const editForm = useForm({ name: '', email: '', school_id: '', status: 'active', role: 'student', password: '', password_confirmation: '', whatsapp_phone: '', parent_whatsapp_phone: '' });
+    const editForm = useForm({ name: '', email: '', school_id: '', status: 'active', role: 'student', password: '', password_confirmation: '', whatsapp_phone: student.whatsappPhone ?? '', parent_whatsapp_phone: student.parentWhatsappPhone ?? '' });
     const [term, setTerm] = useState('');
     const [schoolId, setSchoolId] = useState('all');
     const [status, setStatus] = useState('all');
