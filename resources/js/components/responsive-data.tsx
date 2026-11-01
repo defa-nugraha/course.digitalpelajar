@@ -10,16 +10,52 @@ import {
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
 import { MoreVertical } from 'lucide-react';
-import { ReactNode } from 'react';
+import { ReactNode, Children, useEffect, useState } from 'react';
 
 export function DesktopTable({ children, className }: { children: ReactNode; className?: string }) {
     return <div className={cn('hidden max-w-full overflow-x-auto md:block', className)}>{children}</div>;
 }
 
-export function MobileCardList({ children, empty, className }: { children: ReactNode; empty?: ReactNode; className?: string }) {
-    const hasContent = Array.isArray(children) ? children.length > 0 : Boolean(children);
+export function MobileCardList({
+    children,
+    empty,
+    className,
+    pageSize = 10,
+}: {
+    children: ReactNode;
+    empty?: ReactNode;
+    className?: string;
+    pageSize?: number;
+}) {
+    const items = Children.toArray(children);
+    const [page, setPage] = useState(1);
+    const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+    const currentPage = Math.min(page, pageCount);
+    const startIndex = items.length === 0 ? 0 : (currentPage - 1) * pageSize;
+    const visibleItems = items.slice(startIndex, startIndex + pageSize);
 
-    return <div className={cn('grid gap-3 md:hidden', className)}>{hasContent ? children : empty}</div>;
+    useEffect(() => setPage(1), [items.length, pageSize]);
+    useEffect(() => {
+        if (page !== currentPage) setPage(currentPage);
+    }, [currentPage, page]);
+
+    return (
+        <div className={cn('grid gap-3 md:hidden', className)}>
+            {items.length > 0 ? visibleItems : empty}
+            {items.length > pageSize && (
+                <nav aria-label="Navigasi halaman daftar" className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 text-xs text-slate-600">
+                    <span aria-live="polite">
+                        Menampilkan <strong>{startIndex + 1}–{Math.min(startIndex + pageSize, items.length)}</strong> dari <strong>{items.length}</strong> data
+                    </span>
+                    <div className="flex items-center gap-1">
+                        <Button type="button" variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Sebelumnya</Button>
+                        <span className="min-w-16 px-2 text-center font-semibold tabular-nums">{currentPage} / {pageCount}</span>
+                        <Button type="button" variant="outline" size="sm" disabled={currentPage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Berikutnya</Button>
+                    </div>
+                </nav>
+            )}
+        </div>
+    );
 }
 
 export function MobileDataCard({
