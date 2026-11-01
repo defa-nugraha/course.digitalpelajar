@@ -40,7 +40,16 @@ class SendWhatsAppMessage implements ShouldQueue
         }
 
         try {
-            $result = match ($message->send_mode ?? 'text') {
+            $sendMode = $message->send_mode ?? 'text';
+
+            Log::info('WhatsApp message dispatch started.', [
+                'whatsapp_message_id' => $message->id,
+                'mode' => $sendMode,
+                'template_button_count' => $sendMode === 'button' ? count($message->template_buttons ?? []) : 0,
+                'has_media_url' => filled($message->media_url),
+            ]);
+
+            $result = match ($sendMode) {
                 'media' => $gateway->sendMedia(
                     $message->recipient_number,
                     (string) $message->media_type,
