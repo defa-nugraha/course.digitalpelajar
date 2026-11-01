@@ -79,6 +79,8 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user)],
             'role' => ['required', Rule::in(['student', 'school_teacher', 'internal_instructor', 'admin'])],
             'status' => ['required', Rule::in(['active', 'inactive'])],
+            'whatsapp_phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+()\\-\\s]+$/'],
+            'parent_whatsapp_phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+()\\-\\s]+$/'],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
         ]);
     }
