@@ -41,6 +41,8 @@ interface PayrollRow {
     instructorId: number;
     instructor: string;
     periodMonth: string;
+    periodStart: string;
+    periodEnd: string;
     periodLabel: string;
     totalSessions: number;
     totalAmount: number;
@@ -106,7 +108,8 @@ interface RateFormData {
 interface PayrollFormData {
     [key: string]: string | number;
     instructor_id: string;
-    period_month: string;
+    period_start: string;
+    period_end: string;
     notes: string;
 }
 
@@ -121,7 +124,8 @@ const emptyRate: RateFormData = {
 
 const emptyPayroll: PayrollFormData = {
     instructor_id: '',
-    period_month: new Date().toISOString().slice(0, 7),
+    period_start: new Date().toISOString().slice(0, 10),
+    period_end: new Date().toISOString().slice(0, 10),
     notes: '',
 };
 
@@ -743,7 +747,7 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
             <Dialog open={payrollOpen} onOpenChange={setPayrollOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Generate Payroll Bulanan</DialogTitle>
+                        <DialogTitle>Generate Payroll</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={submitPayroll} className="space-y-4">
                         <Field label="Pengajar" error={payrollForm.errors.instructor_id} required>
@@ -754,13 +758,23 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                                 placeholder="Pilih pengajar"
                             />
                         </Field>
-                        <Field label="Periode payroll" error={payrollForm.errors.period_month} required>
-                            <Input
-                                type="month"
-                                value={payrollForm.data.period_month}
-                                onChange={(event) => payrollForm.setData('period_month', event.target.value)}
-                            />
-                        </Field>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field label="Tanggal mulai periode" error={payrollForm.errors.period_start} required>
+                                <Input
+                                    type="date"
+                                    value={payrollForm.data.period_start}
+                                    onChange={(event) => payrollForm.setData('period_start', event.target.value)}
+                                />
+                            </Field>
+                            <Field label="Tanggal akhir periode" error={payrollForm.errors.period_end} required>
+                                <Input
+                                    type="date"
+                                    min={payrollForm.data.period_start}
+                                    value={payrollForm.data.period_end}
+                                    onChange={(event) => payrollForm.setData('period_end', event.target.value)}
+                                />
+                            </Field>
+                        </div>
                         <Field label="Catatan" error={payrollForm.errors.notes}>
                             <textarea
                                 className="min-h-24 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
@@ -769,7 +783,7 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                             />
                         </Field>
                         <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700">
-                            Payroll hanya mengambil laporan pertemuan berstatus approved pada periode ini dan yang belum pernah masuk payroll lain.
+                            Payroll mengambil laporan pertemuan berstatus approved dalam rentang tanggal yang dipilih dan belum pernah masuk payroll lain. Anda bisa memilih 7 hari untuk gaji mingguan atau rentang lain sesuai kebutuhan.
                         </p>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setPayrollOpen(false)}>
