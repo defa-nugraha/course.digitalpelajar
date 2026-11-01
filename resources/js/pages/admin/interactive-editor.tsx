@@ -39,7 +39,7 @@ import { confirmAction, confirmDelete } from '@/lib/confirm-delete';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { Head } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 
 interface InteractiveEditorProps {
     block: InteractiveEditorBlock;
@@ -269,7 +269,6 @@ export default function InteractiveEditorPage({
     return (
         <div className="min-h-screen bg-slate-100 text-slate-950">
             <Head title={`Editor Interaktif - ${course.title}`} />
-            <Toaster richColors position="top-center" />
             <ConfirmationDialogHost />
 
             <div className="flex h-screen flex-col md:hidden">
