@@ -17,6 +17,8 @@ interface UserRow {
     schoolId?: number | null;
     name: string;
     email: string;
+    whatsappPhone?: string | null;
+    parentWhatsappPhone?: string | null;
     role: string;
     roleLabel: string;
     school: string;
@@ -34,6 +36,8 @@ const emptyUser = {
     school_id: '',
     name: '',
     email: '',
+    whatsapp_phone: '',
+    parent_whatsapp_phone: '',
     role: 'student',
     status: 'active',
     password: '',
@@ -81,6 +85,8 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
             school_id: user.schoolId ? String(user.schoolId) : '',
             name: user.name,
             email: user.email,
+            whatsapp_phone: user.whatsappPhone ?? '',
+            parent_whatsapp_phone: user.parentWhatsappPhone ?? '',
             role: user.role,
             status: user.status,
         });
@@ -169,7 +175,11 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                                 subtitle={user.email}
                                 badge={<StatusBadge status={user.status} label={user.status} />}
                                 meta={[
-                                    ...(user.role === 'student' ? [{ label: 'ID Siswa', value: user.studentNumber ?? '-' }] : []),
+                                    ...(user.role === 'student' ? [
+                                        { label: 'ID Siswa', value: user.studentNumber ?? '-' },
+                                        { label: 'WhatsApp Siswa', value: user.whatsappPhone || 'Belum diisi' },
+                                        { label: 'WhatsApp Orang Tua', value: user.parentWhatsappPhone || 'Belum diisi' },
+                                    ] : []),
                                     { label: 'Role', value: user.roleLabel },
                                     { label: 'Sekolah', value: user.school },
                                     {
@@ -263,6 +273,30 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                         <Field label="Email" error={form.errors.email} required>
                             <Input type="email" value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} />
                         </Field>
+                        {form.data.role === 'student' && (
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <Field label="WhatsApp Siswa" error={form.errors.whatsapp_phone}>
+                                    <Input
+                                        type="tel"
+                                        inputMode="tel"
+                                        autoComplete="tel"
+                                        placeholder="Contoh: 081234567890"
+                                        value={form.data.whatsapp_phone}
+                                        onChange={(event) => form.setData('whatsapp_phone', event.target.value)}
+                                    />
+                                </Field>
+                                <Field label="WhatsApp Orang Tua/Wali" error={form.errors.parent_whatsapp_phone}>
+                                    <Input
+                                        type="tel"
+                                        inputMode="tel"
+                                        autoComplete="tel"
+                                        placeholder="Contoh: 081234567890"
+                                        value={form.data.parent_whatsapp_phone}
+                                        onChange={(event) => form.setData('parent_whatsapp_phone', event.target.value)}
+                                    />
+                                </Field>
+                            </div>
+                        )}
                         <Field label="Sekolah" error={form.errors.school_id}>
                             <SearchableSelect
                                 value={form.data.school_id}
