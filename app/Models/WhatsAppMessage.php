@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WhatsAppMessage extends Model
 {
+    protected $table = 'whatsapp_messages';
+
     protected $fillable = [
         'user_id',
         'course_bill_id',
