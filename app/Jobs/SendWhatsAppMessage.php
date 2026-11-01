@@ -18,9 +18,7 @@ class SendWhatsAppMessage implements ShouldQueue
 
     public int $tries = 100;
 
-    public function __construct(public int $messageId)
-    {
-    }
+    public function __construct(public int $messageId) {}
 
     public function middleware(): array
     {

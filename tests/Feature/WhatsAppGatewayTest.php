@@ -6,6 +6,7 @@ use App\Models\CourseBill;
 use App\Models\User;
 use App\Models\WhatsAppMessage;
 use App\Services\WhatsAppGateway;
+use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 
@@ -145,7 +146,7 @@ test('WhatsApp job records a successful gateway response without exposing creden
         ->and($message->fresh()->sent_at)->not->toBeNull()
         ->and($message->fresh()->gateway_response['status'])->toBeTrue();
 
-    Http::assertSent(fn (\Illuminate\Http\Client\Request $request) => $request->url() === 'https://wa.digitalpelajar.id/send-message'
+    Http::assertSent(fn (HttpRequest $request) => $request->url() === 'https://wa.digitalpelajar.id/send-message'
         && $request['api_key'] === 'test-api-key'
         && $request['sender'] === '6281234567890'
         && $request['number'] === '6281234567890'
