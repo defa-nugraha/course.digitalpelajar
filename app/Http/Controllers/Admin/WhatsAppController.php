@@ -210,7 +210,10 @@ class WhatsAppController extends Controller
             }
 
             foreach ($targets as $target) {
-                if (! $target['number']) { $skipped++; continue; }
+                if (! $target['number']) {
+                    $skipped++;
+                    continue;
+                }
                 $personalizedMessage = str_replace(
                     ['{nama}', '{id_siswa}', '{jenis_penerima}'],
                     [$student->name, (string) $student->student_number, $target['kind']],
