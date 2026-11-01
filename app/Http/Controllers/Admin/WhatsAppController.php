@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendWhatsAppMessage;
-use App\Models\User;
 use App\Models\Course;
 use App\Models\School;
+use App\Models\User;
 use App\Models\WhatsAppMessage;
 use App\Services\AuditLogger;
 use App\Services\WhatsAppGateway;
