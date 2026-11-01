@@ -144,6 +144,29 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
+
+test('student can save their own and parent WhatsApp numbers', function () {
+    $student = User::factory()->student()->create();
+
+    $this->actingAs($student)
+        ->patch('/settings/profile', [
+            'name' => $student->name,
+            'email' => $student->email,
+            'phone' => '081234567890',
+            'whatsapp_phone' => '081111222333',
+            'parent_whatsapp_phone' => '+62 812 3333 4444',
+            'address' => 'Jl. Belajar No. 10',
+            'school_id' => $student->school_id,
+            'manual_school_name' => '',
+            'manual_school_address' => '',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect('/settings/profile');
+
+    expect($student->refresh()->whatsapp_phone)->toBe('081111222333')
+        ->and($student->parent_whatsapp_phone)->toBe('+62 812 3333 4444');
+});
+
 test('user can delete their account', function () {
     $user = User::factory()->create();
 
