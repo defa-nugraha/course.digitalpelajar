@@ -291,20 +291,32 @@ class CourseBillController extends Controller
             return back()->with('error', 'Pengingat untuk tagihan ini sudah antre atau terkirim dalam 24 jam terakhir.');
         }
 
-        $message = implode("\n", [
-            'Halo '.$courseBill->student->name.',',
-            '',
-            'Ini pengingat tagihan kursus Digital Pelajar.',
-            'Tagihan: '.$courseBill->title,
-            'Kursus: '.$courseBill->course->title,
-            'Nominal: Rp '.number_format($courseBill->amount, 0, ',', '.'),
-            'Jatuh tempo: '.$courseBill->due_at->format('d-m-Y'),
-            'ID Siswa: '.$courseBill->student->student_number,
-            '',
-            'Silakan lihat dan lanjutkan pembayaran melalui '.route('public-payments.index'),
-            '',
-            'Jika sudah membayar, abaikan pesan ini. Terima kasih.',
-        ]);
+        $storedTemplate = DB::table('whatsapp_templates')->where('key', 'bill_reminder')->value('configuration');
+        $template = $storedTemplate ? json_decode((string) $storedTemplate, true) : null;
+        if (! is_array($template)) {
+            $template = [
+                'mode' => 'text',
+                'message' => "Halo {nama},\n\nIni pengingat tagihan kursus Digital Pelajar.\nTagihan: {tagihan}\nKursus: {kursus}\nNominal: {nominal}\nJatuh tempo: {jatuh_tempo}\nID Siswa: {id_siswa}\n\nSilakan lihat dan lanjutkan pembayaran melalui {url_pembayaran}.\n\nJika sudah membayar, abaikan pesan ini. Terima kasih.",
+                'media_type' => null,
+                'media_url' => null,
+                'footer' => null,
+                'template_buttons' => [],
+            ];
+        }
+
+        $message = str_replace(
+            ['{nama}', '{id_siswa}', '{tagihan}', '{kursus}', '{nominal}', '{jatuh_tempo}', '{url_pembayaran}'],
+            [
+                $courseBill->student->name,
+                (string) $courseBill->student->student_number,
+                $courseBill->title,
+                $courseBill->course->title,
+                'Rp '.number_format($courseBill->amount, 0, ',', '.'),
+                $courseBill->due_at->format('d-m-Y'),
+                route('public-payments.index'),
+            ],
+            (string) ($template['message'] ?? ''),
+        );
 
         $whatsAppMessage = WhatsAppMessage::query()->create([
             'user_id' => $courseBill->student_id,
@@ -314,6 +326,11 @@ class CourseBillController extends Controller
             'message' => $message,
             'type' => 'bill_reminder',
             'status' => 'queued',
+            'send_mode' => $template['mode'] ?? 'text',
+            'media_type' => $template['media_type'] ?? null,
+            'media_url' => $template['media_url'] ?? null,
+            'footer' => $template['footer'] ?? null,
+            'template_buttons' => $template['template_buttons'] ?? null,
         ]);
 
         SendWhatsAppMessage::dispatch($whatsAppMessage->id);
@@ -321,6 +338,7 @@ class CourseBillController extends Controller
         AuditLogger::log('whatsapp.bill_reminder.queued', $request->user(), $courseBill, [
             'whatsapp_message_id' => $whatsAppMessage->id,
             'recipient_user_id' => $courseBill->student_id,
+            'mode' => $template['mode'] ?? 'text',
         ]);
 
         return back()->with('success', 'Pengingat WhatsApp masuk antrean pengiriman.');
