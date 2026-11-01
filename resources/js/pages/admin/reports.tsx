@@ -1,6 +1,7 @@
 import { Panel, Shell, StatCard } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Head } from '@inertiajs/react';
+import { toast } from 'sonner';
 import { Award, Download, TrendingUp, Users, Wallet } from 'lucide-react';
 
 interface ReportProps {
@@ -24,13 +25,19 @@ interface ReportProps {
 
 export default function Reports({ stats, bars, paymentStatus, scopeLabel, showRevenue }: ReportProps & { scopeLabel: string; showRevenue: boolean }) {
     const exportCsv = () => {
-        const rows = [['Kursus', 'Rata-rata Progress'], ...bars.map((bar) => [bar.title, String(bar.value)])];
-        const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\n');
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-        link.download = 'laporan-enrollment.csv';
-        link.click();
-        URL.revokeObjectURL(link.href);
+        try {
+            const rows = [['Kursus', 'Rata-rata Progress'], ...bars.map((bar) => [bar.title, String(bar.value)])];
+            const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\n');
+            const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'laporan-enrollment.csv';
+            link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            toast.success('Laporan berhasil diekspor ke CSV.');
+        } catch {
+            toast.error('Laporan gagal diekspor. Silakan coba kembali.');
+        }
     };
 
     return (
