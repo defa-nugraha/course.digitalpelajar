@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Copy, Download, Edit, ExternalLink, MessageCircle, Printer, ReceiptText, Trash2 } from 'lucide-react';
+import { notifyError, notifySuccess } from '@/lib/notifications';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { toast } from 'sonner';
+
 
 interface PaymentRow {
     id: number;
@@ -87,9 +88,9 @@ export default function Payments({ payments, students, courses, bills }: Props) 
     const copy = async (value: string, label: string) => {
         try {
             await navigator.clipboard.writeText(value);
-            toast.success(`${label} berhasil disalin.`);
+            notifySuccess(`${label} berhasil disalin.`);
         } catch {
-            toast.error(`Tidak dapat menyalin ${label.toLowerCase()}.`);
+            notifyError(`Tidak dapat menyalin ${label.toLowerCase()}.`);
         }
     };
 
@@ -102,7 +103,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                 setBillsOpen(false);
                 },
             onError: () => {
-                toast.error(editingBillId === null ? 'Tagihan kursus gagal dibuat.' : 'Tagihan kursus gagal diperbarui. Periksa kembali data yang diisi.');
+                notifyError(editingBillId === null ? 'Tagihan kursus gagal dibuat.' : 'Tagihan kursus gagal diperbarui. Periksa kembali data yang diisi.');
             },
         };
 
@@ -195,12 +196,12 @@ export default function Payments({ payments, students, courses, bills }: Props) 
 
         router.delete(url, {
             onSuccess: () => {
-                toast.success(target.type === 'bill' ? 'Tagihan kursus berhasil dihapus.' : 'Data riwayat transaksi berhasil dihapus.');
+                notifySuccess(target.type === 'bill' ? 'Tagihan kursus berhasil dihapus.' : 'Data riwayat transaksi berhasil dihapus.');
                 setDeleteConfirmationOpen(false);
                 setPendingDelete(null);
             },
             onError: () => {
-                toast.error(target.type === 'bill' ? 'Tagihan kursus gagal dihapus.' : 'Data riwayat transaksi gagal dihapus.');
+                notifyError(target.type === 'bill' ? 'Tagihan kursus gagal dihapus.' : 'Data riwayat transaksi gagal dihapus.');
             },
             onFinish: () => {
                 // Inertia exposes server validation and authorization failures through onError.
