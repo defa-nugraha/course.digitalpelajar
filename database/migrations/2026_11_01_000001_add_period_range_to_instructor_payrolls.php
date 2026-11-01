@@ -11,10 +11,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('instructor_payrolls', function (Blueprint $table) {
-            $table->dropUnique(['instructor_id', 'period_month']);
             $table->date('period_start')->nullable()->after('period_month');
             $table->date('period_end')->nullable()->after('period_start');
-            $table->unique(['instructor_id', 'period_start', 'period_end']);
         });
 
         DB::table('instructor_payrolls')
@@ -32,6 +30,13 @@ return new class extends Migration
                         ]);
                 }
             });
+
+        Schema::table('instructor_payrolls', function (Blueprint $table) {
+            // Create the replacement index first: MySQL also uses the old
+            // composite unique index to support the instructor_id foreign key.
+            $table->unique(['instructor_id', 'period_start', 'period_end']);
+            $table->dropUnique(['instructor_id', 'period_month']);
+        });
     }
 
     public function down(): void
