@@ -36,10 +36,11 @@ import {
 } from '@/components/interactive-editor/utils';
 import type { InteractiveCanvasAsset, InteractiveMedia, InteractiveMetadata, InteractiveScene } from '@/components/interactive-learning';
 import { confirmAction, confirmDelete } from '@/lib/confirm-delete';
+import { notifyError, notifySuccess } from '@/lib/notifications';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { Head } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+
 
 interface InteractiveEditorProps {
     block: InteractiveEditorBlock;
@@ -154,13 +155,13 @@ export default function InteractiveEditorPage({
                 throw new Error(payload.message || `Upload ${type} gagal.`);
             }
 
-            toast.success('Media berhasil diupload.');
+            notifySuccess('Media berhasil diupload.');
 
             return mediaFromUpload(payload, file.name);
         } catch (error) {
             const message = error instanceof Error ? error.message : `Upload ${type} gagal.`;
             setUploadError(message);
-            toast.error(message);
+            notifyError(message);
 
             return null;
         } finally {
@@ -192,7 +193,7 @@ export default function InteractiveEditorPage({
 
     const removeScene = (sceneId: string) => {
         if (state.metadata.scenes.length <= 1) {
-            toast.error('Minimal harus ada satu scene.');
+            notifyError('Minimal harus ada satu scene.');
 
             return;
         }
@@ -248,7 +249,7 @@ export default function InteractiveEditorPage({
     const publish = () => {
         const missingMedia = missingRequiredMedia(state.metadata);
         if (missingMedia.length > 0) {
-            toast.error(`Lengkapi media sebelum publish: ${missingMedia.slice(0, 3).join(', ')}`);
+            notifyError(`Lengkapi media sebelum publish: ${missingMedia.slice(0, 3).join(', ')}`);
 
             return;
         }
@@ -261,7 +262,7 @@ export default function InteractiveEditorPage({
             tone: 'default',
             onConfirm: () => {
                 setStatus('published');
-                toast.success('Status publish disiapkan. Autosave akan menyimpan perubahan.');
+                notifySuccess('Status publish disiapkan. Autosave akan menyimpan perubahan.');
             },
         });
     };
