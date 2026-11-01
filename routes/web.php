@@ -254,6 +254,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('admin/dashboard', [PlatformController::class, 'adminDashboard'])->name('admin.dashboard');
         Route::get('admin/students', [PlatformController::class, 'managedStudents'])->name('admin.students');
+        Route::post('admin/students/{user}/approve-school', [UserController::class, 'approveSchoolRequest'])->name('admin.students.approve-school');
+        Route::patch('admin/students/{user}', [UserController::class, 'update'])->name('admin.students.update');
+        Route::delete('admin/students/{user}', [UserController::class, 'destroy'])->name('admin.students.destroy');
         Route::get('admin/home-page', [PlatformController::class, 'adminHomePage'])->name('admin.home-page');
         Route::post('admin/home-page/sections', [HomePageSectionController::class, 'store'])->name('admin.home-page.sections.store');
         Route::patch('admin/home-page/sections/{homePageSection}', [HomePageSectionController::class, 'update'])->name('admin.home-page.sections.update');
