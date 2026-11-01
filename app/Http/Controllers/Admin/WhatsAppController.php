@@ -238,6 +238,7 @@ class WhatsAppController extends Controller
         }
 
         if ($queued === 0) {
+
             return back()->with('error', 'Tidak ada penerima terpilih dengan nomor WhatsApp yang valid.');
         }
 
