@@ -1,3 +1,5 @@
+import { confirmAction } from '@/lib/confirm-delete';
+import PaginatedTable from '@/components/paginated-table';
 import { Panel, ProgressBar, Shell, StatCard } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
@@ -95,9 +97,15 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
     };
 
     const approveSchool = (student: StudentRow) => {
-        if (!window.confirm(`Setujui pengajuan sekolah "${student.requestedSchoolName}" untuk ${student.name}?`)) return;
-        router.post(`/admin/students/${student.id}/approve-school`, {}, { preserveScroll: true });
-    };
+        confirmAction({
+            title: 'Setujui pengajuan sekolah?',
+            message: `Setujui pengajuan sekolah "${student.requestedSchoolName}" untuk ${student.name}?`,
+            confirmLabel: 'Setujui pengajuan',
+            cancelLabel: 'Batal',
+            tone: 'default',
+            onConfirm: () => router.post(`/admin/students/${student.id}/approve-school`, {}, { preserveScroll: true }),
+        });
+    };;
 
     const resetFilters = () => {
         setTerm('');
@@ -218,7 +226,7 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Siswa</th>
@@ -280,7 +288,7 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {visibleStudents.length === 0 && (
                             <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
                                 Tidak ada siswa yang cocok dengan filter.

@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
@@ -236,7 +237,7 @@ export default function Reviews({ items, summary, scopeLabel }: ReviewsProps) {
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Siswa</th>
@@ -273,7 +274,7 @@ export default function Reviews({ items, summary, scopeLabel }: ReviewsProps) {
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {visibleItems.length === 0 && <EmptyState message="Tidak ada submission yang cocok dengan filter." />}
                     </DesktopTable>
                 </div>

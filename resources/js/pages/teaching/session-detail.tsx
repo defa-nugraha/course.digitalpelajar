@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { Panel, Shell, StatCard } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
@@ -283,7 +284,7 @@ export default function TeachingSessionDetail({
                                 ))}
                             </MobileCardList>
                             <DesktopTable>
-                                <table className="w-full text-left text-sm">
+                                <PaginatedTable className="w-full text-left text-sm">
                                     <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                         <tr>
                                             <th className="py-3">Siswa</th>
@@ -330,7 +331,7 @@ export default function TeachingSessionDetail({
                                             </tr>
                                         ))}
                                     </tbody>
-                                </table>
+                                </PaginatedTable>
                                 {session.attendances.length === 0 && (
                                     <p className="py-8 text-center text-sm text-slate-500">Belum ada data siswa/presensi untuk laporan ini.</p>
                                 )}

@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { Panel, Shell } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
@@ -93,7 +94,7 @@ export default function Payments({ payments, bills = [], studentNumber }: { paym
                     ))}
                 </MobileCardList>
                 <DesktopTable>
-                    <table className="w-full text-left text-sm">
+                    <PaginatedTable className="w-full text-left text-sm">
                         <thead className="text-xs tracking-wider text-slate-500 uppercase">
                             <tr>
                                 <th className="py-3">Tagihan</th>
@@ -137,7 +138,7 @@ export default function Payments({ payments, bills = [], studentNumber }: { paym
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </PaginatedTable>
                     {bills.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tagihan kursus untuk akun ini.</p>}
                 </DesktopTable>
                 </Panel>
@@ -189,7 +190,7 @@ export default function Payments({ payments, bills = [], studentNumber }: { paym
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Order</th>
@@ -227,7 +228,7 @@ export default function Payments({ payments, bills = [], studentNumber }: { paym
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {payments.length === 0 && (
                             <div className="grid place-items-center py-10 text-center">
                                 <ReceiptText className="size-10 text-slate-300" />

@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
@@ -412,7 +413,7 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                             ))}
                         </MobileCardList>
                         <DesktopTable>
-                            <table className="w-full text-left text-sm">
+                            <PaginatedTable className="w-full text-left text-sm">
                                 <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                     <tr>
                                         <th className="py-3">Pengajar</th>
@@ -447,7 +448,7 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                            </PaginatedTable>
                             {rates.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tarif pengajar.</p>}
                         </DesktopTable>
                     </div>
@@ -565,7 +566,7 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Payroll</th>
@@ -674,7 +675,7 @@ export default function TeachingPayrolls({ scope, title, payrolls, rates, stats,
                                     </Fragment>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {visiblePayrolls.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada payroll yang cocok.</p>}
                     </DesktopTable>
                 </div>

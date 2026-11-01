@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import InputError from '@/components/input-error';
 import { Panel, Shell } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard } from '@/components/responsive-data';
@@ -488,7 +489,7 @@ export default function TeachingAttendances({ scope, session, students, summary,
                             ))}
                         </MobileCardList>
                         <DesktopTable>
-                            <table className="w-full text-left text-sm">
+                            <PaginatedTable className="w-full text-left text-sm">
                                 <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                     <tr>
                                         <th>Siswa</th>
@@ -594,7 +595,7 @@ export default function TeachingAttendances({ scope, session, students, summary,
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                            </PaginatedTable>
                             {visibleRows.length === 0 && (
                                 <p className="py-8 text-center text-sm text-slate-500">Tidak ada siswa yang cocok dengan pencarian.</p>
                             )}
