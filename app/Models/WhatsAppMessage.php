@@ -17,6 +17,11 @@ class WhatsAppMessage extends Model
         'message',
         'type',
         'status',
+        'send_mode',
+        'media_type',
+        'media_url',
+        'footer',
+        'template_buttons',
         'gateway_response',
         'sent_at',
     ];
@@ -25,6 +30,7 @@ class WhatsAppMessage extends Model
     {
         return [
             'gateway_response' => 'array',
+            'template_buttons' => 'array',
             'sent_at' => 'datetime',
         ];
     }
