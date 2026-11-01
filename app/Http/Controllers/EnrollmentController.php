@@ -6,12 +6,14 @@ use App\Models\Course;
 use App\Models\Payment;
 use App\Services\CertificateService;
 use App\Services\EnrollmentService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class EnrollmentController extends Controller
 {
@@ -27,7 +29,11 @@ class EnrollmentController extends Controller
     {
         $course->load('lessons');
 
-        $result = $this->enrollments->enroll($request->user(), $course);
+        $result = $this->enrollWithPaymentFeedback($request, $course);
+
+        if ($result instanceof RedirectResponse) {
+            return $result;
+        }
 
         if ($result['checkout_url']) {
             $request->session()->flash('status', 'Silakan selesaikan pembayaran untuk membuka kelas.');
@@ -46,7 +52,11 @@ class EnrollmentController extends Controller
         ]);
 
         $course = Course::query()->findOrFail($data['course_id']);
-        $result = $this->enrollments->enroll($request->user(), $course);
+        $result = $this->enrollWithPaymentFeedback($request, $course);
+
+        if ($result instanceof RedirectResponse) {
+            return $result;
+        }
 
         if ($result['checkout_url']) {
             $request->session()->flash('status', 'Silakan selesaikan pembayaran untuk membuka kelas.');
@@ -122,4 +132,28 @@ class EnrollmentController extends Controller
             'id' => $payment->id,
         ];
     }
+    /**
+     * Convert gateway outages into a flash alert without masking authorization or validation errors.
+     *
+     * @return array{enrollment: \App\Models\Enrollment|null, payment: Payment|null, checkout_url: string|null}|RedirectResponse
+     */
+    private function enrollWithPaymentFeedback(Request $request, Course $course): array|RedirectResponse
+    {
+        try {
+            return $this->enrollments->enroll($request->user(), $course);
+        } catch (ConnectionException $exception) {
+            report($exception);
+
+            return back()->with('error', 'Pembayaran kursus gagal dimulai. Silakan coba kembali.');
+        } catch (HttpExceptionInterface $exception) {
+            if ($exception->getStatusCode() !== 502) {
+                throw $exception;
+            }
+
+            report($exception);
+
+            return back()->with('error', 'Pembayaran kursus gagal dimulai. Silakan coba kembali.');
+        }
+    }
+
 }
