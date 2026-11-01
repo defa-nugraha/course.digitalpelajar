@@ -1,3 +1,4 @@
+import { confirmAction } from '@/lib/confirm-delete';
 import { Panel, Shell } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Head, router, useForm } from '@inertiajs/react';
@@ -51,9 +52,19 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured }:
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.post('/admin/whatsapp/send', {
-            preserveScroll: true,
-            onSuccess: () => form.reset('student_ids', 'message', 'consent_confirmed'),
+        confirmAction({
+            title: 'Kirim blast WhatsApp?',
+            message: `Pesan akan dimasukkan ke antrean pengiriman untuk ${selectedCount} siswa yang dipilih. Pengiriman tidak dapat dibatalkan setelah diproses.`,
+            description: 'Pastikan semua penerima telah menyetujui menerima pesan WhatsApp dan isi pesan sudah benar.',
+            confirmLabel: 'Ya, masukkan ke antrean',
+            cancelLabel: 'Periksa kembali',
+            tone: 'default',
+            onConfirm: () => {
+                form.post('/admin/whatsapp/send', {
+                    preserveScroll: true,
+                    onSuccess: () => form.reset('student_ids', 'message', 'consent_confirmed'),
+                });
+            },
         });
     };
 
