@@ -34,6 +34,13 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL').'/auth/google/callback'),
     ],
 
+    'whatsapp' => [
+        'base_url' => env('WHATSAPP_GATEWAY_BASE_URL', 'https://wa.digitalpelajar.id'),
+        'api_key' => env('WHATSAPP_GATEWAY_API_KEY'),
+        'sender' => env('WHATSAPP_GATEWAY_SENDER'),
+        'timeout' => (int) env('WHATSAPP_GATEWAY_TIMEOUT', 15),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendWhatsAppMessage;
 use App\Models\Course;
 use App\Models\CourseBill;
 use App\Models\Payment;
 use App\Models\User;
+use App\Models\WhatsAppMessage;
 use App\Services\AuditLogger;
 use App\Services\MidtransService;
+use App\Services\WhatsAppGateway;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,12 +33,13 @@ class CourseBillController extends Controller
                 ->where('role', 'student')
                 ->where('status', 'active')
                 ->orderBy('name')
-                ->get(['id', 'name', 'email', 'student_number'])
+                ->get(['id', 'name', 'email', 'student_number', 'phone'])
                 ->map(fn (User $student) => [
                     'id' => $student->id,
                     'name' => $student->name,
                     'studentNumber' => $student->student_number,
                     'email' => $student->email,
+                    'phone' => $student->phone,
                 ]),
             'courses' => Course::query()
                 ->where('status', 'published')
@@ -43,7 +47,7 @@ class CourseBillController extends Controller
                 ->get(['id', 'title']),
             'bills' => CourseBill::query()
                 ->with([
-                    'student:id,name,email,student_number',
+                    'student:id,name,email,student_number,phone',
                     'course:id,title',
                     'payments' => fn ($query) => $query->latest('id'),
                     'batchPayments' => fn ($query) => $query->latest('payments.id')->with('courseBills:id'),
@@ -61,6 +65,7 @@ class CourseBillController extends Controller
                         'title' => $bill->title,
                         'student' => $bill->student->name,
                         'email' => $bill->student->email,
+                        'studentPhone' => $bill->student->phone,
                         'course' => $bill->course->title,
                         'amount' => $bill->amount,
                         'amountLabel' => $this->rupiah($bill->amount),
@@ -238,6 +243,67 @@ class CourseBillController extends Controller
         ]);
 
         return Inertia::location($transaction['checkout_url']);
+    }
+
+    public function sendWhatsAppReminder(Request $request, CourseBill $courseBill, WhatsAppGateway $gateway): RedirectResponse
+    {
+        abort_if($courseBill->status !== 'pending', 409, 'Pengingat WhatsApp hanya dapat dikirim untuk tagihan yang belum lunas.');
+
+        if (! $gateway->isConfigured()) {
+            return back()->with('error', 'Gateway WhatsApp belum dikonfigurasi. Isi WHATSAPP_GATEWAY_API_KEY dan WHATSAPP_GATEWAY_SENDER di .env.');
+        }
+
+        $courseBill->loadMissing(['student', 'course']);
+        $recipientNumber = WhatsAppGateway::normalizePhone($courseBill->student->phone);
+
+        if (! $recipientNumber) {
+            return back()->with('error', 'Nomor WhatsApp siswa belum diisi atau formatnya tidak valid.');
+        }
+
+        $recentReminderExists = WhatsAppMessage::query()
+            ->where('course_bill_id', $courseBill->id)
+            ->where('type', 'bill_reminder')
+            ->whereIn('status', ['queued', 'sent'])
+            ->where('created_at', '>=', now()->subDay())
+            ->exists();
+
+        if ($recentReminderExists) {
+            return back()->with('error', 'Pengingat untuk tagihan ini sudah antre atau terkirim dalam 24 jam terakhir.');
+        }
+
+        $message = implode("\n", [
+            'Halo '.$courseBill->student->name.',',
+            '',
+            'Ini pengingat tagihan kursus Digital Pelajar.',
+            'Tagihan: '.$courseBill->title,
+            'Kursus: '.$courseBill->course->title,
+            'Nominal: Rp '.number_format($courseBill->amount, 0, ',', '.'),
+            'Jatuh tempo: '.$courseBill->due_at->format('d-m-Y'),
+            'ID Siswa: '.$courseBill->student->student_number,
+            '',
+            'Silakan lihat dan lanjutkan pembayaran melalui '.route('public-payments.index'),
+            '',
+            'Jika sudah membayar, abaikan pesan ini. Terima kasih.',
+        ]);
+
+        $whatsAppMessage = WhatsAppMessage::query()->create([
+            'user_id' => $courseBill->student_id,
+            'course_bill_id' => $courseBill->id,
+            'sent_by' => $request->user()->id,
+            'recipient_number' => $recipientNumber,
+            'message' => $message,
+            'type' => 'bill_reminder',
+            'status' => 'queued',
+        ]);
+
+        SendWhatsAppMessage::dispatch($whatsAppMessage->id);
+
+        AuditLogger::log('whatsapp.bill_reminder.queued', $request->user(), $courseBill, [
+            'whatsapp_message_id' => $whatsAppMessage->id,
+            'recipient_user_id' => $courseBill->student_id,
+        ]);
+
+        return back()->with('success', 'Pengingat WhatsApp masuk antrean pengiriman.');
     }
 
     public function destroy(Request $request, CourseBill $courseBill): RedirectResponse

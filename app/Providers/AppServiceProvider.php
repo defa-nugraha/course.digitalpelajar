@@ -22,6 +22,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('admin-whatsapp-send', function (Request $request): Limit {
+            return Limit::perMinute(3)->by('admin-whatsapp-send:user:'.($request->user()?->id ?? 'guest'));
+        });
+
+        RateLimiter::for('whatsapp-outbound', function (): Limit {
+            return Limit::perMinute(20)->by('whatsapp-outbound:gateway');
+        });
+
         RateLimiter::for('public-payment-lookup', function (Request $request): array {
             $studentNumber = preg_replace('/\D/', '', (string) $request->input('student_number'));
 

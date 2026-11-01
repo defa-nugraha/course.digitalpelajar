@@ -3,13 +3,14 @@ import { MobileCardList, MobileDataCard, StatusBadge } from '@/components/respon
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Trash2 } from 'lucide-react';
+import { MessageCircle, Send, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
 
 interface StudentOption {
     id: number;
     name: string;
     email: string;
+    phone: string | null;
 }
 
 interface CourseOption {
@@ -22,6 +23,7 @@ interface BillRow {
     title: string;
     student: string;
     email: string;
+    studentPhone: string | null;
     course: string;
     amount: number;
     amountLabel: string;
@@ -65,6 +67,12 @@ export default function CourseBills({ students, courses, bills }: Props) {
     return (
         <Shell title="Tagihan Kursus" eyebrow="Admin Pusat">
             <Head title="Tagihan Kursus" />
+            <div className="mb-4 flex justify-end">
+                <Button type="button" variant="outline" onClick={() => router.visit('/admin/whatsapp')}>
+                    <MessageCircle className="size-4" />
+                    WhatsApp Blast
+                </Button>
+            </div>
             <Panel title="Buat tagihan siswa">
                 <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-1 text-sm font-medium">
@@ -159,23 +167,39 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                 { label: 'Order', value: bill.orderId ?? '-' },
                             ]}
                             actions={
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => {
-                                        if (
-                                            window.confirm(
-                                                'Hapus tagihan ini beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.',
-                                            )
-                                        ) {
-                                            router.delete(`/admin/course-bills/${bill.id}`);
-                                        }
-                                    }}
-                                >
-                                    <Trash2 className="size-4" />
-                                    Hapus tagihan
-                                </Button>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={bill.status === 'paid' || !bill.studentPhone}
+                                        onClick={() => {
+                                            if (window.confirm('Kirim pengingat WhatsApp untuk tagihan ' + bill.title + ' kepada ' + bill.student + '?')) {
+                                                router.post('/admin/course-bills/' + bill.id + '/whatsapp-reminder', {}, { preserveScroll: true });
+                                            }
+                                        }}
+                                    >
+                                        <Send className="size-4" />
+                                        Kirim pengingat
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => {
+                                            if (
+                                                window.confirm(
+                                                    'Hapus tagihan ini beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.',
+                                                )
+                                            ) {
+                                                router.delete('/admin/course-bills/' + bill.id);
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 className="size-4" />
+                                        Hapus tagihan
+                                    </Button>
+                                </div>
                             }
                         />
                     ))}
