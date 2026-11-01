@@ -1219,6 +1219,8 @@ class PlatformController extends Controller
                 'students.name',
                 'students.email',
                 'students.status',
+                'students.whatsapp_phone as whatsappPhone',
+                'students.parent_whatsapp_phone as parentWhatsappPhone',
                 'students.role',
                 'students.requested_school_id as requestedSchoolId',
                 'students.school_verification_status as schoolVerificationStatus',
@@ -1233,7 +1235,7 @@ class PlatformController extends Controller
                 DB::raw('COUNT(DISTINCT certificates.id) as certificates'),
                 DB::raw('MAX(enrollments.updated_at) as lastActivityAt'),
             )
-            ->groupBy('students.id', 'students.name', 'students.email', 'students.status', 'students.role', 'students.requested_school_id', 'students.school_verification_status', 'students.manual_school_name', 'requested_schools.name', 'schools.id', 'schools.name')
+            ->groupBy('students.id', 'students.name', 'students.email', 'students.status', 'students.whatsapp_phone', 'students.parent_whatsapp_phone', 'students.role', 'students.requested_school_id', 'students.school_verification_status', 'students.manual_school_name', 'requested_schools.name', 'schools.id', 'schools.name')
             ->orderBy('students.name')
             ->get()
             ->map(fn ($student) => [
@@ -1241,6 +1243,8 @@ class PlatformController extends Controller
                 'name' => $student->name,
                 'email' => $student->email,
                 'status' => $student->status,
+                'whatsappPhone' => $student->whatsappPhone,
+                'parentWhatsappPhone' => $student->parentWhatsappPhone,
                 'role' => $student->role,
                 'requestedSchoolId' => $student->requestedSchoolId,
                 'schoolVerificationStatus' => $student->schoolVerificationStatus,
