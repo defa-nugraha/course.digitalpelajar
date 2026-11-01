@@ -104,29 +104,35 @@ class InstructorPayrollController extends Controller
                 'required',
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', 'internal_instructor')->where('status', 'active')),
             ],
-            'period_month' => ['required', 'date_format:Y-m'],
+            'period_start' => ['required', 'date_format:Y-m-d'],
+            'period_end' => ['required', 'date_format:Y-m-d', 'after_or_equal:period_start'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $period = CarbonImmutable::createFromFormat('Y-m', $data['period_month'])->startOfMonth();
+        $periodStart = CarbonImmutable::parse($data['period_start'])->startOfDay();
+        $periodEnd = CarbonImmutable::parse($data['period_end'])->startOfDay();
 
-        if (InstructorPayroll::query()->where('instructor_id', $data['instructor_id'])->whereDate('period_month', $period)->exists()) {
+        if (InstructorPayroll::query()
+            ->where('instructor_id', $data['instructor_id'])
+            ->whereDate('period_start', $periodStart)
+            ->whereDate('period_end', $periodEnd)
+            ->exists()) {
             throw ValidationException::withMessages([
-                'period_month' => 'Payroll untuk pengajar dan periode ini sudah ada.',
+                'period_start' => 'Payroll untuk pengajar dan rentang tanggal ini sudah ada.',
             ]);
         }
 
         $sessions = TeachingSession::query()
             ->where('instructor_id', $data['instructor_id'])
             ->where('status', 'approved')
-            ->whereBetween('actual_date', [$period->toDateString(), $period->endOfMonth()->toDateString()])
+            ->whereBetween('actual_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
             ->whereDoesntHave('payrollItems')
             ->orderBy('actual_date')
             ->get();
 
         if ($sessions->isEmpty()) {
             throw ValidationException::withMessages([
-                'period_month' => 'Tidak ada laporan approved yang belum masuk payroll pada periode ini.',
+                'period_start' => 'Tidak ada laporan approved yang belum masuk payroll pada rentang tanggal ini.',
             ]);
         }
 
@@ -146,10 +152,12 @@ class InstructorPayrollController extends Controller
             ];
         });
 
-        $payroll = DB::transaction(function () use ($data, $period, $items) {
+        $payroll = DB::transaction(function () use ($data, $periodStart, $periodEnd, $items) {
             $payroll = InstructorPayroll::create([
                 'instructor_id' => $data['instructor_id'],
-                'period_month' => $period,
+                'period_month' => $periodStart,
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
                 'total_sessions' => $items->count(),
                 'total_amount' => $items->sum('amount'),
                 'status' => 'draft',
@@ -162,7 +170,8 @@ class InstructorPayrollController extends Controller
         });
 
         AuditLogger::log('instructor_payroll.generated', $request->user(), $payroll, [
-            'period_month' => $period->format('Y-m'),
+            'period_start' => $periodStart->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
             'total_sessions' => $payroll->total_sessions,
             'total_amount' => $payroll->total_amount,
         ]);
@@ -205,7 +214,8 @@ class InstructorPayrollController extends Controller
         }
 
         AuditLogger::log('instructor_payroll.deleted', $request->user(), $instructorPayroll, [
-            'period_month' => optional($instructorPayroll->period_month)->format('Y-m'),
+            'period_start' => optional($instructorPayroll->period_start)->format('Y-m-d'),
+            'period_end' => optional($instructorPayroll->period_end)->format('Y-m-d'),
         ]);
         $this->deletePaymentProof($instructorPayroll->payment_proof_path);
         $instructorPayroll->delete();
@@ -273,7 +283,9 @@ class InstructorPayrollController extends Controller
             'instructorId' => $payroll->instructor_id,
             'instructor' => $payroll->instructor?->name ?? 'Pengajar tidak tersedia',
             'periodMonth' => optional($payroll->period_month)->format('Y-m'),
-            'periodLabel' => optional($payroll->period_month)->format('M Y'),
+            'periodStart' => optional($payroll->period_start ?? $payroll->period_month)->format('Y-m-d'),
+            'periodEnd' => optional($payroll->period_end ?? optional($payroll->period_month)->endOfMonth())->format('Y-m-d'),
+            'periodLabel' => $this->periodLabel($payroll),
             'totalSessions' => $payroll->total_sessions,
             'totalAmount' => $payroll->total_amount,
             'totalAmountLabel' => $this->rupiah($payroll->total_amount),
@@ -300,6 +312,18 @@ class InstructorPayrollController extends Controller
                 'amountLabel' => $this->rupiah($item->amount),
             ]),
         ];
+    }
+
+    private function periodLabel(InstructorPayroll $payroll): string
+    {
+        $start = $payroll->period_start ?? $payroll->period_month;
+        $end = $payroll->period_end ?? optional($payroll->period_month)->endOfMonth();
+
+        if (! $start || ! $end) {
+            return 'Periode tidak tersedia';
+        }
+
+        return $start->format('d M Y').' – '.$end->format('d M Y');
     }
 
     private function ratePayload(InstructorPayRate $rate): array
