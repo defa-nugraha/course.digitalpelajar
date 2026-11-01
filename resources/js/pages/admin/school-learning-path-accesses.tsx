@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
@@ -231,7 +232,7 @@ export default function SchoolLearningPathAccesses({ accesses, schools, learning
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Sekolah</th>
@@ -291,7 +292,7 @@ export default function SchoolLearningPathAccesses({ accesses, schools, learning
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {visibleAccesses.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada akses yang cocok.</p>}
                     </DesktopTable>
                 </div>

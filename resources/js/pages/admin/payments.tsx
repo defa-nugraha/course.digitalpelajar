@@ -1,3 +1,5 @@
+import { confirmAction } from '@/lib/confirm-delete';
+import PaginatedTable from '@/components/paginated-table';
 import { Panel, Shell } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { SearchableSelect } from '@/components/searchable-select';
@@ -98,8 +100,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                 form.reset();
                 setEditingBillId(null);
                 setBillsOpen(false);
-                toast.success(editingBillId === null ? 'Tagihan kursus berhasil dibuat.' : 'Tagihan kursus berhasil diperbarui.');
-            },
+                },
             onError: () => {
                 toast.error(editingBillId === null ? 'Tagihan kursus gagal dibuat.' : 'Tagihan kursus gagal diperbarui. Periksa kembali data yang diisi.');
             },
@@ -134,18 +135,15 @@ export default function Payments({ payments, students, courses, bills }: Props) 
 
     const sendWhatsAppReminder = (bill: BillRow) => {
         if (bill.status === 'paid') return;
-        if (!window.confirm('Kirim pengingat WhatsApp untuk tagihan "' + bill.title + '" kepada ' + bill.student + '?')) return;
-
-        router.post(
-            `/admin/course-bills/${bill.id}/whatsapp-reminder`,
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => toast.success('Permintaan pengingat WhatsApp berhasil dimasukkan ke antrean.'),
-                onError: () => toast.error('Pengingat WhatsApp gagal dikirim. Periksa nomor siswa dan konfigurasi gateway.'),
-            },
-        );
-    };
+        confirmAction({
+            title: 'Kirim pengingat WhatsApp?',
+            message: 'Kirim pengingat untuk tagihan "' + bill.title + '" kepada ' + bill.student + '?',
+            confirmLabel: 'Kirim pengingat',
+            cancelLabel: 'Batal',
+            tone: 'default',
+            onConfirm: () => router.post(`/admin/course-bills/${bill.id}/whatsapp-reminder`, {}, { preserveScroll: true }),
+        });
+    };;
 
     const billActions = (bill: BillRow, compact = false) => (
         <div className={compact ? 'flex flex-wrap gap-2' : 'flex justify-end gap-1'}>
@@ -413,7 +411,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Tagihan</th>
@@ -449,7 +447,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {bills.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada tagihan kursus.</p>}
                     </DesktopTable>
                 </div>
@@ -501,7 +499,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Order</th>
@@ -530,7 +528,7 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {visible.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada transaksi yang cocok.</p>}
                     </DesktopTable>
                 </div>

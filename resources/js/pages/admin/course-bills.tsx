@@ -1,3 +1,4 @@
+import { confirmAction, confirmDelete } from '@/lib/confirm-delete';
 import { Panel, Shell } from '@/components/platform';
 import { MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
@@ -173,11 +174,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                         size="sm"
                                         variant="outline"
                                         disabled={bill.status === 'paid' || !bill.studentPhone}
-                                        onClick={() => {
-                                            if (window.confirm('Kirim pengingat WhatsApp untuk tagihan ' + bill.title + ' kepada ' + bill.student + '?')) {
-                                                router.post('/admin/course-bills/' + bill.id + '/whatsapp-reminder', {}, { preserveScroll: true });
-                                            }
-                                        }}
+                                        onClick={() => confirmAction({ title: 'Kirim pengingat WhatsApp?', message: 'Kirim pengingat untuk tagihan ' + bill.title + ' kepada ' + bill.student + '?', confirmLabel: 'Kirim pengingat', cancelLabel: 'Batal', tone: 'default', onConfirm: () => router.post('/admin/course-bills/' + bill.id + '/whatsapp-reminder', {}, { preserveScroll: true }) })}
                                     >
                                         <Send className="size-4" />
                                         Kirim pengingat
@@ -186,15 +183,7 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                         type="button"
                                         size="sm"
                                         variant="destructive"
-                                        onClick={() => {
-                                            if (
-                                                window.confirm(
-                                                    'Hapus tagihan ini beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.',
-                                                )
-                                            ) {
-                                                router.delete('/admin/course-bills/' + bill.id);
-                                            }
-                                        }}
+                                        onClick={() => confirmDelete('Hapus tagihan ' + bill.title + ' beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.', () => router.delete('/admin/course-bills/' + bill.id, { preserveScroll: true }))}
                                     >
                                         <Trash2 className="size-4" />
                                         Hapus tagihan

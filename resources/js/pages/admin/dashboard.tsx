@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { Panel, ProgressBar, Shell, StatCard } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
@@ -168,7 +169,7 @@ export default function AdminDashboard({ stats, coursePerformance, recentSubmiss
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wide text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Order</th>
@@ -191,7 +192,7 @@ export default function AdminDashboard({ stats, coursePerformance, recentSubmiss
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {recentPayments.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada pembayaran.</p>}
                     </DesktopTable>
                 </div>

@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
@@ -198,7 +199,7 @@ export default function Schools({ stats, schools }: SchoolsProps) {
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Sekolah</th>
@@ -253,7 +254,7 @@ export default function Schools({ stats, schools }: SchoolsProps) {
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {visibleSchools.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada sekolah yang cocok.</p>}
                     </DesktopTable>
                 </div>
@@ -397,7 +398,7 @@ function PeopleTable({ title, people, empty }: { title: string; people: SchoolPe
                     ))}
                 </MobileCardList>
                 <DesktopTable className="max-h-80">
-                    <table className="w-full text-left text-sm">
+                    <PaginatedTable className="w-full text-left text-sm">
                         <thead className="text-xs tracking-wide text-slate-500 uppercase">
                             <tr>
                                 <th className="py-2">Nama</th>
@@ -419,7 +420,7 @@ function PeopleTable({ title, people, empty }: { title: string; people: SchoolPe
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </PaginatedTable>
                     {people.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{empty}</p>}
                 </DesktopTable>
             </div>

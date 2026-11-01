@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { FieldLabel } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell } from '@/components/platform';
@@ -209,7 +210,7 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                         ))}
                     </MobileCardList>
                     <DesktopTable>
-                        <table className="w-full text-left text-sm">
+                        <PaginatedTable className="w-full text-left text-sm">
                             <thead className="text-xs tracking-wider text-slate-500 uppercase">
                                 <tr>
                                     <th className="py-3">Nama</th>
@@ -258,7 +259,7 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </PaginatedTable>
                         {visibleUsers.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Tidak ada pengguna yang cocok.</p>}
                     </DesktopTable>
                 </div>

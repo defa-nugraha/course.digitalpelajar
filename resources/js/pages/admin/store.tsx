@@ -1,3 +1,4 @@
+import PaginatedTable from '@/components/paginated-table';
 import { FormField } from '@/components/form-field';
 import InputError from '@/components/input-error';
 import { Panel, Shell, StatCard } from '@/components/platform';
@@ -366,7 +367,7 @@ function ProductsPanel({
                     ))}
                 </MobileCardList>
                 <DesktopTable>
-                    <table className="w-full text-left text-sm">
+                    <PaginatedTable className="w-full text-left text-sm">
                         <thead className="text-xs tracking-wider text-slate-500 uppercase">
                             <tr>
                                 <th className="py-3">Produk</th>
@@ -425,7 +426,7 @@ function ProductsPanel({
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </PaginatedTable>
                     {visible.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Belum ada produk.</p>}
                 </DesktopTable>
             </div>
@@ -899,7 +900,7 @@ function OrdersPanel({ orders }: { orders: OrderRow[] }) {
                     ))}
                 </MobileCardList>
                 <DesktopTable>
-                    <table className="w-full text-left text-sm">
+                    <PaginatedTable className="w-full text-left text-sm">
                         <thead className="text-xs text-slate-500 uppercase">
                             <tr>
                                 <th className="py-3">Order</th>
@@ -931,7 +932,7 @@ function OrdersPanel({ orders }: { orders: OrderRow[] }) {
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </PaginatedTable>
                 </DesktopTable>
             </div>
             <Dialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)}>
@@ -1024,7 +1025,7 @@ function CodesPanel({
                     ))}
                 </MobileCardList>
                 <DesktopTable>
-                    <table className="w-full text-left text-sm">
+                    <PaginatedTable className="w-full text-left text-sm">
                         <thead className="text-xs text-slate-500 uppercase">
                             <tr>
                                 <th className="py-3">Kode</th>
@@ -1049,7 +1050,7 @@ function CodesPanel({
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </PaginatedTable>
                 </DesktopTable>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
