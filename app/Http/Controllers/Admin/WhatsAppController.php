@@ -155,7 +155,7 @@ class WhatsAppController extends Controller
                 Rule::exists('users', 'id')->where('role', 'student')->where('status', 'active'),
             ],
             'message' => ['required', 'string', 'min:3', 'max:1500'],
-            'send_mode' => ['required', Rule::in(['text', 'media', 'button'])],
+            'send_mode' => ['sometimes', Rule::in(['text', 'media', 'button'])],
             'media_type' => ['nullable', Rule::in(['image', 'video', 'audio', 'pdf', 'xls', 'xlsx', 'doc', 'docx', 'zip'])],
             'media_url' => ['nullable', 'url', 'max:2000'],
             'footer' => ['nullable', 'string', 'max:500'],
@@ -164,11 +164,13 @@ class WhatsAppController extends Controller
             'consent_confirmed' => ['accepted'],
         ]);
 
-        if ($data['send_mode'] === 'media' && (blank($data['media_type'] ?? null) || blank($data['media_url'] ?? null))) {
+        $sendMode = $data['send_mode'] ?? 'text';
+
+        if ($sendMode === 'media' && (blank($data['media_type'] ?? null) || blank($data['media_url'] ?? null))) {
             return back()->withErrors(['media_url' => 'Tipe dan URL media wajib diisi untuk mode media.']);
         }
 
-        if ($data['send_mode'] === 'button' && empty($data['template_buttons'])) {
+        if ($sendMode === 'button' && empty($data['template_buttons'])) {
             return back()->withErrors(['template_buttons' => 'Mode tombol membutuhkan 1 sampai 3 tombol.']);
         }
 
@@ -203,7 +205,7 @@ class WhatsAppController extends Controller
                 'message' => $personalizedMessage,
                 'type' => 'campaign',
                 'status' => 'queued',
-                'send_mode' => $data['send_mode'],
+                'send_mode' => $sendMode,
                 'media_type' => $data['media_type'] ?? null,
                 'media_url' => $data['media_url'] ?? null,
                 'footer' => $data['footer'] ?? null,
@@ -221,7 +223,7 @@ class WhatsAppController extends Controller
         AuditLogger::log('whatsapp.campaign.queued', $request->user(), null, [
             'queued_count' => $queued,
             'skipped_count' => $skipped,
-            'mode' => $data['send_mode'],
+            'mode' => $sendMode,
             'recipient_ids' => $students->pluck('id')->all(),
         ]);
 
