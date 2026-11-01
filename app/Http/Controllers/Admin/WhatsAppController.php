@@ -212,6 +212,7 @@ class WhatsAppController extends Controller
             foreach ($targets as $target) {
                 if (! $target['number']) {
                     $skipped++;
+
                     continue;
                 }
                 $personalizedMessage = str_replace(
