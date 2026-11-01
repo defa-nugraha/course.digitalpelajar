@@ -14,6 +14,8 @@ class InstructorPayroll extends Model
     protected $fillable = [
         'instructor_id',
         'period_month',
+        'period_start',
+        'period_end',
         'total_sessions',
         'total_amount',
         'status',
@@ -24,6 +26,8 @@ class InstructorPayroll extends Model
 
     protected $casts = [
         'period_month' => 'date',
+        'period_start' => 'date',
+        'period_end' => 'date',
         'total_sessions' => 'integer',
         'total_amount' => 'integer',
         'paid_at' => 'datetime',
