@@ -274,11 +274,6 @@ class CourseBillController extends Controller
         }
 
         $courseBill->loadMissing(['student', 'course']);
-        $recipientNumber = WhatsAppGateway::normalizePhone($courseBill->student->phone);
-
-        if (! $recipientNumber) {
-            return back()->with('error', 'Nomor WhatsApp siswa belum diisi atau formatnya tidak valid.');
-        }
 
         $recentReminderExists = WhatsAppMessage::query()
             ->where('course_bill_id', $courseBill->id)
@@ -304,44 +299,65 @@ class CourseBillController extends Controller
             ];
         }
 
-        $message = str_replace(
-            ['{nama}', '{id_siswa}', '{tagihan}', '{kursus}', '{nominal}', '{jatuh_tempo}', '{url_pembayaran}'],
-            [
-                $courseBill->student->name,
-                (string) $courseBill->student->student_number,
-                $courseBill->title,
-                $courseBill->course->title,
-                'Rp '.number_format($courseBill->amount, 0, ',', '.'),
-                $courseBill->due_at->format('d-m-Y'),
-                route('public-payments.index'),
-            ],
-            (string) ($template['message'] ?? ''),
-        );
+        $audience = $template['audience'] ?? 'student';
+        $targets = [];
+        if (in_array($audience, ['student', 'both'], true)) {
+            $targets[] = WhatsAppGateway::normalizePhone($courseBill->student->whatsapp_phone ?: $courseBill->student->phone);
+        }
+        if (in_array($audience, ['parent', 'both'], true)) {
+            $targets[] = WhatsAppGateway::normalizePhone($courseBill->student->parent_whatsapp_phone);
+        }
+        $targets = array_values(array_unique(array_filter($targets)));
 
-        $whatsAppMessage = WhatsAppMessage::query()->create([
-            'user_id' => $courseBill->student_id,
-            'course_bill_id' => $courseBill->id,
-            'sent_by' => $request->user()->id,
-            'recipient_number' => $recipientNumber,
-            'message' => $message,
-            'type' => 'bill_reminder',
-            'status' => 'queued',
-            'send_mode' => $template['mode'] ?? 'text',
-            'media_type' => $template['media_type'] ?? null,
-            'media_url' => $template['media_url'] ?? null,
-            'footer' => $template['footer'] ?? null,
-            'template_buttons' => $template['template_buttons'] ?? null,
-        ]);
+        if ($targets === []) {
+            return back()->with('error', 'Nomor WhatsApp sesuai target template belum diisi atau formatnya tidak valid.');
+        }
 
-        SendWhatsAppMessage::dispatch($whatsAppMessage->id);
+        $queuedMessageIds = [];
+        foreach ($targets as $recipientNumber) {
+            $message = str_replace(
+                ['{nama}', '{id_siswa}', '{tagihan}', '{kursus}', '{nominal}', '{jatuh_tempo}', '{url_pembayaran}', '{jenis_penerima}'],
+                [
+                    $courseBill->student->name,
+                    (string) $courseBill->student->student_number,
+                    $courseBill->title,
+                    $courseBill->course->title,
+                    'Rp '.number_format($courseBill->amount, 0, ',', '.'),
+                    $courseBill->due_at->format('d-m-Y'),
+                    route('public-payments.index'),
+                    $recipientNumber === WhatsAppGateway::normalizePhone($courseBill->student->parent_whatsapp_phone) ? 'orang tua' : 'siswa',
+                ],
+                (string) ($template['message'] ?? ''),
+            );
+
+            $whatsAppMessage = WhatsAppMessage::query()->create([
+                'user_id' => $courseBill->student_id,
+                'course_bill_id' => $courseBill->id,
+                'sent_by' => $request->user()->id,
+                'recipient_number' => $recipientNumber,
+                'message' => $message,
+                'type' => 'bill_reminder',
+                'status' => 'queued',
+                'send_mode' => $template['mode'] ?? 'text',
+                'media_type' => $template['media_type'] ?? null,
+                'media_url' => $template['media_url'] ?? null,
+                'footer' => $template['footer'] ?? null,
+                'template_buttons' => $template['template_buttons'] ?? null,
+            ]);
+
+            SendWhatsAppMessage::dispatch($whatsAppMessage->id);
+            $queuedMessageIds[] = $whatsAppMessage->id;
+        }
 
         AuditLogger::log('whatsapp.bill_reminder.queued', $request->user(), $courseBill, [
-            'whatsapp_message_id' => $whatsAppMessage->id,
+            'whatsapp_message_ids' => $queuedMessageIds,
             'recipient_user_id' => $courseBill->student_id,
             'mode' => $template['mode'] ?? 'text',
+            'audience' => $audience,
+            'recipient_count' => count($queuedMessageIds),
         ]);
 
-        return back()->with('success', 'Pengingat WhatsApp masuk antrean pengiriman.');
+        return back()->with('success', count($queuedMessageIds).' pengingat WhatsApp masuk antrean pengiriman.');
     }
 
     public function destroy(Request $request, CourseBill $courseBill): RedirectResponse
