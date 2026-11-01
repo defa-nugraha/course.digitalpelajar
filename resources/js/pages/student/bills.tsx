@@ -3,6 +3,7 @@ import { Panel, Shell } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Head, router } from '@inertiajs/react';
+import { notifyError } from '@/lib/notifications';
 import { CreditCard, Info, ReceiptText } from 'lucide-react';
 import { useState } from 'react';
 
@@ -79,7 +80,7 @@ export default function StudentBills({ bills }: { bills: BillItem[] }) {
                                                     type="button"
                                                     size="sm"
                                                     className="mt-3"
-                                                    onClick={() => router.post('/student/bills/' + bill.id + '/pay')}
+                                                    onClick={() => router.post('/student/bills/' + bill.id + '/pay', {}, { onError: () => notifyError('Pembayaran gagal dimulai. Silakan coba kembali.') })}
                                                 >
                                                     <CreditCard className="size-4" />
                                                     Bayar melalui Midtrans
@@ -121,7 +122,7 @@ export default function StudentBills({ bills }: { bills: BillItem[] }) {
                                     <td className="font-mono text-xs">{bill.orderId ?? '-'}</td>
                                     <td className="text-right">
                                         {bill.status !== 'paid' && (
-                                            <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`)}>
+                                            <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`, {}, { onError: () => notifyError('Pembayaran gagal dimulai. Silakan coba kembali.') })}>
                                                 <CreditCard className="size-4" />
                                                 Bayar
                                             </Button>
