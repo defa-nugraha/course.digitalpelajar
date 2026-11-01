@@ -46,25 +46,24 @@ class WhatsAppGateway
         ]);
     }
 
-    public function sendButton(
+    public function sendMedia(
         string $number,
-        string $message,
-        array $button,
-        ?string $footer = null,
-        ?string $url = null,
+        string $mediaType,
+        string $url,
+        ?string $caption = null,
     ): array {
         $number = self::normalizePhone($number);
+        $allowedTypes = ['image', 'video', 'audio', 'pdf', 'xls', 'xlsx', 'doc', 'docx', 'zip'];
 
-        if (! $number || count($button) < 1 || count($button) > 5) {
-            return $this->failure('Nomor atau tombol WhatsApp tidak valid.');
+        if (! $number || ! in_array($mediaType, $allowedTypes, true) || ! filter_var($url, FILTER_VALIDATE_URL) || ! in_array(parse_url($url, PHP_URL_SCHEME), ['https', 'http'], true)) {
+            return $this->failure('Nomor, tipe media, atau URL media tidak valid.');
         }
 
-        return $this->request('send-button', [
+        return $this->request('send-media', [
             'number' => $number,
-            'message' => $message,
-            'button' => array_values($button),
-            'footer' => $footer,
+            'media_type' => $mediaType,
             'url' => $url,
+            'caption' => $caption,
         ]);
     }
 
@@ -126,8 +125,14 @@ class WhatsAppGateway
                     'http_status' => $response->status(),
                 ],
             ];
-        } catch (ConnectionException) {
-            return $this->failure('Tidak dapat terhubung ke gateway WhatsApp.');
+        } catch (ConnectionException $exception) {
+            report($exception);
+
+            return $this->failure('Tidak dapat terhubung ke gateway WhatsApp: '.$exception->getMessage());
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return $this->failure('Kesalahan saat menghubungi gateway WhatsApp: '.$exception->getMessage());
         }
     }
 
