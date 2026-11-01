@@ -1,6 +1,5 @@
 import BrandLogo from '@/components/brand-logo';
 import { PublicPageSkeleton, ShellPageSkeleton, usePageComponentLoading } from '@/components/component-skeletons';
-import { ConfirmationDialogHost } from '@/components/confirmation-dialog-host';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -34,7 +33,6 @@ import {
     Settings,
 } from 'lucide-react';
 import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
-import { Toaster } from 'sonner';
 
 interface FlashPayload {
     success?: string;
@@ -74,8 +72,6 @@ export function PublicNav() {
 
     return (
         <>
-            <Toaster richColors position="top-center" />
-            <ConfirmationDialogHost />
             <header className="fixed top-0 left-0 z-50 w-full border-b border-slate-200 bg-white/80 shadow-sm backdrop-blur-md">
                 <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-10">
                     <Link href="/" className="flex items-center">
