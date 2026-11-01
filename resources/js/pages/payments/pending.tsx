@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Head, Link, router } from '@inertiajs/react';
 import { AlertCircle, Copy, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import { Toaster } from 'sonner';
 import { notifyError, notifySuccess } from '@/lib/notifications';
 
 interface Payment {
@@ -23,7 +22,6 @@ export default function Pending({ payment }: { payment?: Payment | null }) {
     return (
         <>
             <Head title="Menunggu Pembayaran" />
-            <Toaster richColors position="top-center" />
             <div className="flex min-h-screen flex-col bg-[#FAF8FF] text-[#131B2E]">
                 <header className="fixed top-0 left-0 z-50 flex h-16 w-full items-center justify-center border-b border-slate-200 bg-white/80 px-10 shadow-sm backdrop-blur-md">
                     <BrandLogo className="h-10" />
