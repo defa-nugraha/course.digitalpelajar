@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Copy, Download, Edit, ExternalLink, MessageCircle, Printer, ReceiptText, Send, Trash2 } from 'lucide-react';
+import { Copy, Download, Edit, ExternalLink, MessageCircle, Printer, ReceiptText, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { toast } from 'sonner';
