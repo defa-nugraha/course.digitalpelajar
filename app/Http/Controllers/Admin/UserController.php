@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\School;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
@@ -71,7 +72,7 @@ class UserController extends Controller
     {
         abort_unless($user->role === 'student', 404);
 
-        if (! $user->requested_school_id || ! \App\Models\School::query()->whereKey($user->requested_school_id)->exists()) {
+        if (! $user->requested_school_id || ! School::query()->whereKey($user->requested_school_id)->exists()) {
             return back()->with('error', 'Pengajuan tidak memiliki sekolah terdaftar yang dapat disetujui. Pilih sekolah melalui fitur Edit terlebih dahulu.');
         }
 
