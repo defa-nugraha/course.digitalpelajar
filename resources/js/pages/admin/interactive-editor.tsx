@@ -37,6 +37,7 @@ import {
 import type { InteractiveCanvasAsset, InteractiveMedia, InteractiveMetadata, InteractiveScene } from '@/components/interactive-learning';
 import { confirmAction, confirmDelete } from '@/lib/confirm-delete';
 import { notifyError, notifySuccess } from '@/lib/notifications';
+import { Toaster } from 'sonner';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { Head } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
@@ -270,6 +271,7 @@ export default function InteractiveEditorPage({
     return (
         <div className="min-h-screen bg-slate-100 text-slate-950">
             <Head title={`Editor Interaktif - ${course.title}`} />
+            <Toaster richColors position="top-center" />
             <ConfirmationDialogHost />
 
             <div className="flex h-screen flex-col md:hidden">
