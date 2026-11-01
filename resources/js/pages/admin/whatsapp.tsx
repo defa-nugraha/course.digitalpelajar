@@ -68,14 +68,14 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured }:
     return (
         <Shell title="WhatsApp Center" eyebrow="Admin Pusat">
             <Head title="WhatsApp Center" />
-            <div className="mb-4">
+            <div className="mb-6">
                 <Button type="button" variant="outline" onClick={() => router.visit('/admin/course-bills')}>
                     <ArrowLeft className="size-4" />
                     Kembali ke tagihan
                 </Button>
             </div>
 
-            <Panel title="Status gateway WhatsApp">
+            <div className="mb-8"><Panel title="Status gateway WhatsApp">
                 {gatewayConfigured ? (
                     <p className="text-sm text-emerald-700">Kredensial gateway terisi. Pesan akan diproses melalui antrean.</p>
                 ) : (
@@ -88,9 +88,9 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured }:
                     Kunci API tidak ditampilkan di halaman ini. Penerima harus dipilih manual; hanya kirim kepada kontak yang menyetujui menerima
                     pesan WhatsApp dari Digital Pelajar.
                 </p>
-            </Panel>
+            </Panel></div>
 
-            <Panel title="Buat blast WhatsApp">
+            <div className="mb-8"><Panel title="Buat blast WhatsApp">
                 <form onSubmit={submit} className="space-y-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm text-slate-600">
@@ -168,7 +168,7 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured }:
                         {form.processing ? 'Memasukkan ke antrean...' : 'Kirim ke ' + selectedCount + ' penerima'}
                     </Button>
                 </form>
-            </Panel>
+            </Panel></div>
 
             <Panel title="Riwayat pesan terbaru">
                 {messages.length === 0 ? (
