@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/react';
 import { Download, Fingerprint, Share2, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { notifyError, notifySuccess } from '@/lib/notifications';
+
 
 interface Certificate {
     id: number;
@@ -59,10 +60,10 @@ export default function Certificates({ certificates }: { certificates: Certifica
                                     try {
                                         await navigator.clipboard.writeText(`${window.location.origin}/certificates/verify?credential=${certificate.no}`);
                                         setSharedId(certificate.id);
-                                        toast.success('Tautan verifikasi sertifikat berhasil disalin.');
+                                        notifySuccess('Tautan verifikasi sertifikat berhasil disalin.');
                                         window.setTimeout(() => setSharedId(null), 1500);
                                     } catch {
-                                        toast.error('Tautan gagal disalin. Periksa izin clipboard browser Anda.');
+                                        notifyError('Tautan gagal disalin. Periksa izin clipboard browser Anda.');
                                     }
                                 }}
                             >
