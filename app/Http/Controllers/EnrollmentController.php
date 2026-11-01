@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\Enrollment;
 use App\Models\Payment;
 use App\Services\CertificateService;
 use App\Services\EnrollmentService;
@@ -136,7 +137,7 @@ class EnrollmentController extends Controller
     /**
      * Convert gateway outages into a flash alert without masking authorization or validation errors.
      *
-     * @return array{enrollment: \App\Models\Enrollment|null, payment: Payment|null, checkout_url: string|null}|RedirectResponse
+     * @return array{enrollment: Enrollment|null, payment: Payment|null, checkout_url: string|null}|RedirectResponse
      */
     private function enrollWithPaymentFeedback(Request $request, Course $course): array|RedirectResponse
     {
