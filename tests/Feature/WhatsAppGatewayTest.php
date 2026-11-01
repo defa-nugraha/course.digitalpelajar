@@ -185,6 +185,23 @@ test('WhatsApp gateway normalizes Indonesian phone numbers and rejects invalid v
         ->and(WhatsAppGateway::normalizePhone(null))->toBeNull();
 });
 
+test('WhatsApp gateway sends button and template messages with Indonesian country code', function () {
+    Http::fake([
+        'wa.digitalpelajar.id/send-button' => Http::response(['status' => true, 'msg' => 'sent'], 200),
+        'wa.digitalpelajar.id/send-template' => Http::response(['status' => true, 'msg' => 'sent'], 200),
+    ]);
+
+    $gateway = app(WhatsAppGateway::class);
+
+    expect($gateway->sendButton('0812-3456-7890', 'Pilih menu', ['Menu A'])['success'])->toBeTrue()
+        ->and($gateway->sendTemplate('0812-3456-7890', 'Hubungi kami', ['url|Website|https://digitalpelajar.id'])['success'])->toBeTrue();
+
+    Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/send-button')
+        && $request['number'] === '6281234567890');
+    Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/send-template')
+        && $request['number'] === '6281234567890');
+});
+
 test('WhatsApp admin center is restricted to administrators', function () {
     $student = User::factory()->student()->create();
 
