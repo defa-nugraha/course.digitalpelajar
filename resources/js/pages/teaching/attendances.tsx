@@ -1,6 +1,7 @@
 import PaginatedTable from '@/components/paginated-table';
 import InputError from '@/components/input-error';
 import { Panel, Shell } from '@/components/platform';
+import { notifyError, notifySuccess } from '@/lib/notifications';
 import { DesktopTable, MobileCardList, MobileDataCard } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -138,26 +139,38 @@ export default function TeachingAttendances({ scope, session, students, summary,
     const form = useForm<AttendanceFormData>({ attendances: [] });
 
     const fetchAttendanceData = useCallback(
-        async ({ updateQr = false, forceRows = false }: { updateQr?: boolean; forceRows?: boolean } = {}) => {
-            const response = await fetch(`/${scope}/teaching-sessions/${session.id}/attendances/data`, {
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
+        async ({ updateQr = false, forceRows = false, notifyResult = false }: { updateQr?: boolean; forceRows?: boolean; notifyResult?: boolean } = {}) => {
+            try {
+                const response = await fetch(`/${scope}/teaching-sessions/${session.id}/attendances/data`, {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
 
-            if (!response.ok) return;
+                if (!response.ok) {
+                    throw new Error('Attendance refresh request failed.');
+                }
 
-            const payload = (await response.json()) as AttendanceDataResponse;
-            setSummaryState(payload.summary);
-            setFeedbackState(payload.feedbackSummary);
+                const payload = (await response.json()) as AttendanceDataResponse;
+                setSummaryState(payload.summary);
+                setFeedbackState(payload.feedbackSummary);
 
-            if (forceRows || !hasManualChanges) {
-                setAttendanceRows(toAttendanceState(payload.students));
-            }
+                if (forceRows || !hasManualChanges) {
+                    setAttendanceRows(toAttendanceState(payload.students));
+                }
 
-            if (updateQr) {
-                setQrUrlState(payload.qrUrl ?? null);
+                if (updateQr) {
+                    setQrUrlState(payload.qrUrl ?? null);
+                }
+
+                if (notifyResult) {
+                    notifySuccess('Data presensi berhasil diperbarui.');
+                }
+            } catch {
+                if (notifyResult) {
+                    notifyError('Data presensi gagal diperbarui. Periksa koneksi lalu coba kembali.');
+                }
             }
         },
         [hasManualChanges, scope, session.id],
@@ -603,7 +616,7 @@ export default function TeachingAttendances({ scope, session, students, summary,
                     </div>
                     {canEdit && (
                         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                            <Button type="button" variant="outline" onClick={() => void fetchAttendanceData({ updateQr: qrOpen })}>
+                            <Button type="button" variant="outline" onClick={() => void fetchAttendanceData({ updateQr: qrOpen, notifyResult: true })}>
                                 Refresh
                             </Button>
                             <Button type="submit" disabled={form.processing}>
