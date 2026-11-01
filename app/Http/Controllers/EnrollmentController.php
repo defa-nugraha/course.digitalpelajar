@@ -156,5 +156,4 @@ class EnrollmentController extends Controller
             return back()->with('error', 'Pembayaran kursus gagal dimulai. Silakan coba kembali.');
         }
     }
-
 }
