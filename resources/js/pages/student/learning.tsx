@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { InteractiveBlockPlayer, type InteractiveProgressPayload } from '@/components/interactive-learning';
 import { Crumb, Panel, ProgressBar, Shell } from '@/components/platform';
 import { Button } from '@/components/ui/button';
+import { notifyError, notifySuccess } from '@/lib/notifications';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -367,9 +368,14 @@ export default function Learning({ course, currentLesson, blocks, lessonItems = 
                                                 submission={submission}
                                                 copied={copiedBlockId === item.id}
                                                 onCopy={async (content) => {
-                                                    await navigator.clipboard.writeText(content ?? item.content ?? '');
-                                                    setCopiedBlockId(item.id);
-                                                    window.setTimeout(() => setCopiedBlockId(null), 1500);
+                                                    try {
+                                                        await navigator.clipboard.writeText(content ?? item.content ?? '');
+                                                        setCopiedBlockId(item.id);
+                                                        notifySuccess('Konten lesson berhasil disalin.');
+                                                        window.setTimeout(() => setCopiedBlockId(null), 1500);
+                                                    } catch {
+                                                        notifyError('Konten lesson gagal disalin. Periksa izin clipboard browser Anda.');
+                                                    }
                                                 }}
                                                 onSubmission={() => setSubmissionOpen(true)}
                                                 onInteractiveProgress={(progress) =>
