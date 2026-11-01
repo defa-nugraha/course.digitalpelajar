@@ -201,7 +201,7 @@ test('instructor report requires evidence photo and can be approved by admin', f
 
     $payload = [
         'teaching_schedule_id' => $schedule->id,
-        'actual_date' => now()->toDateString(),
+        'actual_date' => '2026-07-20',
         'started_at' => '09:00',
         'ended_at' => '11:00',
         'topic' => 'Sensor ultrasonik',
@@ -288,8 +288,8 @@ test('admin generates payroll from approved teaching sessions only once', functi
 
     $this->actingAs($admin)->post('/admin/instructor-payrolls', [
         'instructor_id' => $instructor->id,
-        'period_start' => now()->subDays(6)->toDateString(),
-        'period_end' => now()->toDateString(),
+        'period_start' => '2026-07-14',
+        'period_end' => '2026-07-20',
         'notes' => 'Payroll mingguan.',
     ])->assertSessionHasNoErrors();
 
@@ -297,8 +297,8 @@ test('admin generates payroll from approved teaching sessions only once', functi
 
     expect($payroll->total_sessions)->toBe(1)
         ->and($payroll->total_amount)->toBe(275000)
-        ->and($payroll->period_start?->toDateString())->toBe(now()->subDays(6)->toDateString())
-        ->and($payroll->period_end?->toDateString())->toBe(now()->toDateString())
+        ->and($payroll->period_start?->toDateString())->toBe('2026-07-14')
+        ->and($payroll->period_end?->toDateString())->toBe('2026-07-20')
         ->and($payroll->items()->count())->toBe(1);
 
     $this->actingAs($admin)->post('/admin/instructor-payrolls', [
