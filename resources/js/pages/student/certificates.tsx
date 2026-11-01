@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/react';
 import { Download, Fingerprint, Share2, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface Certificate {
     id: number;
@@ -55,9 +56,14 @@ export default function Certificates({ certificates }: { certificates: Certifica
                                 size="icon"
                                 aria-label="Share"
                                 onClick={async () => {
-                                    await navigator.clipboard.writeText(`${window.location.origin}/certificates/verify?credential=${certificate.no}`);
-                                    setSharedId(certificate.id);
-                                    window.setTimeout(() => setSharedId(null), 1500);
+                                    try {
+                                        await navigator.clipboard.writeText(`${window.location.origin}/certificates/verify?credential=${certificate.no}`);
+                                        setSharedId(certificate.id);
+                                        toast.success('Tautan verifikasi sertifikat berhasil disalin.');
+                                        window.setTimeout(() => setSharedId(null), 1500);
+                                    } catch {
+                                        toast.error('Tautan gagal disalin. Periksa izin clipboard browser Anda.');
+                                    }
                                 }}
                             >
                                 <Share2 className="size-4" />
