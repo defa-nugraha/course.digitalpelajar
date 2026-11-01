@@ -321,6 +321,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('admin/payments', [PlatformController::class, 'adminPayments'])->name('admin.payments');
         Route::delete('admin/payments/{payment}', [PaymentController::class, 'destroy'])->name('admin.payments.destroy');
         Route::get('admin/whatsapp', [WhatsAppController::class, 'index'])->name('admin.whatsapp');
+        Route::patch('admin/whatsapp/bill-template', [WhatsAppController::class, 'saveBillTemplate'])->name('admin.whatsapp.bill-template');
+        Route::delete('admin/whatsapp/messages/{whatsAppMessage}', [WhatsAppController::class, 'destroyMessage'])->name('admin.whatsapp.messages.destroy');
         Route::post('admin/whatsapp/send', [WhatsAppController::class, 'sendCampaign'])->middleware('throttle:admin-whatsapp-send')->name('admin.whatsapp.send');
         Route::get('admin/course-bills', [CourseBillController::class, 'adminIndex'])->name('admin.course-bills');
         Route::post('admin/course-bills', [CourseBillController::class, 'store'])->name('admin.course-bills.store');
