@@ -155,8 +155,19 @@ export function PublicNav() {
 
 export function PublicContent({ children, skeleton = 'default' }: PropsWithChildren<{ skeleton?: 'default' | 'catalog' | 'detail' | 'centered' }>) {
     const loading = usePageComponentLoading();
+    const page = usePage();
+    const { flash = {}, errors = {} } = page.props as { flash?: FlashPayload; errors?: Record<string, string> };
+    useFlashToasts(flash, errors ? Object.values(errors)[0] : undefined);
 
     return loading ? <PublicPageSkeleton variant={skeleton} /> : <>{children}</>;
+}
+
+export function PageFlashToasts() {
+    const page = usePage();
+    const { flash = {}, errors = {} } = page.props as { flash?: FlashPayload; errors?: Record<string, string> };
+    useFlashToasts(flash, errors ? Object.values(errors)[0] : undefined);
+
+    return null;
 }
 
 export function Shell({
