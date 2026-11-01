@@ -126,7 +126,8 @@ class InstructorPayrollController extends Controller
         $sessions = TeachingSession::query()
             ->where('instructor_id', $data['instructor_id'])
             ->where('status', 'approved')
-            ->whereBetween('actual_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->whereDate('actual_date', '>=', $periodStart->toDateString())
+            ->whereDate('actual_date', '<=', $periodEnd->toDateString())
             ->whereDoesntHave('payrollItems')
             ->orderBy('actual_date')
             ->get();
