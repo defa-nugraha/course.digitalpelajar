@@ -162,13 +162,6 @@ export function PublicContent({ children, skeleton = 'default' }: PropsWithChild
     return loading ? <PublicPageSkeleton variant={skeleton} /> : <>{children}</>;
 }
 
-export function PageFlashToasts() {
-    const page = usePage();
-    const { flash = {}, errors = {} } = page.props as { flash?: FlashPayload; errors?: Record<string, string> };
-    useFlashToasts(flash, errors ? Object.values(errors)[0] : undefined);
-
-    return null;
-}
 
 export function Shell({
     children,
