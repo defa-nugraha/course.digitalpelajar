@@ -5,7 +5,6 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { type SharedData } from '@/types';
-import { Transition } from '@headlessui/react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Building2, KeyRound, Mail, MapPin, Phone, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
 import { FormEventHandler } from 'react';
@@ -32,7 +31,7 @@ export default function Profile({ mustVerifyEmail, status, schools }: { mustVeri
         { value: 'other', label: 'Lainnya / belum terdaftar' },
     ];
 
-    const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
+    const { data, setData, patch, errors, processing } = useForm({
         name: user.name,
         email: user.email,
         phone: String(user.phone ?? ''),
@@ -207,15 +206,6 @@ export default function Profile({ mustVerifyEmail, status, schools }: { mustVeri
                         <div className="flex flex-wrap items-center gap-4">
                             <Button disabled={processing}>Simpan Perubahan</Button>
 
-                            <Transition
-                                show={recentlySuccessful}
-                                enter="transition ease-in-out"
-                                enterFrom="opacity-0"
-                                leave="transition ease-in-out"
-                                leaveTo="opacity-0"
-                            >
-                                <p className="text-sm font-semibold text-emerald-700">Profil berhasil disimpan.</p>
-                            </Transition>
                         </div>
                     </form>
                 </Panel>
