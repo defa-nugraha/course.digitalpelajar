@@ -132,6 +132,7 @@ class EnrollmentController extends Controller
             'id' => $payment->id,
         ];
     }
+
     /**
      * Convert gateway outages into a flash alert without masking authorization or validation errors.
      *
