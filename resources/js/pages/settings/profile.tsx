@@ -36,6 +36,8 @@ export default function Profile({ mustVerifyEmail, status, schools }: { mustVeri
         name: user.name,
         email: user.email,
         phone: String(user.phone ?? ''),
+        whatsapp_phone: String(user.whatsapp_phone ?? ''),
+        parent_whatsapp_phone: String(user.parent_whatsapp_phone ?? ''),
         address: String(user.address ?? ''),
         school_id: initialSchoolId,
         manual_school_name: String(user.manual_school_name ?? ''),
@@ -78,6 +80,39 @@ export default function Profile({ mustVerifyEmail, status, schools }: { mustVeri
                                 placeholder="email@domain.com"
                             />
                         </FormField>
+
+                        {user.role === 'student' && (
+                            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                                <h3 className="font-bold text-slate-900">Kontak WhatsApp</h3>
+                                <p className="mt-1 mb-4 text-sm leading-6 text-slate-600">
+                                    Lengkapi nomor WhatsApp siswa dan orang tua/wali agar informasi kelas dan pengingat pembayaran dapat diterima.
+                                </p>
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    <FormField label="Nomor WhatsApp siswa" error={errors.whatsapp_phone}>
+                                        <Input
+                                            id="whatsapp_phone"
+                                            type="tel"
+                                            inputMode="tel"
+                                            autoComplete="tel"
+                                            value={data.whatsapp_phone}
+                                            onChange={(event) => setData('whatsapp_phone', event.target.value)}
+                                            placeholder="Contoh: 081234567890"
+                                        />
+                                    </FormField>
+                                    <FormField label="Nomor WhatsApp orang tua/wali" error={errors.parent_whatsapp_phone}>
+                                        <Input
+                                            id="parent_whatsapp_phone"
+                                            type="tel"
+                                            inputMode="tel"
+                                            autoComplete="tel"
+                                            value={data.parent_whatsapp_phone}
+                                            onChange={(event) => setData('parent_whatsapp_phone', event.target.value)}
+                                            placeholder="Contoh: 081234567890"
+                                        />
+                                    </FormField>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="grid gap-5 md:grid-cols-2">
                             <FormField label="Nomor HP / WhatsApp" error={errors.phone} required>
