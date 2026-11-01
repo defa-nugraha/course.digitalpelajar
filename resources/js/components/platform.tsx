@@ -201,8 +201,6 @@ export function Shell({
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-slate-950">
-            <Toaster richColors position="top-center" />
-            <ConfirmationDialogHost />
             {!sidebarHidden && (
                 <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-slate-200 bg-white p-4 lg:flex">
                     <Link href="/dashboard" className="mb-8 flex shrink-0 items-center px-2">
