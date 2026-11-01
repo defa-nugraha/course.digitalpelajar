@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Copy, Download, Edit, ExternalLink, Printer, ReceiptText, Trash2 } from 'lucide-react';
+import { Copy, Download, Edit, ExternalLink, MessageCircle, Printer, ReceiptText, Send, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { toast } from 'sonner';
@@ -132,8 +132,35 @@ export default function Payments({ payments, students, courses, bills }: Props) 
         setBillsOpen(true);
     };
 
+    const sendWhatsAppReminder = (bill: BillRow) => {
+        if (bill.status === 'paid') return;
+        if (!window.confirm('Kirim pengingat WhatsApp untuk tagihan "' + bill.title + '" kepada ' + bill.student + '?')) return;
+
+        router.post(
+            `/admin/course-bills/${bill.id}/whatsapp-reminder`,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Permintaan pengingat WhatsApp berhasil dimasukkan ke antrean.'),
+                onError: () => toast.error('Pengingat WhatsApp gagal dikirim. Periksa nomor siswa dan konfigurasi gateway.'),
+            },
+        );
+    };
+
     const billActions = (bill: BillRow, compact = false) => (
         <div className={compact ? 'flex flex-wrap gap-2' : 'flex justify-end gap-1'}>
+            <Button
+                type="button"
+                variant="outline"
+                size={compact ? 'sm' : 'icon'}
+                disabled={bill.status === 'paid'}
+                title={bill.status === 'paid' ? 'Tagihan sudah lunas' : 'Kirim pengingat WhatsApp'}
+                aria-label="Kirim pengingat WhatsApp"
+                onClick={() => sendWhatsAppReminder(bill)}
+            >
+                <MessageCircle className="size-4" />
+                {compact && 'Kirim WhatsApp'}
+            </Button>
             <Button type="button" variant="outline" size={compact ? 'sm' : 'icon'} disabled={!bill.canEdit} title={bill.canEdit ? 'Edit tagihan' : 'Tagihan yang sudah memiliki transaksi tidak dapat diedit'} aria-label="Edit tagihan" onClick={() => beginEditBill(bill)}>
                 <Edit className="size-4" />
                 {compact && 'Edit'}
