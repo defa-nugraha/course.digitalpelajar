@@ -15,6 +15,7 @@ import { WalkthroughManager, openWalkthroughGuide } from '@/components/walkthrou
 import { NavItem, adminNav, instructorNav, studentNav, teacherNav } from '@/lib/platform-data';
 import { cn } from '@/lib/utils';
 import { tourTargetForNavItem } from '@/lib/walkthrough-data';
+import { notifyError, notifyMessage, notifySuccess, notifyWarning } from '@/lib/notifications';
 import { Link, usePage } from '@inertiajs/react';
 import {
     ChevronDown,
@@ -33,7 +34,7 @@ import {
     Settings,
 } from 'lucide-react';
 import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
 
 interface FlashPayload {
     success?: string;
@@ -285,27 +286,27 @@ export function Shell({
 function useFlashToasts(flash: FlashPayload, validationError?: string) {
     useEffect(() => {
         if (flash.error) {
-            toast.error(flash.error);
+            notifyError(flash.error);
             return;
         }
 
         if (validationError) {
-            toast.error(validationError);
+            notifyError(validationError);
             return;
         }
 
         if (flash.warning) {
-            toast.warning(flash.warning);
+            notifyWarning(flash.warning);
             return;
         }
 
         if (flash.success) {
-            toast.success(flash.success);
+            notifySuccess(flash.success);
             return;
         }
 
         if (flash.status) {
-            toast.message(flash.status);
+            notifyMessage(flash.status);
         }
     }, [flash.error, flash.status, flash.success, flash.warning, validationError]);
 }
