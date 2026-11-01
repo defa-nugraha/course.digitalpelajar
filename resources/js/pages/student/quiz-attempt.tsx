@@ -1,5 +1,6 @@
 import { Shell } from '@/components/platform';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Head, useForm } from '@inertiajs/react';
@@ -45,6 +46,7 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
     });
     const [timeExpired, setTimeExpired] = useState(false);
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
+    const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
     const submittingRef = useRef(false);
     const transitionedQuestionRef = useRef<number | null>(null);
     const form = useForm<{ answers: string[]; auto_submitted: boolean }>({
@@ -63,6 +65,7 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
             }
 
             submittingRef.current = true;
+            setSubmitConfirmOpen(false);
             if (autoSubmit) setTimeExpired(true);
             setValidationMessage(null);
             form.transform((data) => ({ ...data, auto_submitted: autoSubmit }));
@@ -148,6 +151,19 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
     const answeredCount = form.data.answers.filter((answer) => answer.trim() !== '').length;
     const isPerQuestionTimed = quiz.timeLimitMode === 'per_question' && Boolean(quiz.timeLimitSeconds);
 
+    const requestFinishQuiz = () => {
+        if (submittingRef.current) return;
+
+        const unanswered = form.data.answers.filter((answer) => answer.trim() === '').length;
+        if (unanswered > 0) {
+            setValidationMessage(unanswered === 1 ? 'Masih ada 1 soal yang belum dijawab.' : `Masih ada ${unanswered} soal yang belum dijawab.`);
+            return;
+        }
+
+        setValidationMessage(null);
+        setSubmitConfirmOpen(true);
+    };
+
     return (
         <>
             <Head title={`Mengerjakan Quiz: ${quiz.title}`} />
@@ -184,7 +200,7 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
                             onSubmit={(event) => {
                                 event.preventDefault();
                                 if (activeQuestionIndex === quiz.questions.length - 1) {
-                                    finishQuiz(false);
+                                    requestFinishQuiz();
                                 } else {
                                     goToNextQuestion();
                                 }
@@ -282,6 +298,25 @@ export default function QuizAttemptPage({ quiz, courseTitle, deadlineAt }: QuizA
                         </div>
                     )}
                 </main>
+                <Dialog open={submitConfirmOpen} onOpenChange={(open) => !form.processing && setSubmitConfirmOpen(open)}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Kirim semua jawaban?</DialogTitle>
+                            <DialogDescription>
+                                Anda sudah menjawab {answeredCount} dari {quiz.questions.length} soal. Setelah dikirim, jawaban quiz tidak dapat diubah.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setSubmitConfirmOpen(false)} disabled={form.processing}>
+                                Periksa kembali
+                            </Button>
+                            <Button type="button" onClick={() => finishQuiz(false)} disabled={form.processing}>
+                                <Send className="size-4" />
+                                Ya, kirim jawaban
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </Shell>
         </>
     );
