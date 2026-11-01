@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\MidtransService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class PublicPaymentController extends Controller
 {
@@ -212,7 +214,21 @@ class PublicPaymentController extends Controller
                 return Inertia::location($checkoutUrl);
             }
 
-            $gatewayStatus = $midtrans->transactionStatus($payment);
+            try {
+                $gatewayStatus = $midtrans->transactionStatus($payment);
+            } catch (ConnectionException $exception) {
+                report($exception);
+
+                return back()->with('error', 'Status pembayaran belum dapat diperiksa. Silakan coba kembali.');
+            } catch (HttpExceptionInterface $exception) {
+                if ($exception->getStatusCode() !== 502) {
+                    throw $exception;
+                }
+
+                report($exception);
+
+                return back()->with('error', 'Status pembayaran belum dapat diperiksa. Silakan coba kembali.');
+            }
 
             if ($gatewayStatus === 'pending') {
                 AuditLogger::log('course_bill.public_payment_resumed', $student, $payment, [
@@ -246,12 +262,26 @@ class PublicPaymentController extends Controller
             return Inertia::location($payment->checkout_url);
         }
 
-        $transaction = $midtrans->createTransaction($payment->loadMissing([
-            'user',
-            'course',
-            'courseBill',
-            'courseBills.course',
-        ]));
+        try {
+            $transaction = $midtrans->createTransaction($payment->loadMissing([
+                'user',
+                'course',
+                'courseBill',
+                'courseBills.course',
+            ]));
+        } catch (ConnectionException $exception) {
+            report($exception);
+
+            return back()->with('error', 'Pembayaran gagal dimulai. Silakan coba kembali.');
+        } catch (HttpExceptionInterface $exception) {
+            if ($exception->getStatusCode() !== 502) {
+                throw $exception;
+            }
+
+            report($exception);
+
+            return back()->with('error', 'Pembayaran gagal dimulai. Silakan coba kembali.');
+        }
 
         $payment->forceFill([
             'snap_token' => $transaction['snap_token'],
