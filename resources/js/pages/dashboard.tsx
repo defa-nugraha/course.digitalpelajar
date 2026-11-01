@@ -63,10 +63,31 @@ interface DashboardProps {
 export default function Dashboard({ stats, currentCourse, courses, tasks, offlineAttendances, teacherNotes }: DashboardProps) {
     const { auth } = usePage<SharedData>().props;
     const profileComplete = Boolean(auth.user.profile_completed_at);
+    const missingWhatsAppContacts = !String(auth.user.whatsapp_phone ?? '').trim() || !String(auth.user.parent_whatsapp_phone ?? '').trim();
 
     return (
         <Shell title="Dashboard Siswa" eyebrow="Halo, Siswa">
             <Head title="Dashboard Siswa" />
+            {missingWhatsAppContacts && (
+                <Panel className="mb-6 border-emerald-200" title="Lengkapi Nomor WhatsApp">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p className="font-bold text-slate-950">Tambahkan nomor WhatsApp siswa dan orang tua/wali.</p>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                                {!String(auth.user.whatsapp_phone ?? '').trim() && !String(auth.user.parent_whatsapp_phone ?? '').trim()
+                                    ? 'Kedua nomor WhatsApp belum diisi.'
+                                    : !String(auth.user.whatsapp_phone ?? '').trim()
+                                      ? 'Nomor WhatsApp siswa belum diisi.'
+                                      : 'Nomor WhatsApp orang tua/wali belum diisi.'}
+                                {' '}Lengkapi agar informasi pembelajaran dan pengingat penting dapat disampaikan.
+                            </p>
+                        </div>
+                        <Button asChild>
+                            <Link href="/settings/profile">Lengkapi WhatsApp</Link>
+                        </Button>
+                    </div>
+                </Panel>
+            )}
             {!profileComplete && (
                 <Panel className="mb-6" title="Lengkapi Profil Belajar">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
