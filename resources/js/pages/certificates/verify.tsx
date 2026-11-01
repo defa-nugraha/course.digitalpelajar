@@ -2,6 +2,7 @@ import { FooterMark, PublicContent, PublicNav } from '@/components/platform';
 import { SeoData, SeoHead } from '@/components/seo-head';
 import { Button } from '@/components/ui/button';
 import { router } from '@inertiajs/react';
+import { notifyError, notifySuccess } from '@/lib/notifications';
 import { Copy, Download, QrCode, Search, ShieldCheck, XCircle } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
@@ -122,9 +123,14 @@ export default function Verify({ seo, credential, certificate }: VerifyProps) {
                                         <Button
                                             variant="outline"
                                             onClick={async () => {
-                                                await navigator.clipboard.writeText(window.location.href);
-                                                setCopied(true);
-                                                window.setTimeout(() => setCopied(false), 1500);
+                                                try {
+                                                    await navigator.clipboard.writeText(window.location.href);
+                                                    setCopied(true);
+                                                    notifySuccess('Tautan verifikasi sertifikat berhasil disalin.');
+                                                    window.setTimeout(() => setCopied(false), 1500);
+                                                } catch {
+                                                    notifyError('Tautan verifikasi sertifikat gagal disalin.');
+                                                }
                                             }}
                                         >
                                             <Copy className="size-4" />
