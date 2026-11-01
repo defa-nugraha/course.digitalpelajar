@@ -193,7 +193,9 @@ class WhatsAppController extends Controller
             ->where('role', 'student')
             ->where('status', 'active')
             ->whereIn('id', $data['student_ids'])
-            ->get(['id', 'name', 'student_number', 'phone']);
+            ->when(! empty($data['school_id']), fn ($query) => $query->where('school_id', $data['school_id']))
+            ->when(! empty($data['course_id']), fn ($query) => $query->whereHas('enrollments', fn ($enrollments) => $enrollments->where('course_id', $data['course_id'])))
+            ->get(['id', 'name', 'student_number', 'phone', 'whatsapp_phone', 'parent_whatsapp_phone']);
 
         $queued = 0;
         $skipped = 0;
