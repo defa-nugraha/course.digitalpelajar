@@ -10,6 +10,7 @@ use App\Services\AuditLogger;
 use App\Services\WhatsAppGateway;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -17,6 +18,31 @@ use Inertia\Response;
 
 class WhatsAppController extends Controller
 {
+    private function defaultBillTemplate(): array
+    {
+        return [
+            'mode' => 'text',
+            'message' => "Halo {nama},\n\nIni pengingat tagihan kursus Digital Pelajar.\nTagihan: {tagihan}\nKursus: {kursus}\nNominal: {nominal}\nJatuh tempo: {jatuh_tempo}\nID Siswa: {id_siswa}\n\nSilakan lihat dan lanjutkan pembayaran melalui {url_pembayaran}.\n\nJika sudah membayar, abaikan pesan ini. Terima kasih.",
+            'media_type' => 'image',
+            'media_url' => '',
+            'footer' => 'Digital Pelajar',
+            'template_buttons' => ['url|Lihat tagihan|https://digitalpelajar.id/pembayaran'],
+        ];
+    }
+
+    private function billTemplate(): array
+    {
+        $stored = DB::table('whatsapp_templates')->where('key', 'bill_reminder')->value('configuration');
+
+        if (! $stored) {
+            return $this->defaultBillTemplate();
+        }
+
+        $decoded = is_array($stored) ? $stored : json_decode((string) $stored, true);
+
+        return is_array($decoded) ? array_merge($this->defaultBillTemplate(), $decoded) : $this->defaultBillTemplate();
+    }
+
     public function index(WhatsAppGateway $gateway): Response
     {
         $students = User::query()
@@ -44,8 +70,10 @@ class WhatsAppController extends Controller
                 'recipientName' => $message->recipient?->name ?? 'Kontak tidak tersedia',
                 'recipientNumber' => $message->recipient_number,
                 'type' => $message->type,
+                'mode' => $message->send_mode ?? 'text',
                 'message' => Str::limit($message->message, 120),
                 'status' => $message->status,
+                'error' => $message->status === 'failed' ? data_get($message->gateway_response, 'msg') : null,
                 'createdAt' => $message->created_at->format('d-m-Y H:i'),
                 'sentAt' => $message->sent_at?->format('d-m-Y H:i'),
             ]);
@@ -54,7 +82,62 @@ class WhatsAppController extends Controller
             'students' => $students,
             'messages' => $messages,
             'gatewayConfigured' => $gateway->isConfigured(),
+            'billTemplate' => $this->billTemplate(),
         ]);
+    }
+
+    public function saveBillTemplate(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'mode' => ['required', Rule::in(['text', 'media', 'button'])],
+            'message' => ['required', 'string', 'min:3', 'max:1500'],
+            'media_type' => ['nullable', Rule::in(['image', 'video', 'audio', 'pdf', 'xls', 'xlsx', 'doc', 'docx', 'zip'])],
+            'media_url' => ['nullable', 'url', 'max:2000'],
+            'footer' => ['nullable', 'string', 'max:500'],
+            'template_buttons' => ['nullable', 'array', 'min:1', 'max:3'],
+            'template_buttons.*' => ['required', 'string', 'max:300', 'regex:/^(call|url)\|[^|]+\|.+$/u'],
+        ]);
+
+        if ($data['mode'] === 'media' && (blank($data['media_type'] ?? null) || blank($data['media_url'] ?? null))) {
+            return back()->withErrors(['media_url' => 'Tipe dan URL media wajib diisi untuk mode media.']);
+        }
+
+        if ($data['mode'] === 'button' && empty($data['template_buttons'])) {
+            return back()->withErrors(['template_buttons' => 'Mode tombol membutuhkan 1 sampai 3 tombol.']);
+        }
+
+        DB::table('whatsapp_templates')->updateOrInsert(
+            ['key' => 'bill_reminder'],
+            [
+                'configuration' => json_encode([
+                    'mode' => $data['mode'],
+                    'message' => $data['message'],
+                    'media_type' => $data['media_type'] ?? null,
+                    'media_url' => $data['media_url'] ?? null,
+                    'footer' => $data['footer'] ?? null,
+                    'template_buttons' => $data['template_buttons'] ?? [],
+                ], JSON_THROW_ON_ERROR),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ],
+        );
+
+        return back()->with('success', 'Template pengingat tagihan berhasil disimpan.');
+    }
+
+    public function destroyMessage(Request $request, WhatsAppMessage $whatsAppMessage): RedirectResponse
+    {
+        $messageId = $whatsAppMessage->id;
+
+        AuditLogger::log('whatsapp.message.deleted', $request->user(), $whatsAppMessage, [
+            'status' => $whatsAppMessage->status,
+            'mode' => $whatsAppMessage->send_mode ?? 'text',
+        ]);
+
+        // A queued job checks this row before sending, so deleting it also cancels a not-yet-started message.
+        $whatsAppMessage->delete();
+
+        return back()->with('success', 'Riwayat pesan WhatsApp #'.$messageId.' berhasil dihapus.');
     }
 
     public function sendCampaign(Request $request, WhatsAppGateway $gateway): RedirectResponse
@@ -72,8 +155,22 @@ class WhatsAppController extends Controller
                 Rule::exists('users', 'id')->where('role', 'student')->where('status', 'active'),
             ],
             'message' => ['required', 'string', 'min:3', 'max:1500'],
+            'send_mode' => ['required', Rule::in(['text', 'media', 'button'])],
+            'media_type' => ['nullable', Rule::in(['image', 'video', 'audio', 'pdf', 'xls', 'xlsx', 'doc', 'docx', 'zip'])],
+            'media_url' => ['nullable', 'url', 'max:2000'],
+            'footer' => ['nullable', 'string', 'max:500'],
+            'template_buttons' => ['nullable', 'array', 'min:1', 'max:3'],
+            'template_buttons.*' => ['required', 'string', 'max:300', 'regex:/^(call|url)\|[^|]+\|.+$/u'],
             'consent_confirmed' => ['accepted'],
         ]);
+
+        if ($data['send_mode'] === 'media' && (blank($data['media_type'] ?? null) || blank($data['media_url'] ?? null))) {
+            return back()->withErrors(['media_url' => 'Tipe dan URL media wajib diisi untuk mode media.']);
+        }
+
+        if ($data['send_mode'] === 'button' && empty($data['template_buttons'])) {
+            return back()->withErrors(['template_buttons' => 'Mode tombol membutuhkan 1 sampai 3 tombol.']);
+        }
 
         $students = User::query()
             ->where('role', 'student')
@@ -106,6 +203,11 @@ class WhatsAppController extends Controller
                 'message' => $personalizedMessage,
                 'type' => 'campaign',
                 'status' => 'queued',
+                'send_mode' => $data['send_mode'],
+                'media_type' => $data['media_type'] ?? null,
+                'media_url' => $data['media_url'] ?? null,
+                'footer' => $data['footer'] ?? null,
+                'template_buttons' => $data['template_buttons'] ?? null,
             ]);
 
             SendWhatsAppMessage::dispatch($message->id);
@@ -119,6 +221,7 @@ class WhatsAppController extends Controller
         AuditLogger::log('whatsapp.campaign.queued', $request->user(), null, [
             'queued_count' => $queued,
             'skipped_count' => $skipped,
+            'mode' => $data['send_mode'],
             'recipient_ids' => $students->pluck('id')->all(),
         ]);
 
