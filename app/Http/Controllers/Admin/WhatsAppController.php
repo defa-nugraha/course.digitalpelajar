@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\User;
+use App\Models\Course;
+use App\Models\School;
 use App\Models\WhatsAppMessage;
 use App\Services\AuditLogger;
 use App\Services\WhatsAppGateway;
@@ -22,6 +24,7 @@ class WhatsAppController extends Controller
     {
         return [
             'mode' => 'text',
+            'audience' => 'student',
             'message' => "Halo {nama},\n\nIni pengingat tagihan kursus Digital Pelajar.\nTagihan: {tagihan}\nKursus: {kursus}\nNominal: {nominal}\nJatuh tempo: {jatuh_tempo}\nID Siswa: {id_siswa}\n\nSilakan lihat dan lanjutkan pembayaran melalui {url_pembayaran}.\n\nJika sudah membayar, abaikan pesan ini. Terima kasih.",
             'media_type' => 'image',
             'media_url' => '',
@@ -46,18 +49,23 @@ class WhatsAppController extends Controller
     public function index(WhatsAppGateway $gateway): Response
     {
         $students = User::query()
+            ->with(['school:id,name', 'enrollments.course:id,title'])
             ->where('role', 'student')
             ->where('status', 'active')
-            ->whereNotNull('phone')
-            ->where('phone', '!=', '')
             ->orderBy('name')
-            ->get(['id', 'name', 'student_number', 'phone'])
+            ->get(['id', 'name', 'student_number', 'phone', 'whatsapp_phone', 'parent_whatsapp_phone', 'school_id'])
             ->map(fn (User $student) => [
                 'id' => $student->id,
                 'name' => $student->name,
                 'studentNumber' => $student->student_number,
-                'phone' => $student->phone,
-                'normalizedPhone' => WhatsAppGateway::normalizePhone($student->phone),
+                'phone' => $student->whatsapp_phone ?: $student->phone,
+                'parentPhone' => $student->parent_whatsapp_phone,
+                'normalizedPhone' => WhatsAppGateway::normalizePhone($student->whatsapp_phone ?: $student->phone),
+                'normalizedParentPhone' => WhatsAppGateway::normalizePhone($student->parent_whatsapp_phone),
+                'schoolId' => $student->school_id,
+                'schoolName' => $student->school?->name ?? 'Belum diatur',
+                'courseIds' => $student->enrollments->pluck('course_id')->unique()->values(),
+                'courseNames' => $student->enrollments->pluck('course.title')->filter()->unique()->values(),
             ]);
 
         $messages = WhatsAppMessage::query()
@@ -83,6 +91,8 @@ class WhatsAppController extends Controller
             'messages' => $messages,
             'gatewayConfigured' => $gateway->isConfigured(),
             'billTemplate' => $this->billTemplate(),
+            'schools' => School::query()->orderBy('name')->get(['id', 'name']),
+            'courses' => Course::query()->orderBy('title')->get(['id', 'title']),
         ]);
     }
 
@@ -90,6 +100,7 @@ class WhatsAppController extends Controller
     {
         $data = $request->validate([
             'mode' => ['required', Rule::in(['text', 'media', 'button'])],
+            'audience' => ['required', Rule::in(['student', 'parent', 'both'])],
             'message' => ['required', 'string', 'min:3', 'max:1500'],
             'media_type' => ['nullable', Rule::in(['image', 'video', 'audio', 'pdf', 'xls', 'xlsx', 'doc', 'docx', 'zip'])],
             'media_url' => ['nullable', 'url', 'max:2000'],
@@ -111,6 +122,7 @@ class WhatsAppController extends Controller
             [
                 'configuration' => json_encode([
                     'mode' => $data['mode'],
+                    'audience' => $data['audience'],
                     'message' => $data['message'],
                     'media_type' => $data['media_type'] ?? null,
                     'media_url' => $data['media_url'] ?? null,
@@ -155,6 +167,9 @@ class WhatsAppController extends Controller
                 Rule::exists('users', 'id')->where('role', 'student')->where('status', 'active'),
             ],
             'message' => ['required', 'string', 'min:3', 'max:1500'],
+            'audience' => ['required', Rule::in(['student', 'parent', 'both'])],
+            'school_id' => ['nullable', 'integer', Rule::exists('schools', 'id')],
+            'course_id' => ['nullable', 'integer', Rule::exists('courses', 'id')],
             'send_mode' => ['sometimes', Rule::in(['text', 'media', 'button'])],
             'media_type' => ['nullable', Rule::in(['image', 'video', 'audio', 'pdf', 'xls', 'xlsx', 'doc', 'docx', 'zip'])],
             'media_url' => ['nullable', 'url', 'max:2000'],
@@ -184,36 +199,37 @@ class WhatsAppController extends Controller
         $skipped = 0;
 
         foreach ($students as $student) {
-            $number = WhatsAppGateway::normalizePhone($student->phone);
-
-            if (! $number) {
-                $skipped++;
-
-                continue;
+            $targets = [];
+            if (in_array($data['audience'], ['student', 'both'], true)) {
+                $targets[] = ['number' => WhatsAppGateway::normalizePhone($student->whatsapp_phone ?: $student->phone), 'kind' => 'siswa'];
+            }
+            if (in_array($data['audience'], ['parent', 'both'], true)) {
+                $targets[] = ['number' => WhatsAppGateway::normalizePhone($student->parent_whatsapp_phone), 'kind' => 'orang tua'];
             }
 
-            $personalizedMessage = str_replace(
-                ['{nama}', '{id_siswa}'],
-                [$student->name, (string) $student->student_number],
-                trim($data['message']),
-            );
-
-            $message = WhatsAppMessage::query()->create([
-                'user_id' => $student->id,
-                'sent_by' => $request->user()->id,
-                'recipient_number' => $number,
-                'message' => $personalizedMessage,
-                'type' => 'campaign',
-                'status' => 'queued',
-                'send_mode' => $sendMode,
-                'media_type' => $data['media_type'] ?? null,
-                'media_url' => $data['media_url'] ?? null,
-                'footer' => $data['footer'] ?? null,
-                'template_buttons' => $data['template_buttons'] ?? null,
-            ]);
-
-            SendWhatsAppMessage::dispatch($message->id);
-            $queued++;
+            foreach ($targets as $target) {
+                if (! $target['number']) { $skipped++; continue; }
+                $personalizedMessage = str_replace(
+                    ['{nama}', '{id_siswa}', '{jenis_penerima}'],
+                    [$student->name, (string) $student->student_number, $target['kind']],
+                    trim($data['message']),
+                );
+                $message = WhatsAppMessage::query()->create([
+                    'user_id' => $student->id,
+                    'sent_by' => $request->user()->id,
+                    'recipient_number' => $target['number'],
+                    'message' => $personalizedMessage,
+                    'type' => 'campaign',
+                    'status' => 'queued',
+                    'send_mode' => $sendMode,
+                    'media_type' => $data['media_type'] ?? null,
+                    'media_url' => $data['media_url'] ?? null,
+                    'footer' => $data['footer'] ?? null,
+                    'template_buttons' => $data['template_buttons'] ?? null,
+                ]);
+                SendWhatsAppMessage::dispatch($message->id);
+                $queued++;
+            }
         }
 
         if ($queued === 0) {
@@ -224,6 +240,9 @@ class WhatsAppController extends Controller
             'queued_count' => $queued,
             'skipped_count' => $skipped,
             'mode' => $sendMode,
+            'audience' => $data['audience'],
+            'school_id' => $data['school_id'] ?? null,
+            'course_id' => $data['course_id'] ?? null,
             'recipient_ids' => $students->pluck('id')->all(),
         ]);
 
