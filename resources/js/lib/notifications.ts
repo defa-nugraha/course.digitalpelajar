@@ -37,7 +37,20 @@ function notify(level: NotificationLevel, message: string) {
         }
     }
 
-    toast[level](normalizedMessage, { id });
+    switch (level) {
+        case 'success':
+            toast.success(normalizedMessage, { id });
+            break;
+        case 'error':
+            toast.error(normalizedMessage, { id });
+            break;
+        case 'warning':
+            toast.warning(normalizedMessage, { id });
+            break;
+        case 'message':
+            toast.message(normalizedMessage, { id });
+            break;
+    }
 }
 
 export const notifySuccess = (message: string) => notify('success', message);
