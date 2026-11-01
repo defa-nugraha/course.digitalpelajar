@@ -67,6 +67,21 @@ class WhatsAppGateway
         ]);
     }
 
+    public function sendButton(string $number, string $message, array $buttons): array
+    {
+        $number = self::normalizePhone($number);
+
+        if (! $number || count($buttons) < 1 || count($buttons) > 3) {
+            return $this->failure('Nomor atau jumlah tombol WhatsApp tidak valid.');
+        }
+
+        return $this->request('send-button', [
+            'number' => $number,
+            'message' => $message,
+            'button' => array_values($buttons),
+        ]);
+    }
+
     public function sendTemplate(
         string $number,
         string $message,
