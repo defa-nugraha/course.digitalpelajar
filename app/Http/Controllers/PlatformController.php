@@ -1191,6 +1191,7 @@ class PlatformController extends Controller
 
         $students = DB::table('users as students')
             ->leftJoin('schools', 'students.school_id', '=', 'schools.id')
+            ->leftJoin('schools as requested_schools', 'students.requested_school_id', '=', 'requested_schools.id')
             ->leftJoin('enrollments', 'students.id', '=', 'enrollments.user_id')
             ->leftJoin('courses', 'enrollments.course_id', '=', 'courses.id')
             ->leftJoin('submissions', 'enrollments.id', '=', 'submissions.enrollment_id')
@@ -1218,6 +1219,11 @@ class PlatformController extends Controller
                 'students.name',
                 'students.email',
                 'students.status',
+                'students.role',
+                'students.requested_school_id as requestedSchoolId',
+                'students.school_verification_status as schoolVerificationStatus',
+                'students.manual_school_name as manualSchoolName',
+                'requested_schools.name as requestedSchoolName',
                 'schools.id as schoolId',
                 'schools.name as school',
                 DB::raw('COUNT(DISTINCT enrollments.id) as enrollments'),
@@ -1227,7 +1233,7 @@ class PlatformController extends Controller
                 DB::raw('COUNT(DISTINCT certificates.id) as certificates'),
                 DB::raw('MAX(enrollments.updated_at) as lastActivityAt'),
             )
-            ->groupBy('students.id', 'students.name', 'students.email', 'students.status', 'schools.id', 'schools.name')
+            ->groupBy('students.id', 'students.name', 'students.email', 'students.status', 'students.role', 'students.requested_school_id', 'students.school_verification_status', 'students.manual_school_name', 'requested_schools.name', 'schools.id', 'schools.name')
             ->orderBy('students.name')
             ->get()
             ->map(fn ($student) => [
@@ -1235,6 +1241,11 @@ class PlatformController extends Controller
                 'name' => $student->name,
                 'email' => $student->email,
                 'status' => $student->status,
+                'role' => $student->role,
+                'requestedSchoolId' => $student->requestedSchoolId,
+                'schoolVerificationStatus' => $student->schoolVerificationStatus,
+                'requestedSchoolName' => $student->requestedSchoolName,
+                'manualSchoolName' => $student->manualSchoolName,
                 'schoolId' => $student->schoolId ?: 0,
                 'school' => $student->school ?: 'Tanpa sekolah',
                 'enrollments' => (int) $student->enrollments,
@@ -1257,11 +1268,7 @@ class PlatformController extends Controller
                 'averageProgress' => round($students->avg('progress') ?: 0),
                 'pendingSubmissions' => $students->sum('pendingSubmissions'),
             ],
-            'schools' => $students
-                ->map(fn ($student) => ['id' => $student['schoolId'], 'name' => $student['school']])
-                ->unique('id')
-                ->sortBy('name')
-                ->values(),
+            'schools' => DB::table('schools')->select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 
