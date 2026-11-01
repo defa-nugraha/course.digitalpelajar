@@ -8,12 +8,14 @@ use App\Models\ProductCategory;
 use App\Models\StoreOrder;
 use App\Services\ActivationCodeService;
 use App\Services\StoreOrderService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class StorefrontController extends Controller
 {
@@ -88,7 +90,21 @@ class StorefrontController extends Controller
             throw ValidationException::withMessages(['shipping_address' => 'Alamat pengiriman wajib diisi untuk produk fisik.']);
         }
 
-        $result = $orders->createOrder($request->user(), $product, (int) $data['quantity'], $data);
+        try {
+            $result = $orders->createOrder($request->user(), $product, (int) $data['quantity'], $data);
+        } catch (ConnectionException $exception) {
+            report($exception);
+
+            return back()->with('error', 'Pembayaran order toko gagal dimulai. Silakan coba kembali.');
+        } catch (HttpExceptionInterface $exception) {
+            if ($exception->getStatusCode() !== 502) {
+                throw $exception;
+            }
+
+            report($exception);
+
+            return back()->with('error', 'Pembayaran order toko gagal dimulai. Silakan coba kembali.');
+        }
 
         $request->session()->flash('success', 'Order berhasil dibuat. Silakan lanjutkan pembayaran.');
 
