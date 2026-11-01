@@ -288,20 +288,24 @@ test('admin generates payroll from approved teaching sessions only once', functi
 
     $this->actingAs($admin)->post('/admin/instructor-payrolls', [
         'instructor_id' => $instructor->id,
-        'period_month' => now()->format('Y-m'),
-        'notes' => 'Payroll bulan berjalan.',
+        'period_start' => now()->subDays(6)->toDateString(),
+        'period_end' => now()->toDateString(),
+        'notes' => 'Payroll mingguan.',
     ])->assertSessionHasNoErrors();
 
     $payroll = InstructorPayroll::firstOrFail();
 
     expect($payroll->total_sessions)->toBe(1)
         ->and($payroll->total_amount)->toBe(275000)
+        ->and($payroll->period_start?->toDateString())->toBe(now()->subDays(6)->toDateString())
+        ->and($payroll->period_end?->toDateString())->toBe(now()->toDateString())
         ->and($payroll->items()->count())->toBe(1);
 
     $this->actingAs($admin)->post('/admin/instructor-payrolls', [
         'instructor_id' => $instructor->id,
-        'period_month' => now()->format('Y-m'),
-    ])->assertSessionHasErrors('period_month');
+        'period_start' => now()->subDays(6)->toDateString(),
+        'period_end' => now()->toDateString(),
+    ])->assertSessionHasErrors('period_start');
 
     $this->actingAs($admin)->patch("/admin/instructor-payrolls/{$payroll->id}", [
         'status' => 'paid',
