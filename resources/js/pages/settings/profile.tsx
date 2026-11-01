@@ -114,6 +114,7 @@ export default function Profile({ mustVerifyEmail, status, schools }: { mustVeri
                         )}
 
                         <div className="grid gap-5 md:grid-cols-2">
+                            {user.role !== 'student' && (
                             <FormField label="Nomor HP / WhatsApp" error={errors.phone} required>
                                 <Input
                                     id="phone"
@@ -124,6 +125,7 @@ export default function Profile({ mustVerifyEmail, status, schools }: { mustVeri
                                     placeholder="+62 812..."
                                 />
                             </FormField>
+                            )}
 
                             <FormField label="Sekolah" error={errors.school_id} required>
                                 <SearchableSelect
