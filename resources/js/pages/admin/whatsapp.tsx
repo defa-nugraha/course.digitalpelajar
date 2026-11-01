@@ -5,6 +5,7 @@ import { Head, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Send, Trash2, Settings2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { notifyError } from '@/lib/notifications';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 
@@ -243,7 +244,7 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured, b
 
             <div className="mb-8">
                 <Panel title="Template pengingat tagihan pembayaran">
-                    <p className="text-sm text-slate-600">Template ini digunakan oleh tombol pengingat WhatsApp pada halaman Admin / Pembayaran. Placeholder yang tersedia: {nama}, {id_siswa}, {tagihan}, {kursus}, {nominal}, {jatuh_tempo}, {url_pembayaran}.</p>
+                    <p className="text-sm text-slate-600">Template ini digunakan oleh tombol pengingat WhatsApp pada halaman Admin / Pembayaran. Placeholder yang tersedia: {'{nama}'}, {'{id_siswa}'}, {'{tagihan}'}, {'{kursus}'}, {'{nominal}'}, {'{jatuh_tempo}'}, {'{url_pembayaran}'}.</p>
                     <Button className="mt-3" type="button" variant="outline" onClick={() => { templateForm.setData({ ...billTemplate, template_buttons: billTemplate.template_buttons ?? [] }); setTemplateOpen(true); }}>
                         <Settings2 className="size-4" /> Kelola template pesan tagihan
                     </Button>
