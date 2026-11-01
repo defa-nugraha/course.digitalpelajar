@@ -102,8 +102,10 @@ export default function Payments({ payments, students, courses, bills }: Props) 
                 setEditingBillId(null);
                 setBillsOpen(false);
                 },
-            onError: () => {
-                notifyError(editingBillId === null ? 'Tagihan kursus gagal dibuat.' : 'Tagihan kursus gagal diperbarui. Periksa kembali data yang diisi.');
+            onError: (errors) => {
+                if (Object.keys(errors).length === 0) {
+                    notifyError(editingBillId === null ? 'Tagihan kursus gagal dibuat.' : 'Tagihan kursus gagal diperbarui. Periksa kembali data yang diisi.');
+                }
             },
         };
 
@@ -196,15 +198,18 @@ export default function Payments({ payments, students, courses, bills }: Props) 
 
         router.delete(url, {
             onSuccess: () => {
-                notifySuccess(target.type === 'bill' ? 'Tagihan kursus berhasil dihapus.' : 'Data riwayat transaksi berhasil dihapus.');
+                notifySuccess(
+                    target.type === 'bill'
+                        ? 'Tagihan dan data pembayaran terkait berhasil dihapus dari akun siswa.'
+                        : 'Data pembayaran berhasil dihapus.',
+                );
                 setDeleteConfirmationOpen(false);
                 setPendingDelete(null);
             },
-            onError: () => {
-                notifyError(target.type === 'bill' ? 'Tagihan kursus gagal dihapus.' : 'Data riwayat transaksi gagal dihapus.');
-            },
-            onFinish: () => {
-                // Inertia exposes server validation and authorization failures through onError.
+            onError: (errors) => {
+                if (Object.keys(errors).length === 0) {
+                    notifyError(target.type === 'bill' ? 'Tagihan kursus gagal dihapus.' : 'Data riwayat transaksi gagal dihapus.');
+                }
             },
         });
     };
