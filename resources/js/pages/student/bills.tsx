@@ -80,7 +80,15 @@ export default function StudentBills({ bills }: { bills: BillItem[] }) {
                                                     type="button"
                                                     size="sm"
                                                     className="mt-3"
-                                                    onClick={() => router.post('/student/bills/' + bill.id + '/pay', {}, { onError: () => notifyError('Pembayaran gagal dimulai. Silakan coba kembali.') })}
+                                                    onClick={() =>
+                                                        router.post('/student/bills/' + bill.id + '/pay', {}, {
+                                                            onError: (errors) => {
+                                                                if (Object.keys(errors).length === 0) {
+                                                                    notifyError('Pembayaran gagal dimulai. Silakan coba kembali.');
+                                                                }
+                                                            },
+                                                        })
+                                                    }
                                                 >
                                                     <CreditCard className="size-4" />
                                                     Bayar melalui Midtrans
