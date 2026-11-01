@@ -129,7 +129,15 @@ export default function Payments({ payments, bills = [], studentNumber }: { paym
                                     <td className="font-mono text-xs">{bill.orderId ?? '-'}</td>
                                     <td className="text-right">
                                         {bill.status !== 'paid' && (
-                                            <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`, {}, { onError: () => notifyError('Pembayaran gagal dimulai. Silakan coba kembali.') })}>
+                                            <Button type="button" size="sm" onClick={() =>
+                                                router.post(`/student/bills/${bill.id}/pay`, {}, {
+                                                    onError: (errors) => {
+                                                        if (Object.keys(errors).length === 0) {
+                                                            notifyError('Pembayaran gagal dimulai. Silakan coba kembali.');
+                                                        }
+                                                    },
+                                                })
+                                            }>
                                                 <CreditCard className="size-4" />
                                                 Bayar
                                             </Button>
