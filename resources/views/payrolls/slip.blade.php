@@ -33,7 +33,7 @@
             <img class="logo" src="data:image/png;base64,{{ $logo }}" alt="Logo">
         @endif
         <h1>Slip Gaji Pengajar</h1>
-        <p class="muted">Periode {{ $payroll->period_month?->translatedFormat('F Y') ?? '-' }}</p>
+        <p class="muted">Periode {{ ($payroll->period_start ?? $payroll->period_month)?->translatedFormat('d F Y') ?? '-' }} – {{ ($payroll->period_end ?? $payroll->period_month?->copy()->endOfMonth())?->translatedFormat('d F Y') ?? '-' }}</p>
     </div>
 
     <table class="summary">
