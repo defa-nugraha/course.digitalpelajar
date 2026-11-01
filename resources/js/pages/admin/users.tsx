@@ -215,6 +215,8 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                                     <th className="py-3">Nama</th>
                                     <th>ID Siswa</th>
                                     <th>Email</th>
+                                    <th>WhatsApp Siswa</th>
+                                    <th>WhatsApp Orang Tua/Wali</th>
                                     <th>Role</th>
                                     <th>Sekolah</th>
                                     <th>Pengajuan Sekolah</th>
@@ -228,6 +230,8 @@ export default function UsersPage({ users, schools }: { users: UserRow[]; school
                                         <td className="py-4 font-bold">{user.name}</td>
                                         <td className="font-mono text-xs">{user.role === 'student' ? user.studentNumber ?? '-' : '-'}</td>
                                         <td>{user.email}</td>
+                                        <td className="whitespace-nowrap">{user.role === 'student' ? user.whatsappPhone || 'Belum diisi' : '-'}</td>
+                                        <td className="whitespace-nowrap">{user.role === 'student' ? user.parentWhatsappPhone || 'Belum diisi' : '-'}</td>
                                         <td>{user.roleLabel}</td>
                                         <td>{user.school}</td>
                                         <td>
