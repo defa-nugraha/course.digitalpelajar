@@ -54,7 +54,7 @@ interface StudentsProps {
 
 export default function StudentsIndex({ scopeLabel, students, summary, schools }: StudentsProps) {
     const [editing, setEditing] = useState<StudentRow | null>(null);
-    const editForm = useForm({ name: '', email: '', school_id: '', status: 'active', role: 'student', password: '', password_confirmation: '', whatsapp_phone: student.whatsappPhone ?? '', parent_whatsapp_phone: student.parentWhatsappPhone ?? '' });
+    const editForm = useForm({ name: '', email: '', school_id: '', status: 'active', role: 'student', password: '', password_confirmation: '', whatsapp_phone: '', parent_whatsapp_phone: '' });
     const [term, setTerm] = useState('');
     const [schoolId, setSchoolId] = useState('all');
     const [status, setStatus] = useState('all');
@@ -77,7 +77,7 @@ export default function StudentsIndex({ scopeLabel, students, summary, schools }
 
     const showEdit = (student: StudentRow) => {
         setEditing(student);
-        editForm.setData({ name: student.name, email: student.email, school_id: student.schoolId ? String(student.schoolId) : '', status: student.status, role: 'student', password: '', password_confirmation: '', whatsapp_phone: '', parent_whatsapp_phone: '' });
+        editForm.setData({ name: student.name, email: student.email, school_id: student.schoolId ? String(student.schoolId) : '', status: student.status, role: 'student', password: '', password_confirmation: '', whatsapp_phone: student.whatsappPhone ?? '', parent_whatsapp_phone: student.parentWhatsappPhone ?? '' });
         editForm.clearErrors();
     };
 
