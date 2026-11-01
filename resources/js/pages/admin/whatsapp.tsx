@@ -15,6 +15,12 @@ interface StudentContact {
     studentNumber: string;
     phone: string;
     normalizedPhone: string | null;
+    parentPhone: string | null;
+    normalizedParentPhone: string | null;
+    schoolId: number | null;
+    schoolName: string;
+    courseIds: number[];
+    courseNames: string[];
 }
 
 interface MessageLog {
@@ -32,6 +38,7 @@ interface MessageLog {
 
 interface BillTemplate {
     mode: 'text' | 'media' | 'button';
+    audience: 'student' | 'parent' | 'both';
     message: string;
     media_type?: string | null;
     media_url?: string | null;
@@ -44,13 +51,21 @@ interface Props {
     messages: MessageLog[];
     gatewayConfigured: boolean;
     billTemplate: BillTemplate;
+    schools: { id: number; name: string }[];
+    courses: { id: number; title: string }[];
 }
 
-export default function WhatsAppAdmin({ students, messages, gatewayConfigured, billTemplate }: Props) {
+export default function WhatsAppAdmin({ students, messages, gatewayConfigured, billTemplate, schools, courses }: Props) {
+    const [schoolFilter, setSchoolFilter] = useState('all');
+    const [courseFilter, setCourseFilter] = useState('all');
+    const [searchFilter, setSearchFilter] = useState('');
     const [templateOpen, setTemplateOpen] = useState(false);
-    const templateForm = useForm<BillTemplate>({ ...billTemplate, template_buttons: billTemplate.template_buttons ?? [] });
+    const templateForm = useForm<BillTemplate>({ ...billTemplate, audience: billTemplate.audience ?? 'student', template_buttons: billTemplate.template_buttons ?? [] });
     const form = useForm({
         student_ids: [] as number[],
+        audience: 'student' as 'student' | 'parent' | 'both',
+        school_id: '',
+        course_id: '',
         message: '',
         send_mode: 'text' as 'text' | 'media' | 'button',
         media_type: 'image',
@@ -60,9 +75,15 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured, b
         consent_confirmed: false,
     });
 
+    const filteredStudents = students.filter((student) =>
+        (schoolFilter === 'all' || String(student.schoolId ?? '') === schoolFilter)
+        && (courseFilter === 'all' || student.courseIds.includes(Number(courseFilter)))
+        && (!searchFilter.trim() || `${student.name} ${student.studentNumber} ${student.phone} ${student.parentPhone ?? ''}`.toLowerCase().includes(searchFilter.trim().toLowerCase()))
+        && (form.data.audience === 'student' ? Boolean(student.normalizedPhone) : form.data.audience === 'parent' ? Boolean(student.normalizedParentPhone) : Boolean(student.normalizedPhone || student.normalizedParentPhone)),
+    );
     const selectedCount = form.data.student_ids.length;
-    const allVisibleSelected = students.length > 0
-        && students.slice(0, 100).every((student) => form.data.student_ids.includes(student.id));
+    const allVisibleSelected = filteredStudents.length > 0
+        && filteredStudents.slice(0, 100).every((student) => form.data.student_ids.includes(student.id));
 
     const toggleStudent = (studentId: number, checked: boolean) => {
         form.setData(
@@ -85,7 +106,7 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured, b
         }
         confirmAction({
             title: 'Kirim blast WhatsApp?',
-            message: `Pesan akan dimasukkan ke antrean pengiriman untuk ${selectedCount} siswa yang dipilih. Pengiriman tidak dapat dibatalkan setelah diproses.`,
+            message: `Pesan akan dimasukkan ke antrean untuk ${selectedCount} siswa. Target: ${form.data.audience === 'both' ? 'siswa dan orang tua' : form.data.audience === 'parent' ? 'orang tua siswa' : 'siswa'}. Pengiriman tidak dapat dibatalkan setelah diproses.`,
             description: 'Pastikan semua penerima telah menyetujui menerima pesan WhatsApp dan isi pesan sudah benar.',
             confirmLabel: 'Ya, masukkan ke antrean',
             cancelLabel: 'Periksa kembali',
@@ -142,33 +163,38 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured, b
                             type="button"
                             size="sm"
                             variant="outline"
-                            disabled={students.length === 0}
+                            disabled={filteredStudents.length === 0}
                             onClick={() => form.setData(
                                 'student_ids',
-                                allVisibleSelected ? [] : students.slice(0, 100).map((student) => student.id),
+                                allVisibleSelected ? form.data.student_ids.filter((id) => !filteredStudents.some((student) => student.id === id)) : [...new Set([...form.data.student_ids, ...filteredStudents.slice(0, 100).map((student) => student.id)])].slice(0, 100),
                             )}
                         >
                             {allVisibleSelected ? 'Batalkan pilihan' : 'Pilih 100 pertama'}
                         </Button>
                     </div>
 
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <label className="grid gap-1 text-sm font-medium">Filter sekolah<select value={schoolFilter} onChange={(event) => setSchoolFilter(event.target.value)} className="rounded-xl border p-2 font-normal"><option value="all">Semua sekolah</option>{schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label>
+                        <label className="grid gap-1 text-sm font-medium">Filter kursus<select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)} className="rounded-xl border p-2 font-normal"><option value="all">Semua kursus</option>{courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}</select></label>
+                        <label className="grid gap-1 text-sm font-medium">Cari siswa / nomor<input value={searchFilter} onChange={(event) => setSearchFilter(event.target.value)} placeholder="Nama, ID, nomor WhatsApp" className="rounded-xl border p-2 font-normal" /></label>
+                    </div>
                     <div className="max-h-80 space-y-2 overflow-y-auto rounded-xl border p-3">
-                        {students.length === 0 ? (
+                        {filteredStudents.length === 0 ? (
                             <p className="p-4 text-sm text-slate-500">Belum ada siswa aktif dengan nomor WhatsApp.</p>
-                        ) : students.map((student) => (
+                        ) : filteredStudents.map((student) => (
                             <label key={student.id} className="flex cursor-pointer items-start gap-3 rounded-lg p-2 hover:bg-slate-50">
                                 <input
                                     type="checkbox"
                                     className="mt-1 size-4"
                                     checked={form.data.student_ids.includes(student.id)}
                                     onChange={(event) => toggleStudent(student.id, event.target.checked)}
-                                    disabled={!student.normalizedPhone || (!form.data.student_ids.includes(student.id) && selectedCount >= 100)}
+                                    disabled={(form.data.audience === 'student' && !student.normalizedPhone) || (form.data.audience === 'parent' && !student.normalizedParentPhone) || (form.data.audience === 'both' && !student.normalizedPhone && !student.normalizedParentPhone) || (!form.data.student_ids.includes(student.id) && selectedCount >= 100)}
                                 />
                                 <span className="min-w-0 flex-1">
                                     <span className="block font-medium">{student.name}</span>
                                     <span className="block text-xs text-slate-500">
                                         ID {student.studentNumber} · {student.phone}
-                                        {!student.normalizedPhone && ' · Format nomor tidak valid'}
+                                        {student.schoolName} · {student.courseNames.join(', ') || 'Belum terdaftar kursus'} · Orang tua: {student.parentPhone || 'Nomor belum diisi'}
                                     </span>
                                 </span>
                             </label>
@@ -177,6 +203,12 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured, b
                     <p className="text-sm font-semibold">Penerima dipilih: {selectedCount}/100</p>
                     {form.errors.student_ids && <p className="text-sm text-red-600">{form.errors.student_ids}</p>}
 
+                    <label className="grid gap-2 text-sm font-medium">
+                        Target penerima
+                        <select value={form.data.audience} onChange={(event) => form.setData('audience', event.target.value as 'student' | 'parent' | 'both')} className="rounded-xl border border-slate-300 bg-white p-3 font-normal">
+                            <option value="student">Nomor WhatsApp siswa</option><option value="parent">Orang tua siswa</option><option value="both">Siswa dan orang tua</option>
+                        </select>
+                    </label>
                     <label className="grid gap-2 text-sm font-medium">
                         Format pesan
                         <select value={form.data.send_mode} onChange={(event) => form.setData('send_mode', event.target.value as 'text' | 'media' | 'button')} className="rounded-xl border border-slate-300 bg-white p-3 font-normal">
@@ -254,6 +286,11 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured, b
                 <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                     <DialogHeader><DialogTitle>Kelola template pengingat tagihan</DialogTitle><DialogDescription>Template tersimpan di database dan digunakan saat admin mengirim pengingat tagihan dari halaman pembayaran.</DialogDescription></DialogHeader>
                     <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); confirmAction({ title: 'Simpan template tagihan?', message: 'Perubahan akan digunakan untuk pengingat tagihan berikutnya.', confirmLabel: 'Simpan template', cancelLabel: 'Batal', tone: 'default', onConfirm: () => templateForm.patch('/admin/whatsapp/bill-template', { preserveScroll: true, onSuccess: () => setTemplateOpen(false), onError: () => notifyError('Template gagal disimpan. Periksa kembali data dan URL media.') }) }); }}>
+                        <label className="grid gap-2 text-sm font-medium">Target penerima
+                            <select value={templateForm.data.audience} onChange={(event) => templateForm.setData('audience', event.target.value as BillTemplate['audience'])} className="rounded-xl border p-3 font-normal">
+                                <option value="student">Nomor WhatsApp siswa</option><option value="parent">Orang tua siswa</option><option value="both">Siswa dan orang tua</option>
+                            </select>
+                        </label>
                         <label className="grid gap-2 text-sm font-medium">Format pengiriman
                             <select value={templateForm.data.mode} onChange={(event) => templateForm.setData('mode', event.target.value as BillTemplate['mode'])} className="rounded-xl border p-3 font-normal">
                                 <option value="text">Teks saja</option><option value="media">Media</option><option value="button">Template tombol</option>
