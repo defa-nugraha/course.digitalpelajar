@@ -67,6 +67,29 @@ class UserController extends Controller
         return back()->with('success', 'Pengguna berhasil dihapus.');
     }
 
+    public function approveSchoolRequest(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->role === 'student', 404);
+
+        if (! $user->requested_school_id || ! \App\Models\School::query()->whereKey($user->requested_school_id)->exists()) {
+            return back()->with('error', 'Pengajuan tidak memiliki sekolah terdaftar yang dapat disetujui. Pilih sekolah melalui fitur Edit terlebih dahulu.');
+        }
+
+        $user->update([
+            'school_id' => $user->requested_school_id,
+            'requested_school_id' => null,
+            'manual_school_name' => null,
+            'manual_school_address' => null,
+            'school_verification_status' => 'approved',
+        ]);
+
+        AuditLogger::log('student.school_request.approved', $request->user(), $user, [
+            'school_id' => $user->school_id,
+        ]);
+
+        return back()->with('success', 'Pengajuan sekolah siswa berhasil disetujui.');
+    }
+
     private function validated(Request $request, ?User $user = null): array
     {
         return $request->validate([
