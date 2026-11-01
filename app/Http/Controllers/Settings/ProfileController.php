@@ -63,9 +63,13 @@ class ProfileController extends Controller
             $data['manual_school_address'] = null;
         }
 
+        $contactNumber = $isStudent
+            ? ($data['whatsapp_phone'] ?? $request->user()->whatsapp_phone ?? $data['phone'] ?? $request->user()->phone)
+            : ($data['phone'] ?? $request->user()->phone);
+
         $isComplete = filled($data['name'] ?? null)
             && filled($data['email'] ?? null)
-            && filled($data['phone'] ?? null)
+            && filled($contactNumber)
             && filled($data['address'] ?? null)
             && (
                 filled($data['school_id'] ?? $request->user()->school_id)
