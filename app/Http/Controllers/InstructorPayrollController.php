@@ -47,7 +47,8 @@ class InstructorPayrollController extends Controller
         AuditLogger::log('instructor_payroll.slip_downloaded', $user, $instructorPayroll);
 
         $filename = 'slip-gaji-'.Str::slug($instructorPayroll->instructor?->name ?? 'pengajar').'-'
-            .optional($instructorPayroll->period_month)->format('Y-m').'.pdf';
+            .optional($instructorPayroll->period_start ?? $instructorPayroll->period_month)->format('Y-m-d').'-'
+            .optional($instructorPayroll->period_end ?? $instructorPayroll->period_month)->format('Y-m-d').'.pdf';
 
         return Pdf::loadView('payrolls.slip', [
             'payroll' => $instructorPayroll,
