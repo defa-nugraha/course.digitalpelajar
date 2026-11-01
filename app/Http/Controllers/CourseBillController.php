@@ -192,7 +192,14 @@ class CourseBillController extends Controller
 
         if ($payment?->status === 'pending' && filled($payment->checkout_url)) {
             if (! config('midtrans.is_enabled')) {
-                $transaction = $midtrans->createTransaction($payment);
+                try {
+                    $transaction = $midtrans->createTransaction($payment);
+                } catch (\Throwable $exception) {
+                    report($exception);
+
+                    return back()->with('error', 'Pembayaran gagal dimulai. Silakan coba kembali.');
+                }
+
                 $payment->forceFill([
                     'snap_token' => $transaction['snap_token'],
                     'checkout_url' => $transaction['checkout_url'],
@@ -201,7 +208,13 @@ class CourseBillController extends Controller
                 return Inertia::location($transaction['checkout_url']);
             }
 
-            $gatewayStatus = $midtrans->transactionStatus($payment);
+            try {
+                $gatewayStatus = $midtrans->transactionStatus($payment);
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return back()->with('error', 'Status pembayaran belum dapat diperiksa. Silakan coba kembali.');
+            }
             if ($gatewayStatus === 'pending') {
                 return Inertia::location($payment->checkout_url);
             }
@@ -231,7 +244,14 @@ class CourseBillController extends Controller
             ]);
         }
 
-        $transaction = $midtrans->createTransaction($payment);
+        try {
+            $transaction = $midtrans->createTransaction($payment);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->with('error', 'Pembayaran gagal dimulai. Silakan coba kembali.');
+        }
+
         $payment->forceFill([
             'snap_token' => $transaction['snap_token'],
             'checkout_url' => $transaction['checkout_url'],
