@@ -2,7 +2,10 @@ import { confirmAction } from '@/lib/confirm-delete';
 import { Panel, Shell } from '@/components/platform';
 import { Button } from '@/components/ui/button';
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Trash2, Settings2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 
 interface StudentContact {
@@ -22,18 +25,37 @@ interface MessageLog {
     status: 'queued' | 'sent' | 'failed' | string;
     createdAt: string;
     sentAt: string | null;
+    mode: 'text' | 'media' | 'button' | string;
+    error?: string | null;
+}
+
+interface BillTemplate {
+    mode: 'text' | 'media' | 'button';
+    message: string;
+    media_type?: string | null;
+    media_url?: string | null;
+    footer?: string | null;
+    template_buttons?: string[];
 }
 
 interface Props {
     students: StudentContact[];
     messages: MessageLog[];
     gatewayConfigured: boolean;
+    billTemplate: BillTemplate;
 }
 
-export default function WhatsAppAdmin({ students, messages, gatewayConfigured }: Props) {
+export default function WhatsAppAdmin({ students, messages, gatewayConfigured, billTemplate }: Props) {
+    const [templateOpen, setTemplateOpen] = useState(false);
+    const templateForm = useForm<BillTemplate>({ ...billTemplate, template_buttons: billTemplate.template_buttons ?? [] });
     const form = useForm({
         student_ids: [] as number[],
         message: '',
+        send_mode: 'text' as 'text' | 'media' | 'button',
+        media_type: 'image',
+        media_url: '',
+        footer: '',
+        template_buttons: ['url|Lihat tagihan|https://digitalpelajar.id/pembayaran'] as string[],
         consent_confirmed: false,
     });
 
@@ -52,6 +74,14 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured }:
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (form.data.send_mode === 'media' && (!form.data.media_type || !form.data.media_url)) {
+            notifyError('Tipe dan URL media wajib diisi.');
+            return;
+        }
+        if (form.data.send_mode === 'button' && form.data.template_buttons.filter((button) => button.trim()).length < 1) {
+            notifyError('Tambahkan minimal satu tombol dengan format call|Label|Nomor atau url|Label|URL.');
+            return;
+        }
         confirmAction({
             title: 'Kirim blast WhatsApp?',
             message: `Pesan akan dimasukkan ke antrean pengiriman untuk ${selectedCount} siswa yang dipilih. Pengiriman tidak dapat dibatalkan setelah diproses.`,
@@ -147,6 +177,36 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured }:
                     {form.errors.student_ids && <p className="text-sm text-red-600">{form.errors.student_ids}</p>}
 
                     <label className="grid gap-2 text-sm font-medium">
+                        Format pesan
+                        <select value={form.data.send_mode} onChange={(event) => form.setData('send_mode', event.target.value as 'text' | 'media' | 'button')} className="rounded-xl border border-slate-300 bg-white p-3 font-normal">
+                            <option value="text">Teks saja</option>
+                            <option value="media">Media (URL langsung)</option>
+                            <option value="button">Template tombol (1–3 tombol)</option>
+                        </select>
+                    </label>
+                    {form.data.send_mode === 'media' && <div className="grid gap-3 rounded-xl border p-3 sm:grid-cols-2">
+                        <label className="grid gap-1 text-sm font-medium">Jenis media
+                            <select value={form.data.media_type} onChange={(event) => form.setData('media_type', event.target.value)} className="rounded-xl border p-2 font-normal">
+                                {['image','video','audio','pdf','xls','xlsx','doc','docx','zip'].map((type) => <option key={type} value={type}>{type.toUpperCase()}</option>)}
+                            </select>
+                        </label>
+                        <label className="grid gap-1 text-sm font-medium">URL media langsung
+                            <Input type="url" required value={form.data.media_url} onChange={(event) => form.setData('media_url', event.target.value)} placeholder="https://domain.com/file.pdf" />
+                        </label>
+                        {form.errors.media_url && <p className="text-sm text-red-600">{form.errors.media_url}</p>}
+                    </div>}
+                    {form.data.send_mode === 'button' && <div className="grid gap-3 rounded-xl border p-3">
+                        <label className="grid gap-1 text-sm font-medium">Footer (opsional)
+                            <Input value={form.data.footer} onChange={(event) => form.setData('footer', event.target.value)} maxLength={500} />
+                        </label>
+                        {(form.data.template_buttons ?? []).map((button, index) => <label key={index} className="grid gap-1 text-sm font-medium">Tombol {index + 1}
+                            <Input value={button} onChange={(event) => form.setData('template_buttons', (form.data.template_buttons ?? []).map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="url|Lihat tagihan|https://digitalpelajar.id/pembayaran" />
+                        </label>)}
+                        <p className="text-xs text-slate-500">Format: url|Label tombol|https://alamat atau call|Label tombol|628123456789. Maksimal 3 tombol.</p>
+                        <Button type="button" variant="outline" size="sm" disabled={(form.data.template_buttons ?? []).length >= 3} onClick={() => form.setData('template_buttons', [...(form.data.template_buttons ?? []), ''])}>Tambah tombol</Button>
+                        {form.errors.template_buttons && <p className="text-sm text-red-600">{form.errors.template_buttons}</p>}
+                    </div>}
+                    <label className="grid gap-2 text-sm font-medium">
                         Isi pesan
                         <textarea
                             rows={5}
@@ -181,6 +241,47 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured }:
                 </form>
             </Panel></div>
 
+            <div className="mb-8">
+                <Panel title="Template pengingat tagihan pembayaran">
+                    <p className="text-sm text-slate-600">Template ini digunakan oleh tombol pengingat WhatsApp pada halaman Admin / Pembayaran. Placeholder yang tersedia: {nama}, {id_siswa}, {tagihan}, {kursus}, {nominal}, {jatuh_tempo}, {url_pembayaran}.</p>
+                    <Button className="mt-3" type="button" variant="outline" onClick={() => { templateForm.setData({ ...billTemplate, template_buttons: billTemplate.template_buttons ?? [] }); setTemplateOpen(true); }}>
+                        <Settings2 className="size-4" /> Kelola template pesan tagihan
+                    </Button>
+                </Panel>
+            </div>
+            <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+                    <DialogHeader><DialogTitle>Kelola template pengingat tagihan</DialogTitle><DialogDescription>Template tersimpan di database dan digunakan saat admin mengirim pengingat tagihan dari halaman pembayaran.</DialogDescription></DialogHeader>
+                    <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); confirmAction({ title: 'Simpan template tagihan?', message: 'Perubahan akan digunakan untuk pengingat tagihan berikutnya.', confirmLabel: 'Simpan template', cancelLabel: 'Batal', tone: 'default', onConfirm: () => templateForm.patch('/admin/whatsapp/bill-template', { preserveScroll: true, onSuccess: () => setTemplateOpen(false), onError: () => notifyError('Template gagal disimpan. Periksa kembali data dan URL media.') }) }); }}>
+                        <label className="grid gap-2 text-sm font-medium">Format pengiriman
+                            <select value={templateForm.data.mode} onChange={(event) => templateForm.setData('mode', event.target.value as BillTemplate['mode'])} className="rounded-xl border p-3 font-normal">
+                                <option value="text">Teks saja</option><option value="media">Media</option><option value="button">Template tombol</option>
+                            </select>
+                        </label>
+                        <label className="grid gap-2 text-sm font-medium">Isi pesan
+                            <textarea rows={7} maxLength={1500} required value={templateForm.data.message} onChange={(event) => templateForm.setData('message', event.target.value)} className="rounded-xl border p-3 font-normal" />
+                        </label>
+                        {templateForm.data.mode === 'media' && <>
+                            <label className="grid gap-2 text-sm font-medium">Jenis media
+                                <select value={templateForm.data.media_type ?? 'image'} onChange={(event) => templateForm.setData('media_type', event.target.value)} className="rounded-xl border p-3 font-normal">{['image','video','audio','pdf','xls','xlsx','doc','docx','zip'].map((type) => <option key={type}>{type}</option>)}</select>
+                            </label>
+                            <label className="grid gap-2 text-sm font-medium">URL media langsung
+                                <Input type="url" value={templateForm.data.media_url ?? ''} onChange={(event) => templateForm.setData('media_url', event.target.value)} required />
+                            </label>
+                        </>}
+                        {templateForm.data.mode === 'button' && <>
+                            <label className="grid gap-2 text-sm font-medium">Footer (opsional)
+                                <Input value={templateForm.data.footer ?? ''} onChange={(event) => templateForm.setData('footer', event.target.value)} />
+                            </label>
+                            {(templateForm.data.template_buttons ?? []).map((button, index) => <label key={index} className="grid gap-2 text-sm font-medium">Tombol {index + 1}
+                                <Input value={button} onChange={(event) => templateForm.setData('template_buttons', (templateForm.data.template_buttons ?? []).map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="url|Lihat tagihan|https://digitalpelajar.id/pembayaran" />
+                            </label>)}
+                            <Button type="button" variant="outline" size="sm" disabled={(templateForm.data.template_buttons ?? []).length >= 3} onClick={() => templateForm.setData('template_buttons', [...(templateForm.data.template_buttons ?? []), ''])}>Tambah tombol</Button>
+                        </>}
+                        <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setTemplateOpen(false)}>Batal</Button><Button type="submit" disabled={templateForm.processing}>{templateForm.processing ? 'Menyimpan...' : 'Simpan template'}</Button></div>
+                    </form>
+                </DialogContent>
+            </Dialog>
             <Panel title="Riwayat pesan terbaru">
                 {messages.length === 0 ? (
                     <p className="text-sm text-slate-500">Belum ada riwayat pengiriman WhatsApp.</p>
@@ -205,9 +306,15 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured }:
                                 </div>
                                 <p className="mt-2 whitespace-pre-line text-sm text-slate-700">{message.message}</p>
                                 <p className="mt-2 text-xs text-slate-500">
-                                    {message.type === 'bill_reminder' ? 'Pengingat tagihan' : 'Blast manual'}
+                                    {message.type === 'bill_reminder' ? 'Pengingat tagihan' : 'Blast manual'} · Format: {message.mode === 'button' ? 'Tombol' : message.mode === 'media' ? 'Media' : 'Teks'}
                                     {message.sentAt ? ' · Terkirim ' + message.sentAt : ''}
                                 </p>
+                                {message.error && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">Detail: {message.error}</p>}
+                                <div className="mt-2 flex justify-end">
+                                    <Button type="button" variant="destructive" size="sm" onClick={() => confirmAction({ title: 'Hapus riwayat pesan?', message: 'Riwayat ini akan dihapus permanen. Jika job belum diproses, job tidak akan mengirim pesan setelah riwayat dihapus.', confirmLabel: 'Hapus riwayat', cancelLabel: 'Batal', tone: 'destructive', onConfirm: () => router.delete('/admin/whatsapp/messages/' + message.id, { preserveScroll: true, onError: () => notifyError('Riwayat pesan gagal dihapus.') }) })}>
+                                        <Trash2 className="size-4" /> Hapus
+                                    </Button>
+                                </div>
                             </div>
                         ))}
                     </div>
