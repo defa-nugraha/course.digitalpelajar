@@ -3,6 +3,7 @@ import { Panel, Shell } from '@/components/platform';
 import { DesktopTable, MobileCardList, MobileDataCard, StatusBadge } from '@/components/responsive-data';
 import { Button } from '@/components/ui/button';
 import { Head, Link, router } from '@inertiajs/react';
+import { notifyError } from '@/lib/notifications';
 import { CreditCard, Download, ReceiptText } from 'lucide-react';
 
 interface PaymentItem {
@@ -75,7 +76,13 @@ export default function Payments({ payments, bills = [], studentNumber }: { paym
                             actions={
                                 <>
                                     {bill.status !== 'paid' && (
-                                        <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`, {}, { onError: () => notifyError('Pembayaran gagal dimulai. Silakan coba kembali.') })}>
+                                        <Button type="button" size="sm" onClick={() => router.post(`/student/bills/${bill.id}/pay`, {}, {
+                                            onError: (errors) => {
+                                                if (Object.keys(errors).length === 0) {
+                                                    notifyError('Pembayaran gagal dimulai. Silakan coba kembali.');
+                                                }
+                                            },
+                                        })}>
                                             <CreditCard className="size-4" />
                                             Bayar tagihan
                                         </Button>
