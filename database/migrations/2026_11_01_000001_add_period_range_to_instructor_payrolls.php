@@ -1,9 +1,10 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Carbon\\CarbonImmutable;
+use Illuminate\\Database\\Migrations\\Migration;
+use Illuminate\\Database\\Schema\\Blueprint;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Facades\\Schema;
 
 return new class extends Migration
 {
@@ -14,10 +15,21 @@ return new class extends Migration
             $table->date('period_end')->nullable()->after('period_start');
         });
 
-        DB::table('instructor_payrolls')->whereNull('period_start')->update([
-            'period_start' => DB::raw('period_month'),
-            'period_end' => DB::raw('LAST_DAY(period_month)'),
-        ]);
+        DB::table('instructor_payrolls')
+            ->whereNull('period_start')
+            ->orderBy('id')
+            ->chunkById(100, function ($payrolls): void {
+                foreach ($payrolls as $payroll) {
+                    $start = CarbonImmutable::parse($payroll->period_month);
+
+                    DB::table('instructor_payrolls')
+                        ->where('id', $payroll->id)
+                        ->update([
+                            'period_start' => $start->toDateString(),
+                            'period_end' => $start->endOfMonth()->toDateString(),
+                        ]);
+                }
+            });
     }
 
     public function down(): void
