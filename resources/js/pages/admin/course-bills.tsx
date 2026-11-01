@@ -31,6 +31,7 @@ interface BillRow {
     amountLabel: string;
     dueAt: string;
     status: string;
+    canDelete: boolean;
     checkoutUrl?: string | null;
     orderId?: string | null;
     createdAt: string;
@@ -78,6 +79,8 @@ export default function CourseBills({ students, courses, bills }: Props) {
     };
 
     const removeBill = (bill: BillRow) => {
+        if (!bill.canDelete) return;
+
         confirmDelete(
             `Hapus tagihan ${bill.title} beserta data pembayaran terkait? Tagihan juga akan hilang dari akun siswa.`,
             () => router.delete(`/admin/course-bills/${bill.id}`, { preserveScroll: true }),
@@ -202,6 +205,8 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                         type="button"
                                         size="sm"
                                         variant="destructive"
+                                        disabled={!bill.canDelete}
+                                        title={bill.canDelete ? 'Hapus tagihan' : 'Tagihan yang sudah dibayar tidak dapat dihapus'}
                                         onClick={() => removeBill(bill)}
                                     >
                                         <Trash2 className="size-4" />
@@ -251,7 +256,14 @@ export default function CourseBills({ students, courses, bills }: Props) {
                                                 <Send className="size-4" />
                                                 Pengingat
                                             </Button>
-                                            <Button type="button" size="sm" variant="destructive" onClick={() => removeBill(bill)}>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="destructive"
+                                                disabled={!bill.canDelete}
+                                                title={bill.canDelete ? 'Hapus tagihan' : 'Tagihan yang sudah dibayar tidak dapat dihapus'}
+                                                onClick={() => removeBill(bill)}
+                                            >
                                                 <Trash2 className="size-4" />
                                                 Hapus
                                             </Button>
