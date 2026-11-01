@@ -167,7 +167,7 @@ class WhatsAppController extends Controller
                 Rule::exists('users', 'id')->where('role', 'student')->where('status', 'active'),
             ],
             'message' => ['required', 'string', 'min:3', 'max:1500'],
-            'audience' => ['required', Rule::in(['student', 'parent', 'both'])],
+            'audience' => ['sometimes', 'required', Rule::in(['student', 'parent', 'both'])],
             'school_id' => ['nullable', 'integer', Rule::exists('schools', 'id')],
             'course_id' => ['nullable', 'integer', Rule::exists('courses', 'id')],
             'send_mode' => ['sometimes', Rule::in(['text', 'media', 'button'])],
@@ -178,6 +178,9 @@ class WhatsAppController extends Controller
             'template_buttons.*' => ['required', 'string', 'max:300', 'regex:/^(call|url)\|[^|]+\|.+$/u'],
             'consent_confirmed' => ['accepted'],
         ]);
+
+        // Preserve the original student-only behavior for clients that predate audience selection.
+        $data['audience'] ??= 'student';
 
         $sendMode = $data['send_mode'] ?? 'text';
 
