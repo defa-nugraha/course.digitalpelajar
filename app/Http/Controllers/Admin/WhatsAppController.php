@@ -46,6 +46,27 @@ class WhatsAppController extends Controller
         return is_array($decoded) ? array_merge($this->defaultBillTemplate(), $decoded) : $this->defaultBillTemplate();
     }
 
+    private function defaultScheduleTemplate(): array
+    {
+        return [
+            'instructor_message' => "Halo {nama_pengajar},\n\nPengingat jadwal pertemuan Digital Pelajar:\nJadwal: {judul_jadwal}\nSekolah: {sekolah}\nKursus: {kursus}\nTanggal: {tanggal}\nWaktu: {jam_mulai}–{jam_selesai}\nMode: {mode}\nLokasi: {lokasi}\nLink meeting: {link_meeting}\nCatatan: {catatan}\n\nMohon konfirmasi dan hadir sesuai jadwal. Terima kasih.",
+            'student_message' => "Halo {nama},\n\nInformasi jadwal pertemuan Digital Pelajar:\nJadwal: {judul_jadwal}\nSekolah: {sekolah}\nKursus: {kursus}\nPengajar: {pengajar}\nTanggal: {tanggal}\nWaktu: {jam_mulai}–{jam_selesai}\nMode: {mode}\nLokasi: {lokasi}\nLink meeting: {link_meeting}\nCatatan: {catatan}\n\nMohon hadir tepat waktu. Terima kasih.",
+        ];
+    }
+
+    private function scheduleTemplate(): array
+    {
+        $stored = DB::table('whatsapp_templates')->where('key', 'teaching_schedule')->value('configuration');
+
+        if (! $stored) {
+            return $this->defaultScheduleTemplate();
+        }
+
+        $decoded = is_array($stored) ? $stored : json_decode((string) $stored, true);
+
+        return is_array($decoded) ? array_merge($this->defaultScheduleTemplate(), $decoded) : $this->defaultScheduleTemplate();
+    }
+
     public function index(WhatsAppGateway $gateway): Response
     {
         $students = User::query()
@@ -91,6 +112,7 @@ class WhatsAppController extends Controller
             'messages' => $messages,
             'gatewayConfigured' => $gateway->isConfigured(),
             'billTemplate' => $this->billTemplate(),
+            'scheduleTemplate' => $this->scheduleTemplate(),
             'schools' => School::query()->orderBy('name')->get(['id', 'name']),
             'courses' => Course::query()->orderBy('title')->get(['id', 'title']),
         ]);
@@ -135,6 +157,25 @@ class WhatsAppController extends Controller
         );
 
         return back()->with('success', 'Template pengingat tagihan berhasil disimpan.');
+    }
+
+    public function saveScheduleTemplate(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'instructor_message' => ['required', 'string', 'min:3', 'max:1500'],
+            'student_message' => ['required', 'string', 'min:3', 'max:1500'],
+        ]);
+
+        DB::table('whatsapp_templates')->updateOrInsert(
+            ['key' => 'teaching_schedule'],
+            [
+                'configuration' => json_encode($data, JSON_THROW_ON_ERROR),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ],
+        );
+
+        return back()->with('success', 'Template jadwal pertemuan berhasil disimpan.');
     }
 
     public function destroyMessage(Request $request, WhatsAppMessage $whatsAppMessage): RedirectResponse
