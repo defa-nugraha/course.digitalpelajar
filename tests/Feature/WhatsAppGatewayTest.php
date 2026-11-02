@@ -129,10 +129,11 @@ test('bill reminder cannot be sent for a paid bill', function () {
     Bus::assertNotDispatched(SendWhatsAppMessage::class);
 });
 
-test('admin can queue WhatsApp schedule notices for instructor and active course students', function () {
+test('admin can queue WhatsApp schedule notices for the instructor and every active student at the school', function () {
     Bus::fake();
 
     $school = School::factory()->create();
+    $otherSchool = School::factory()->create();
     $admin = User::factory()->admin()->create(['school_id' => $school->id]);
     $instructor = User::factory()->instructor()->create([
         'school_id' => $school->id,
@@ -140,8 +141,17 @@ test('admin can queue WhatsApp schedule notices for instructor and active course
     ]);
     $student = User::factory()->student()->create([
         'school_id' => $school->id,
-        'name' => 'Siswa Jadwal',
+        'name' => 'Siswa Jadwal Course',
         'phone' => '081234567892',
+    ]);
+    $studentWithoutCourse = User::factory()->student()->create([
+        'school_id' => $school->id,
+        'name' => 'Siswa Jadwal Sekolah',
+        'phone' => '081234567893',
+    ]);
+    User::factory()->student()->create([
+        'school_id' => $otherSchool->id,
+        'phone' => '081234567894',
     ]);
     $course = Course::factory()->create(['title' => 'Robotik Dasar']);
     Enrollment::factory()->create([
@@ -162,19 +172,85 @@ test('admin can queue WhatsApp schedule notices for instructor and active course
     ]);
 
     $this->actingAs($admin)
-        ->post('/admin/teaching-schedules/'.$schedule->id.'/whatsapp')
+        ->post('/admin/teaching-schedules/'.$schedule->id.'/whatsapp', ['recipients' => 'both'])
         ->assertRedirect()
         ->assertSessionHas('success');
 
     $messages = WhatsAppMessage::query()->where('type', 'schedule_notice')->get();
 
-    expect($messages)->toHaveCount(2)
-        ->and($messages->pluck('recipient_number')->all())->toContain('6281234567891', '6281234567892')
+    expect($messages)->toHaveCount(3)
+        ->and($messages->pluck('recipient_number')->all())->toContain('6281234567891', '6281234567892', '6281234567893')
+        ->and($messages->pluck('recipient_number')->all())->not->toContain('6281234567894')
         ->and($messages->pluck('message')->implode(' '))->toContain('Pertemuan Robotik')
         ->and($messages->pluck('message')->implode(' '))->toContain('Robotik Dasar')
         ->and($messages->every(fn (WhatsAppMessage $message) => $message->status === 'queued'))->toBeTrue();
 
-    Bus::assertDispatchedTimes(SendWhatsAppMessage::class, 2);
+    Bus::assertDispatchedTimes(SendWhatsAppMessage::class, 3);
+});
+
+test('admin can send schedule WhatsApp reminders to students only', function () {
+    Bus::fake();
+
+    $school = School::factory()->create();
+    $admin = User::factory()->admin()->create();
+    $instructor = User::factory()->instructor()->create([
+        'school_id' => $school->id,
+        'phone' => '081234567895',
+    ]);
+    $student = User::factory()->student()->create([
+        'school_id' => $school->id,
+        'phone' => '081234567896',
+    ]);
+    $schedule = TeachingSchedule::query()->create([
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => null,
+        'title' => 'Pertemuan Umum Sekolah',
+        'starts_at' => now()->addDay()->setTime(9, 0),
+        'ends_at' => now()->addDay()->setTime(10, 0),
+        'mode' => 'offline',
+        'location' => 'Aula',
+        'status' => 'scheduled',
+    ]);
+
+    $this->actingAs($admin)
+        ->post('/admin/teaching-schedules/'.$schedule->id.'/whatsapp', ['recipients' => 'students'])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $messages = WhatsAppMessage::query()->where('type', 'schedule_notice')->get();
+
+    expect($messages)->toHaveCount(1)
+        ->and($messages->first()->user_id)->toBe($student->id)
+        ->and($messages->first()->recipient_number)->toBe('6281234567896');
+
+    Bus::assertDispatchedTimes(SendWhatsAppMessage::class, 1);
+});
+
+test('schedule WhatsApp recipient choice is required and validated', function () {
+    Bus::fake();
+
+    $admin = User::factory()->admin()->create();
+    $school = School::factory()->create();
+    $instructor = User::factory()->instructor()->create(['school_id' => $school->id]);
+    $schedule = TeachingSchedule::query()->create([
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => null,
+        'title' => 'Jadwal Validasi',
+        'starts_at' => now()->addDay()->setTime(9, 0),
+        'ends_at' => now()->addDay()->setTime(10, 0),
+        'mode' => 'offline',
+        'location' => 'Aula',
+        'status' => 'scheduled',
+    ]);
+
+    $this->actingAs($admin)
+        ->post('/admin/teaching-schedules/'.$schedule->id.'/whatsapp', ['recipients' => 'invalid'])
+        ->assertSessionHasErrors('recipients');
+
+    expect(WhatsAppMessage::query()->where('type', 'schedule_notice')->count())->toBe(0);
+    Bus::assertNotDispatched(SendWhatsAppMessage::class);
 });
 
 test('admin can save separate WhatsApp templates for teaching schedule recipients', function () {
