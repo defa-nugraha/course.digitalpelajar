@@ -114,7 +114,7 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
     const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
     const [selectedInstructorId, setSelectedInstructorId] = useState<number | null>(null);
     const [whatsAppDialogSchedule, setWhatsAppDialogSchedule] = useState<ScheduleRow | null>(null);
-    const [whatsAppRecipients, setWhatsAppRecipients] = useState<'students' | 'instructor' | 'both'>('both');
+    const [whatsAppRecipients, setWhatsAppRecipients] = useState<'students' | 'instructor' | 'both' | ''>('');
     const [whatsAppSending, setWhatsAppSending] = useState(false);
     const form = useForm<ScheduleFormData>(emptySchedule);
     const nav = scope === 'admin' ? 'admin' : scope === 'teacher' ? 'teacher' : 'instructor';
@@ -305,12 +305,12 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
     };
 
     const sendScheduleNotice = (schedule: ScheduleRow) => {
-        setWhatsAppRecipients('both');
+        setWhatsAppRecipients('');
         setWhatsAppDialogSchedule(schedule);
     };
 
     const submitScheduleNotice = () => {
-        if (!whatsAppDialogSchedule || whatsAppSending) return;
+        if (!whatsAppDialogSchedule || !whatsAppRecipients || whatsAppSending) return;
 
         setWhatsAppSending(true);
         router.post(
@@ -711,7 +711,7 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
                         <Button type="button" variant="outline" onClick={() => setWhatsAppDialogSchedule(null)} disabled={whatsAppSending}>
                             Batal
                         </Button>
-                        <Button type="button" onClick={submitScheduleNotice} disabled={!whatsAppDialogSchedule || whatsAppSending}>
+                        <Button type="button" onClick={submitScheduleNotice} disabled={!whatsAppDialogSchedule || !whatsAppRecipients || whatsAppSending}>
                             <MessageCircle className="size-4" />
                             {whatsAppSending ? 'Memproses...' : 'Kirim WhatsApp'}
                         </Button>
