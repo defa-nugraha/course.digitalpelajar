@@ -7,10 +7,10 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { confirmDelete } from '@/lib/confirm-delete';
+import { confirmAction, confirmDelete } from '@/lib/confirm-delete';
 import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Building2, CalendarDays, CheckCircle2, Clock, Laptop, MapPin, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Building2, CalendarDays, CheckCircle2, Clock, Laptop, MapPin, MessageCircle, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 
 interface Option {
@@ -301,6 +301,18 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
         });
     };
 
+    const sendScheduleNotice = (schedule: ScheduleRow) => {
+        confirmAction({
+            title: 'Kirim informasi jadwal melalui WhatsApp?',
+            message: `Pesan template akan dikirim ke pengajar ${schedule.instructor} dan siswa aktif yang terkait dengan jadwal "${schedule.title}".`,
+            description: 'Pastikan tanggal, waktu, dan informasi pertemuan sudah benar. Pesan akan dimasukkan ke antrean WhatsApp.',
+            confirmLabel: 'Kirim WhatsApp',
+            cancelLabel: 'Periksa kembali',
+            tone: 'default',
+            onConfirm: () => router.post(`/admin/teaching-schedules/${schedule.id}/whatsapp`, {}, { preserveScroll: true }),
+        });
+    };
+
     return (
         <Shell
             title={title}
@@ -440,7 +452,7 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
                                 Kembali ke pengajar
                             </Button>
                         </div>
-                        <ScheduleTable schedules={selectedInstructorSchedules} scope={scope} onEdit={showEdit} onDelete={remove} />
+                        <ScheduleTable schedules={selectedInstructorSchedules} scope={scope} onEdit={showEdit} onDelete={remove} onSendWhatsApp={sendScheduleNotice} />
                     </div>
                 )}
             </Panel>
@@ -666,11 +678,13 @@ function ScheduleTable({
     scope,
     onEdit,
     onDelete,
+    onSendWhatsApp,
 }: {
     schedules: ScheduleRow[];
     scope: 'admin' | 'instructor' | 'teacher';
     onEdit: (schedule: ScheduleRow) => void;
     onDelete: (schedule: ScheduleRow) => void;
+    onSendWhatsApp: (schedule: ScheduleRow) => void;
 }) {
     return (
         <div className="space-y-4">
@@ -709,6 +723,12 @@ function ScheduleTable({
                                     <Button type="button" size="sm" variant="outline" onClick={() => onEdit(schedule)}>
                                         <Pencil className="size-4" />
                                         Edit
+                                    </Button>
+                                )}
+                                {scope === 'admin' && (
+                                    <Button type="button" size="sm" variant="outline" onClick={() => onSendWhatsApp(schedule)}>
+                                        <MessageCircle className="size-4" />
+                                        Kirim WhatsApp
                                     </Button>
                                 )}
                                 <MobileActionMenu
@@ -794,6 +814,11 @@ function ScheduleTable({
                                         {schedule.canEdit && (
                                             <Button variant="ghost" size="icon" aria-label="Edit jadwal" onClick={() => onEdit(schedule)}>
                                                 <Pencil className="size-4" />
+                                            </Button>
+                                        )}
+                                        {scope === 'admin' && (
+                                            <Button variant="ghost" size="icon" aria-label="Kirim jadwal melalui WhatsApp" title="Kirim jadwal melalui WhatsApp" onClick={() => onSendWhatsApp(schedule)}>
+                                                <MessageCircle className="size-4 text-emerald-700" />
                                             </Button>
                                         )}
                                         {schedule.canDelete && (
