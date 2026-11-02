@@ -227,7 +227,6 @@ test('admin can send schedule WhatsApp reminders to students only', function () 
     Bus::assertDispatchedTimes(SendWhatsAppMessage::class, 1);
 });
 
-
 test('admin can send schedule WhatsApp reminders to the instructor only', function () {
     Bus::fake();
 
