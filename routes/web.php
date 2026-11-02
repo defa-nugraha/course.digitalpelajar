@@ -295,6 +295,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('admin/teaching-schedules', [TeachingScheduleController::class, 'adminIndex'])->name('admin.teaching-schedules');
         Route::post('admin/teaching-schedules', [TeachingScheduleController::class, 'store'])->name('admin.teaching-schedules.store');
         Route::patch('admin/teaching-schedules/{teachingSchedule}', [TeachingScheduleController::class, 'update'])->name('admin.teaching-schedules.update');
+        Route::post('admin/teaching-schedules/{teachingSchedule}/whatsapp', [TeachingScheduleController::class, 'sendScheduleWhatsApp'])->middleware('throttle:admin-whatsapp-send')->name('admin.teaching-schedules.whatsapp');
         Route::delete('admin/teaching-schedules/{teachingSchedule}', [TeachingScheduleController::class, 'destroy'])->name('admin.teaching-schedules.destroy');
 
         Route::get('admin/teaching-sessions', [TeachingSessionController::class, 'adminIndex'])->name('admin.teaching-sessions');
@@ -321,6 +322,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('admin/payments', [PlatformController::class, 'adminPayments'])->name('admin.payments');
         Route::delete('admin/payments/{payment}', [PaymentController::class, 'destroy'])->name('admin.payments.destroy');
         Route::get('admin/whatsapp', [WhatsAppController::class, 'index'])->name('admin.whatsapp');
+        Route::patch('admin/whatsapp/schedule-template', [WhatsAppController::class, 'saveScheduleTemplate'])->name('admin.whatsapp.schedule-template');
         Route::patch('admin/whatsapp/bill-template', [WhatsAppController::class, 'saveBillTemplate'])->name('admin.whatsapp.bill-template');
         Route::delete('admin/whatsapp/messages/{whatsAppMessage}', [WhatsAppController::class, 'destroyMessage'])->name('admin.whatsapp.messages.destroy');
         Route::post('admin/whatsapp/send', [WhatsAppController::class, 'sendCampaign'])->middleware('throttle:admin-whatsapp-send')->name('admin.whatsapp.send');
