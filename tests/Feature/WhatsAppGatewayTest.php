@@ -144,7 +144,7 @@ test('admin can queue WhatsApp schedule notices for the instructor and every act
         'name' => 'Siswa Jadwal Course',
         'phone' => '081234567892',
     ]);
-    $studentWithoutCourse = User::factory()->student()->create([
+    User::factory()->student()->create([
         'school_id' => $school->id,
         'name' => 'Siswa Jadwal Sekolah',
         'phone' => '081234567893',
@@ -223,6 +223,46 @@ test('admin can send schedule WhatsApp reminders to students only', function () 
     expect($messages)->toHaveCount(1)
         ->and($messages->first()->user_id)->toBe($student->id)
         ->and($messages->first()->recipient_number)->toBe('6281234567896');
+
+    Bus::assertDispatchedTimes(SendWhatsAppMessage::class, 1);
+});
+
+
+test('admin can send schedule WhatsApp reminders to the instructor only', function () {
+    Bus::fake();
+
+    $school = School::factory()->create();
+    $admin = User::factory()->admin()->create();
+    $instructor = User::factory()->instructor()->create([
+        'school_id' => $school->id,
+        'phone' => '081234567897',
+    ]);
+    User::factory()->student()->create([
+        'school_id' => $school->id,
+        'phone' => '081234567898',
+    ]);
+    $schedule = TeachingSchedule::query()->create([
+        'school_id' => $school->id,
+        'instructor_id' => $instructor->id,
+        'course_id' => null,
+        'title' => 'Pengingat Pengajar',
+        'starts_at' => now()->addDay()->setTime(9, 0),
+        'ends_at' => now()->addDay()->setTime(10, 0),
+        'mode' => 'offline',
+        'location' => 'Aula',
+        'status' => 'scheduled',
+    ]);
+
+    $this->actingAs($admin)
+        ->post('/admin/teaching-schedules/'.$schedule->id.'/whatsapp', ['recipients' => 'instructor'])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $messages = WhatsAppMessage::query()->where('type', 'schedule_notice')->get();
+
+    expect($messages)->toHaveCount(1)
+        ->and($messages->first()->user_id)->toBe($instructor->id)
+        ->and($messages->first()->recipient_number)->toBe('6281234567897');
 
     Bus::assertDispatchedTimes(SendWhatsAppMessage::class, 1);
 });
