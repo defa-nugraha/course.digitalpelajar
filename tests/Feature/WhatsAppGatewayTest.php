@@ -170,8 +170,8 @@ test('admin can queue WhatsApp schedule notices for instructor and active course
 
     expect($messages)->toHaveCount(2)
         ->and($messages->pluck('recipient_number')->all())->toContain('6281234567891', '6281234567892')
-        ->and($messages->pluck('message')->implode("\\n"))->toContain('Pertemuan Robotik')
-        ->and($messages->pluck('message')->implode("\\n"))->toContain('Robotik Dasar')
+        ->and($messages->pluck('message')->implode(' '))->toContain('Pertemuan Robotik')
+        ->and($messages->pluck('message')->implode(' '))->toContain('Robotik Dasar')
         ->and($messages->every(fn (WhatsAppMessage $message) => $message->status === 'queued'))->toBeTrue();
 
     Bus::assertDispatchedTimes(SendWhatsAppMessage::class, 2);
