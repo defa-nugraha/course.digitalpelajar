@@ -6,8 +6,8 @@ use App\Jobs\SendWhatsAppMessage;
 use App\Models\TeachingSchedule;
 use App\Models\User;
 use App\Models\WhatsAppMessage;
-use App\Services\WhatsAppGateway;
 use App\Services\AuditLogger;
+use App\Services\WhatsAppGateway;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,8 +68,8 @@ class TeachingScheduleController extends Controller
         $template = DB::table('whatsapp_templates')->where('key', 'teaching_schedule')->value('configuration');
         $template = is_array($template) ? $template : json_decode((string) $template, true);
         $template = is_array($template) ? $template : [];
-        $instructorMessage = $template['instructor_message'] ?? "Halo {nama_pengajar}, pengingat jadwal {judul_jadwal} pada {tanggal}, pukul {jam_mulai}–{jam_selesai}. Sekolah: {sekolah}. Kursus: {kursus}. Mode: {mode}. Lokasi: {lokasi}. Link meeting: {link_meeting}. Catatan: {catatan}.";
-        $studentMessage = $template['student_message'] ?? "Halo {nama}, jadwal pertemuan {judul_jadwal} bersama {pengajar} berlangsung pada {tanggal}, pukul {jam_mulai}–{jam_selesai}. Sekolah: {sekolah}. Kursus: {kursus}. Mode: {mode}. Lokasi: {lokasi}. Link meeting: {link_meeting}. Catatan: {catatan}.";
+        $instructorMessage = $template['instructor_message'] ?? 'Halo {nama_pengajar}, pengingat jadwal {judul_jadwal} pada {tanggal}, pukul {jam_mulai}–{jam_selesai}. Sekolah: {sekolah}. Kursus: {kursus}. Mode: {mode}. Lokasi: {lokasi}. Link meeting: {link_meeting}. Catatan: {catatan}.';
+        $studentMessage = $template['student_message'] ?? 'Halo {nama}, jadwal pertemuan {judul_jadwal} bersama {pengajar} berlangsung pada {tanggal}, pukul {jam_mulai}–{jam_selesai}. Sekolah: {sekolah}. Kursus: {kursus}. Mode: {mode}. Lokasi: {lokasi}. Link meeting: {link_meeting}. Catatan: {catatan}.';
 
         $teachingSchedule->loadMissing(['school:id,name', 'instructor:id,name,phone,whatsapp_phone', 'course:id,title']);
 
