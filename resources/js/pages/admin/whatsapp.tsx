@@ -46,21 +46,29 @@ interface BillTemplate {
     template_buttons?: string[];
 }
 
+interface ScheduleTemplate {
+    instructor_message: string;
+    student_message: string;
+}
+
 interface Props {
     students: StudentContact[];
     messages: MessageLog[];
     gatewayConfigured: boolean;
     billTemplate: BillTemplate;
+    scheduleTemplate: ScheduleTemplate;
     schools: { id: number; name: string }[];
     courses: { id: number; title: string }[];
 }
 
-export default function WhatsAppAdmin({ students, messages, gatewayConfigured, billTemplate, schools, courses }: Props) {
+export default function WhatsAppAdmin({ students, messages, gatewayConfigured, billTemplate, scheduleTemplate, schools, courses }: Props) {
     const [schoolFilter, setSchoolFilter] = useState('all');
     const [courseFilter, setCourseFilter] = useState('all');
     const [searchFilter, setSearchFilter] = useState('');
     const [templateOpen, setTemplateOpen] = useState(false);
+    const [scheduleTemplateOpen, setScheduleTemplateOpen] = useState(false);
     const templateForm = useForm<BillTemplate>({ ...billTemplate, audience: billTemplate.audience ?? 'student', template_buttons: billTemplate.template_buttons ?? [] });
+    const scheduleTemplateForm = useForm<ScheduleTemplate>(scheduleTemplate);
     const form = useForm({
         student_ids: [] as number[],
         audience: 'student' as 'student' | 'parent' | 'both',
@@ -282,6 +290,51 @@ export default function WhatsAppAdmin({ students, messages, gatewayConfigured, b
                     </Button>
                 </Panel>
             </div>
+            <div className="mb-8">
+                <Panel title="Template jadwal pertemuan">
+                    <p className="text-sm text-slate-600">
+                        Template terpisah untuk pengajar dan siswa. Placeholder: {'{nama}'}, {'{nama_pengajar}'}, {'{pengajar}'}, {'{sekolah}'}, {'{kursus}'}, {'{judul_jadwal}'}, {'{tanggal}'}, {'{jam_mulai}'}, {'{jam_selesai}'}, {'{mode}'}, {'{lokasi}'}, {'{link_meeting}'}, {'{catatan}'}, {'{id_siswa}'}.
+                    </p>
+                    <Button className="mt-3" type="button" variant="outline" onClick={() => { scheduleTemplateForm.setData({ ...scheduleTemplate }); setScheduleTemplateOpen(true); }}>
+                        <Settings2 className="size-4" /> Kelola template jadwal pertemuan
+                    </Button>
+                    <p className="mt-2 text-xs text-slate-500">Pengiriman dilakukan dari menu Jadwal Mengajar dan pesan akan masuk antrean WhatsApp.</p>
+                </Panel>
+            </div>
+            <Dialog open={scheduleTemplateOpen} onOpenChange={setScheduleTemplateOpen}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Kelola template jadwal pertemuan</DialogTitle>
+                        <DialogDescription>Template ini dipakai saat admin mengirim pengingat jadwal ke pengajar dan siswa.</DialogDescription>
+                    </DialogHeader>
+                    <form className="space-y-4" onSubmit={(event) => {
+                        event.preventDefault();
+                        confirmAction({
+                            title: 'Simpan template jadwal?',
+                            message: 'Template baru akan digunakan pada pengiriman jadwal berikutnya.',
+                            confirmLabel: 'Simpan template',
+                            cancelLabel: 'Batal',
+                            tone: 'default',
+                            onConfirm: () => scheduleTemplateForm.patch('/admin/whatsapp/schedule-template', {
+                                preserveScroll: true,
+                                onSuccess: () => setScheduleTemplateOpen(false),
+                                onError: () => notifyError('Template jadwal gagal disimpan. Periksa kembali isi pesan.'),
+                            }),
+                        });
+                    }}>
+                        <label className="grid gap-2 text-sm font-medium">Pesan untuk pengajar
+                            <textarea rows={7} maxLength={1500} required value={scheduleTemplateForm.data.instructor_message} onChange={(event) => scheduleTemplateForm.setData('instructor_message', event.target.value)} className="rounded-xl border p-3 font-normal" />
+                        </label>
+                        <label className="grid gap-2 text-sm font-medium">Pesan untuk siswa
+                            <textarea rows={7} maxLength={1500} required value={scheduleTemplateForm.data.student_message} onChange={(event) => scheduleTemplateForm.setData('student_message', event.target.value)} className="rounded-xl border p-3 font-normal" />
+                        </label>
+                        <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => setScheduleTemplateOpen(false)}>Batal</Button>
+                            <Button type="submit" disabled={scheduleTemplateForm.processing}>{scheduleTemplateForm.processing ? 'Menyimpan...' : 'Simpan template'}</Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
             <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                     <DialogHeader><DialogTitle>Kelola template pengingat tagihan</DialogTitle><DialogDescription>Template tersimpan di database dan digunakan saat admin mengirim pengingat tagihan dari halaman pembayaran.</DialogDescription></DialogHeader>
