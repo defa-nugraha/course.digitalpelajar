@@ -144,7 +144,7 @@ class TeachingScheduleController extends Controller
         $uniqueRecipients = $recipients->unique(fn (array $recipient) => $recipient['number'])->values();
 
         if ($uniqueRecipients->isEmpty()) {
-            return back()->with('error', 'Tidak ada nomor WhatsApp pengajar atau siswa yang valid untuk jadwal ini.');
+            return back()->with('error', 'Tidak ada nomor WhatsApp valid untuk penerima yang dipilih.');
         }
 
         $queued = 0;
