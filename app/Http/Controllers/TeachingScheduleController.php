@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendWhatsAppMessage;
 use App\Models\TeachingSchedule;
+use App\Models\User;
+use App\Models\WhatsAppMessage;
+use App\Services\WhatsAppGateway;
 use App\Services\AuditLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -53,6 +57,120 @@ class TeachingScheduleController extends Controller
         AuditLogger::log('teaching_schedule.updated', $request->user(), $teachingSchedule);
 
         return back()->with('success', 'Jadwal mengajar berhasil diperbarui.');
+    }
+
+    public function sendScheduleWhatsApp(Request $request, TeachingSchedule $teachingSchedule, WhatsAppGateway $gateway): RedirectResponse
+    {
+        if (! $gateway->isConfigured()) {
+            return back()->with('error', 'Gateway WhatsApp belum dikonfigurasi.');
+        }
+
+        $template = DB::table('whatsapp_templates')->where('key', 'teaching_schedule')->value('configuration');
+        $template = is_array($template) ? $template : json_decode((string) $template, true);
+        $template = is_array($template) ? $template : [];
+        $instructorMessage = $template['instructor_message'] ?? "Halo {nama_pengajar}, pengingat jadwal {judul_jadwal} pada {tanggal}, pukul {jam_mulai}–{jam_selesai}. Sekolah: {sekolah}. Kursus: {kursus}. Mode: {mode}. Lokasi: {lokasi}. Link meeting: {link_meeting}. Catatan: {catatan}.";
+        $studentMessage = $template['student_message'] ?? "Halo {nama}, jadwal pertemuan {judul_jadwal} bersama {pengajar} berlangsung pada {tanggal}, pukul {jam_mulai}–{jam_selesai}. Sekolah: {sekolah}. Kursus: {kursus}. Mode: {mode}. Lokasi: {lokasi}. Link meeting: {link_meeting}. Catatan: {catatan}.";
+
+        $teachingSchedule->loadMissing(['school:id,name', 'instructor:id,name,phone,whatsapp_phone', 'course:id,title']);
+
+        $start = $teachingSchedule->starts_at;
+        $end = $teachingSchedule->ends_at;
+        $replacements = [
+            '{nama_pengajar}' => $teachingSchedule->instructor?->name ?? 'Pengajar',
+            '{pengajar}' => $teachingSchedule->instructor?->name ?? 'Pengajar',
+            '{sekolah}' => $teachingSchedule->school?->name ?? 'Sekolah',
+            '{kursus}' => $teachingSchedule->course?->title ?? 'Umum sekolah',
+            '{judul_jadwal}' => $teachingSchedule->title,
+            '{tanggal}' => $start?->translatedFormat('d F Y') ?? '-',
+            '{jam_mulai}' => $start?->format('H:i') ?? '-',
+            '{jam_selesai}' => $end?->format('H:i') ?? '-',
+            '{mode}' => $teachingSchedule->mode === 'online' ? 'Online' : 'Offline',
+            '{lokasi}' => $teachingSchedule->location ?: '-',
+            '{link_meeting}' => $teachingSchedule->meeting_url ?: '-',
+            '{catatan}' => $teachingSchedule->notes ?: '-',
+        ];
+
+        $recipients = collect();
+        $instructor = $teachingSchedule->instructor;
+        $instructorNumber = WhatsAppGateway::normalizePhone($instructor?->whatsapp_phone ?: $instructor?->phone);
+
+        if ($instructor && $instructorNumber) {
+            $recipients->push([
+                'user_id' => $instructor->id,
+                'number' => $instructorNumber,
+                'message' => str_replace(
+                    array_keys($replacements),
+                    array_values($replacements),
+                    str_replace('{nama}', $instructor->name, $instructorMessage),
+                ),
+                'kind' => 'pengajar',
+            ]);
+        }
+
+        $students = User::query()
+            ->where('role', 'student')
+            ->where('status', 'active')
+            ->where('school_id', $teachingSchedule->school_id)
+            ->when(
+                $teachingSchedule->course_id,
+                fn ($query, $courseId) => $query->whereHas('enrollments', fn ($enrollments) => $enrollments
+                    ->where('course_id', $courseId)
+                    ->where('status', 'active')),
+            )
+            ->get(['id', 'name', 'student_number', 'phone', 'whatsapp_phone']);
+
+        foreach ($students as $student) {
+            $number = WhatsAppGateway::normalizePhone($student->whatsapp_phone ?: $student->phone);
+
+            if (! $number) {
+                continue;
+            }
+
+            $studentReplacements = array_merge($replacements, [
+                '{nama}' => $student->name,
+                '{id_siswa}' => (string) $student->student_number,
+            ]);
+
+            $recipients->push([
+                'user_id' => $student->id,
+                'number' => $number,
+                'message' => str_replace(array_keys($studentReplacements), array_values($studentReplacements), $studentMessage),
+                'kind' => 'siswa',
+            ]);
+        }
+
+        $uniqueRecipients = $recipients->unique(fn (array $recipient) => $recipient['number'])->values();
+
+        if ($uniqueRecipients->isEmpty()) {
+            return back()->with('error', 'Tidak ada nomor WhatsApp pengajar atau siswa yang valid untuk jadwal ini.');
+        }
+
+        $queued = 0;
+
+        DB::transaction(function () use ($uniqueRecipients, $request, &$queued) {
+            foreach ($uniqueRecipients as $recipient) {
+                $message = WhatsAppMessage::query()->create([
+                    'user_id' => $recipient['user_id'],
+                    'sent_by' => $request->user()->id,
+                    'recipient_number' => $recipient['number'],
+                    'message' => trim($recipient['message']),
+                    'type' => 'schedule_notice',
+                    'status' => 'queued',
+                    'send_mode' => 'text',
+                ]);
+
+                SendWhatsAppMessage::dispatch($message->id);
+                $queued++;
+            }
+        });
+
+        AuditLogger::log('teaching_schedule.whatsapp_queued', $request->user(), $teachingSchedule, [
+            'queued_count' => $queued,
+            'school_id' => $teachingSchedule->school_id,
+            'course_id' => $teachingSchedule->course_id,
+        ]);
+
+        return back()->with('success', $queued.' pesan jadwal WhatsApp masuk antrean untuk pengajar dan siswa.');
     }
 
     public function destroy(Request $request, TeachingSchedule $teachingSchedule): RedirectResponse
