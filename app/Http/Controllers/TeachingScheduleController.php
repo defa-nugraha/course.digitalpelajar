@@ -61,6 +61,12 @@ class TeachingScheduleController extends Controller
 
     public function sendScheduleWhatsApp(Request $request, TeachingSchedule $teachingSchedule, WhatsAppGateway $gateway): RedirectResponse
     {
+        $data = $request->validate([
+            'recipients' => ['required', Rule::in(['students', 'instructor', 'both'])],
+        ]);
+        $sendInstructor = in_array($data['recipients'], ['instructor', 'both'], true);
+        $sendStudents = in_array($data['recipients'], ['students', 'both'], true);
+
         if (! $gateway->isConfigured()) {
             return back()->with('error', 'Gateway WhatsApp belum dikonfigurasi.');
         }
@@ -94,7 +100,7 @@ class TeachingScheduleController extends Controller
         $instructor = $teachingSchedule->instructor;
         $instructorNumber = WhatsAppGateway::normalizePhone($instructor?->whatsapp_phone ?: $instructor?->phone);
 
-        if ($instructor && $instructorNumber) {
+        if ($sendInstructor && $instructor && $instructorNumber) {
             $recipients->push([
                 'user_id' => $instructor->id,
                 'number' => $instructorNumber,
@@ -107,17 +113,13 @@ class TeachingScheduleController extends Controller
             ]);
         }
 
-        $students = User::query()
-            ->where('role', 'student')
-            ->where('status', 'active')
-            ->where('school_id', $teachingSchedule->school_id)
-            ->when(
-                $teachingSchedule->course_id,
-                fn ($query, $courseId) => $query->whereHas('enrollments', fn ($enrollments) => $enrollments
-                    ->where('course_id', $courseId)
-                    ->where('status', 'active')),
-            )
-            ->get(['id', 'name', 'student_number', 'phone', 'whatsapp_phone']);
+        $students = $sendStudents
+            ? User::query()
+                ->where('role', 'student')
+                ->where('status', 'active')
+                ->where('school_id', $teachingSchedule->school_id)
+                ->get(['id', 'name', 'student_number', 'phone', 'whatsapp_phone'])
+            : collect();
 
         foreach ($students as $student) {
             $number = WhatsAppGateway::normalizePhone($student->whatsapp_phone ?: $student->phone);
@@ -166,11 +168,18 @@ class TeachingScheduleController extends Controller
 
         AuditLogger::log('teaching_schedule.whatsapp_queued', $request->user(), $teachingSchedule, [
             'queued_count' => $queued,
+            'recipients' => $data['recipients'],
             'school_id' => $teachingSchedule->school_id,
             'course_id' => $teachingSchedule->course_id,
         ]);
 
-        return back()->with('success', $queued.' pesan jadwal WhatsApp masuk antrean untuk pengajar dan siswa.');
+        $recipientLabel = match ($data['recipients']) {
+            'students' => 'siswa sekolah',
+            'instructor' => 'pengajar',
+            default => 'pengajar dan siswa sekolah',
+        };
+
+        return back()->with('success', $queued.' pesan jadwal WhatsApp untuk '.$recipientLabel.' masuk antrean.');
     }
 
     public function destroy(Request $request, TeachingSchedule $teachingSchedule): RedirectResponse
