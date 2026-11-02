@@ -7,7 +7,7 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { confirmAction, confirmDelete } from '@/lib/confirm-delete';
+import { confirmDelete } from '@/lib/confirm-delete';
 import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Building2, CalendarDays, CheckCircle2, Clock, Laptop, MapPin, MessageCircle, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
@@ -113,6 +113,9 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
     const [mode, setMode] = useState('all');
     const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
     const [selectedInstructorId, setSelectedInstructorId] = useState<number | null>(null);
+    const [whatsAppDialogSchedule, setWhatsAppDialogSchedule] = useState<ScheduleRow | null>(null);
+    const [whatsAppRecipients, setWhatsAppRecipients] = useState<'students' | 'instructor' | 'both'>('both');
+    const [whatsAppSending, setWhatsAppSending] = useState(false);
     const form = useForm<ScheduleFormData>(emptySchedule);
     const nav = scope === 'admin' ? 'admin' : scope === 'teacher' ? 'teacher' : 'instructor';
     const visibleSchedules = useMemo(
@@ -302,15 +305,23 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
     };
 
     const sendScheduleNotice = (schedule: ScheduleRow) => {
-        confirmAction({
-            title: 'Kirim informasi jadwal melalui WhatsApp?',
-            message: `Pesan template akan dikirim ke pengajar ${schedule.instructor} dan siswa aktif yang terkait dengan jadwal "${schedule.title}".`,
-            description: 'Pastikan tanggal, waktu, dan informasi pertemuan sudah benar. Pesan akan dimasukkan ke antrean WhatsApp.',
-            confirmLabel: 'Kirim WhatsApp',
-            cancelLabel: 'Periksa kembali',
-            tone: 'default',
-            onConfirm: () => router.post(`/admin/teaching-schedules/${schedule.id}/whatsapp`, {}, { preserveScroll: true }),
-        });
+        setWhatsAppRecipients('both');
+        setWhatsAppDialogSchedule(schedule);
+    };
+
+    const submitScheduleNotice = () => {
+        if (!whatsAppDialogSchedule || whatsAppSending) return;
+
+        setWhatsAppSending(true);
+        router.post(
+            `/admin/teaching-schedules/${whatsAppDialogSchedule.id}/whatsapp`,
+            { recipients: whatsAppRecipients },
+            {
+                preserveScroll: true,
+                onSuccess: () => setWhatsAppDialogSchedule(null),
+                onFinish: () => setWhatsAppSending(false),
+            },
+        );
     };
 
     return (
@@ -648,6 +659,63 @@ export default function TeachingSchedules({ scope, title, schedules, stats, opti
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={Boolean(whatsAppDialogSchedule)} onOpenChange={(isOpen) => !isOpen && !whatsAppSending && setWhatsAppDialogSchedule(null)}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Kirim pengingat jadwal melalui WhatsApp</DialogTitle>
+                    </DialogHeader>
+                    {whatsAppDialogSchedule && (
+                        <div className="space-y-4">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="font-semibold text-slate-950">{whatsAppDialogSchedule.title}</p>
+                                <p className="mt-1 text-sm text-slate-600">
+                                    {whatsAppDialogSchedule.school} · {whatsAppDialogSchedule.startsAtLabel}
+                                </p>
+                            </div>
+                            <fieldset className="space-y-3">
+                                <legend className="mb-2 text-sm font-semibold text-slate-900">Pilih penerima pesan</legend>
+                                {([
+                                    { value: 'students', label: 'Siswa', description: 'Seluruh siswa aktif yang terdaftar di sekolah pada jadwal ini, tanpa dibatasi course.' },
+                                    { value: 'instructor', label: 'Pengajar', description: `Pengajar ${whatsAppDialogSchedule.instructor} yang ditugaskan pada jadwal ini.` },
+                                    { value: 'both', label: 'Keduanya', description: 'Kirim pesan kepada seluruh siswa aktif di sekolah dan pengajar jadwal ini.' },
+                                ] as const).map((option) => (
+                                    <label
+                                        key={option.value}
+                                        className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${whatsAppRecipients === option.value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="whatsapp-recipients"
+                                            value={option.value}
+                                            checked={whatsAppRecipients === option.value}
+                                            onChange={() => setWhatsAppRecipients(option.value)}
+                                            className="mt-1 size-4 accent-blue-600"
+                                        />
+                                        <span>
+                                            <span className="block text-sm font-semibold text-slate-950">{option.label}</span>
+                                            <span className="mt-1 block text-xs leading-5 text-slate-600">{option.description}</span>
+                                        </span>
+                                    </label>
+                                ))}
+                            </fieldset>
+                            <p className="text-xs leading-5 text-slate-500">
+                                Pesan menggunakan template yang diatur pada menu WhatsApp Center dan akan masuk ke antrean pengiriman.
+                                Siswa yang tidak memiliki nomor WhatsApp valid akan dilewati.
+                            </p>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setWhatsAppDialogSchedule(null)} disabled={whatsAppSending}>
+                            Batal
+                        </Button>
+                        <Button type="button" onClick={submitScheduleNotice} disabled={!whatsAppDialogSchedule || whatsAppSending}>
+                            <MessageCircle className="size-4" />
+                            {whatsAppSending ? 'Memproses...' : 'Kirim WhatsApp'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </Shell>
