@@ -28,10 +28,19 @@ export function MobileCardList({
     pageSize?: number;
 }) {
     const items = Children.toArray(children);
-    const itemSignature = useMemo(() => items.map((item, index) => {
-        if (isValidElement(item)) return `${String(item.key ?? index)}:${item.type}`;
-        return `${index}:${String(item)}`;
-    }).join('|'), [items]);
+    const itemSignature = useMemo(
+        () =>
+            items
+                .map((item, index) => {
+                    if (isValidElement(item)) {
+                        return String(item.key ?? index);
+                    }
+
+                    return `${index}:${String(item)}`;
+                })
+                .join('|'),
+        [items],
+    );
     const [page, setPage] = useState(1);
     const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
     const currentPage = Math.min(page, pageCount);
