@@ -232,6 +232,30 @@ test('instructor report requires evidence photo and can be approved by admin', f
         ->and($schedule->fresh()->status)->toBe('completed');
 });
 
+test('admin can open instructor payroll management page', function () {
+    $admin = User::factory()->admin()->create();
+    $school = School::factory()->create();
+    $instructor = User::factory()->instructor()->create(['school_id' => $school->id]);
+
+    InstructorPayRate::create([
+        'instructor_id' => $instructor->id,
+        'amount_per_session' => 300000,
+        'effective_from' => '2026-11-01',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->get('/admin/instructor-payrolls')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teaching/payrolls', false)
+            ->where('scope', 'admin')
+            ->where('permissions.canManage', true)
+            ->where('rates.0.amountPerSession', 300000)
+            ->has('payrolls')
+            ->has('options.instructors'));
+});
+
 test('admin generates payroll from approved teaching sessions only once', function () {
     Storage::fake('public');
     $this->travelTo(CarbonImmutable::parse('2026-07-20 10:00:00', config('app.timezone')));
