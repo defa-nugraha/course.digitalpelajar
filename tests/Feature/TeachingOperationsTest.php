@@ -825,6 +825,22 @@ test('admin and instructor can view teaching feedback grouped by meeting', funct
             ->where('stats.meetings', 0));
 });
 
+test('admin can open instructor payroll page without a blank response', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)
+        ->get('/admin/instructor-payrolls')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teaching/payrolls', false)
+            ->where('scope', 'admin')
+            ->where('title', 'Gaji Pengajar')
+            ->where('payrolls', [])
+            ->where('rates', [])
+            ->where('stats.payrolls', 0)
+            ->where('permissions.canManage', true));
+});
+
 test('admin can open complete teaching session report detail', function () {
     $admin = User::factory()->admin()->create();
     $studentUser = User::factory()->student()->create();
